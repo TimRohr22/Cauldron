@@ -1,20 +1,18 @@
 ﻿/*
 =========================================================
 Name			:	InsertArgs (insertargs)
-Version			:	0.3
+Version			:	0.4
 Last Update		:	7/6/2020
 GitHub			:	
 Roll20 Contact	:	timmaugh
 =========================================================
 
 TO DO:
------ give whisper output capability
 ----- html encoding for hook - either all or nested only... double encode?
------ add "XRay of... {character name}" to the top of xrays/xreads
------ automate building handout to store/read html for menu (using default menutable and menurow)
 ----- hardcode "load" as necessary to drop the finished command line into the InsertArgs attribute
 ----- in game help panel of api buttons to set options and/or start xrays (using speaker id or target)
------ give option to set global default settings and/or personal default settings (color, button css)
+----- ----- automate building handout to store/read html for menu (using default menutable and menurow)
+----- ----- give option to set global default settings and/or personal default settings (color, button css)
 ----- button to view the constructed list/query (or just send it encoded in a message box)
 ----- test various circumstances of character name changes and handout name changes, with [0, 1, many] config name conflicts
 ----- work through speaker vs character -- any place where we've taken it for granted?
@@ -29,8 +27,8 @@ const insertarg = (() => {
     //		VERSION
     // ==================================================
     const versionInfo = () => {
-        const vrs = '0.3';
-        const vd = new Date(1593894334151);
+        const vrs = '0.4';
+        const vd = new Date(1594069051174);
         log('\u0166\u0166 InsertArg v' + vrs + ', ' + vd.getFullYear() + '/' + (vd.getMonth() + 1) + '/' + vd.getDate() + ' \u0166\u0166');
         return;
     };
