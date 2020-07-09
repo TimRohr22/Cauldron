@@ -1,8 +1,8 @@
 ﻿/*
 =========================================================
 Name			:	InsertArgs (insertargs)
-Version			:	0.4
-Last Update		:	7/6/2020
+Version			:	0.5
+Last Update		:	7/9/2020
 GitHub			:	
 Roll20 Contact	:	timmaugh
 =========================================================
@@ -28,7 +28,7 @@ const insertarg = (() => {
     // ==================================================
     const versionInfo = () => {
         const vrs = '0.4';
-        const vd = new Date(1594069051174);
+        const vd = new Date(1594317004945);
         log('\u0166\u0166 InsertArg v' + vrs + ', ' + vd.getFullYear() + '/' + (vd.getMonth() + 1) + '/' + vd.getDate() + ' \u0166\u0166');
         return;
     };
@@ -111,6 +111,9 @@ const insertarg = (() => {
 
         return speaking;
     };
+    const getDefaultConfigObj = () => {
+        return { table: menutable, row: menurow, bg: bgcolor, css: "" };
+    };
     const splitArgs = (a) => { return a.split("#") };
     const joinVals = (a) => { return [a.slice(0)[0], a.slice(1).join("#").trim()]; };
     const escapeRegExp = (string) => { return string.replace(/[.*+\-?^${}()|[\]\\]/g, '\\$&'); };
@@ -172,7 +175,7 @@ const insertarg = (() => {
         let tbl = copystr(msgtable).replace("__bg__", rowbg[0]);
         let hdr = copystr(msg1header).replace("__bg__", rowbg[1]).replace("__cell1__", t);
         let row = copystr(msg1row).replace("__bg__", rowbg[0]).replace("__cell1__", c);
-        let btn = b !== "buttons" ? copystr(msg1row).replace("__bg__", rowbg[0]).replace("__cell1__", b).replace("__row-css__", "text-align:right;margin:4px 4px 8px;") : "";
+        let btn = b !== "buttons" ? copystr(msg1row).replace("__bg__", rowbg[0]).replace("__cell1__", b).replace("__row-css__", "text-align:right;margin:4px 4px 8px;line-height:28px;") : "";
         let msg = tbl.replace("__TABLE-ROWS__", hdr + row + btn);
         if (wto) msg = `/w "${wto}" ${msg}`;
         if (["t", "true", "y", "yes", true].includes(send)) {
@@ -330,6 +333,13 @@ const insertarg = (() => {
             }
             return retObj;
         };
+        const make = ({
+            theSpeaker: theSpeaker,
+            cfgObj: cfgObj,
+            doc: doc = "",
+            t
+            
+        } = {}) => { };
 
         // available function library, mapping the text supplied to the internal function
         const funcTable = {
@@ -395,8 +405,9 @@ const insertarg = (() => {
                     bg: bg = "",                                        // background color for api button
                     pos: pos = 0,                                       // position of skill to check
                     cfgObj: cfgObj,                                     // configuration settings
+                    theSpeaker: theSpeaker,                             // speaker object from the message
                 } = {}) => {
-        let retObj = { ret: "No return.", safe: true };
+        let retObj = { ret: "", safe: true };
 
         if (!bg) bg = cfgObj.bg;
         if (!css) css = cfgObj.css;
@@ -413,17 +424,18 @@ const insertarg = (() => {
         if (cid) {
             character = findObjs({ type: 'character', id: cid })[0] || { fail: true };
         } else if (cn) {
-            character = findObjs({ type: 'character' }).filter((chr) => { return chr.get('name') === cn; })[0] || { fail: true };
+            character = findObjs({ type: 'character' }).filter((chr) => { return chr.get('name').toLowerCase() === cn.toLowerCase(); })[0] || { fail: true };
         } else if (t) {
-            character = findObjs({ type: 'character', id: (getObj("graphic", t)).get("represents") })[0] || { fail: true };
+            character = findObjs({ type: 'character', id: (getObj("graphic", t) || { get: () => { return "" } }).get("represents") })[0] || { fail: true };
         } else {
             log(`Here is S: >${s}<`);
             character = findObjs({ type: 'character', id: s })[0] ||
                 findObjs({ type: 'character' }).filter((chr) => { return chr.get('name') === s; })[0] ||
-                findObjs({ type: 'character', id: (getObj("graphic", s)).get("represents") })[0] ||
+                findObjs({ type: 'character', id: (getObj("graphic", s) || { get: () => { return "" } }).get("represents") })[0] ||
                 { fail: true };
                 s = "repeating";                                        // we found the character based on s, so we want to start at the top level of that character
         }
+        log(`Does the character have a FAIL property: ${character.hasOwnProperty("fail")}`);
         if (character.hasOwnProperty("fail")) {
             retObj.ret = msgOutput({ c: "No character sheet found.", t: "ERROR" });
             return retObj;
@@ -541,13 +553,35 @@ const insertarg = (() => {
     // this listens for a character name change, and checks whether there is a configuration file that needs to be managed
     const handleCharNameChange = (character, prev) => {
         log(`===== HANDLE CHAR NAME CHANGE =====`);
-        let oldrx = new RegExp(`(iaconfig-)(${escapeRegExp(prev.name.toLowerCase())})`, 'gi');
+        let oldrx = new RegExp(`\s*(iaconfig-)(${escapeRegExp(prev.name).replace(/\s/g, `\\s`).toLowerCase()})\s*`, 'i');
         // group 1: iaconfig- from iaconfig-prevname
         // group 2: prevName from iaconfig-prevname
 
-        let newrx = new RegExp(`(iaconfig-)(${escapeRegExp(character.get('name').toLowerCase())})`, 'gi');
+        let newrx = new RegExp(`\s*(iaconfig-)(${escapeRegExp(character.get('name')).replace(/\s/g, `\\s`).toLowerCase()})\s*`, 'i');
         // group 1: iaconfig- from iaconfig-characterame
         // group 2: charactername from iaconfig-charactername
+
+        /*
+        log(`===== TEST ALL WITH OLD REGEX =====`);
+        let testold = findObjs({ type: "handout" });
+        log(testold.length);
+        testold.map((h) => { log(`${oldrx.test(h.get('name')) ? "true " : "false"}: ${h.get('name')}`); oldrx.lastIndex = 0; });
+
+        log(`===== TEST ALL WITH NEW REGEX =====`);
+        let testnew = findObjs({ type: "handout" });
+        log(testnew.length);
+        testnew.map((h) => { log(`${newrx.test(h.get('name')) ? "true " : "false"}: ${h.get('name')}`); newrx.lastIndex = 0; });
+        */
+//        log(`===== ALL WITH IDs =====`);
+//        findObjs({ type: "handout" }).forEach(h => {
+//            oldrx = new RegExp(`\s*(iaconfig-)(${escapeRegExp(prev.name).replace(/\s/g, `\\s`).toLowerCase()})\s*`, 'gi');
+//            newrx = new RegExp(`\s*(iaconfig-)(${escapeRegExp(character.get('name')).replace(/\s/g, `\\s`).toLowerCase()})\s*`, 'gi');
+//            log(`${h.id} ::= ${h.get("name")}`);
+//            log(`TEST OLD::= ${oldrx.test(h.get('name')) ? "true " : "false"}: ${h.get('name')}`);
+//            log(`TEST NEW::= ${newrx.test(h.get('name')) ? "true " : "false"}: ${h.get('name')}`);
+//            log(`MATCH OLD::= ${h.get('name').match(oldrx) ? "true " : "false"}: ${h.get('name')}`);
+//            log(`MATCH NEW::= ${h.get('name').match(newrx) ? "true " : "false"}: ${h.get('name')}`);
+//        });
 
         let oldhos = findObjs({ type: "handout" }).filter((h) => { return oldrx.test(h.get('name')) });
         if (oldhos.length===0) return;                              // no config handouts found
@@ -558,14 +592,14 @@ const insertarg = (() => {
             btn = "",
             api = "",
             newhos = findObjs({ type: "handout" }).filter((h) => { return newrx.test(h.get('name')) });
-        log(`Newhos Length: ${newhos.length}`);
-        log(`Oldhos Length: ${oldhos.length}`);
-        log(newhos.length + oldhos.length);
+//        log(`Newhos Length: ${newhos.length}`);
+//        log(`Oldhos Length: ${oldhos.length}`);
+//        log(newhos.length + oldhos.length);
         if (newhos.length + oldhos.length > 1) {               // detect conflicts
             msg = `That character has multiple script configurations, either under ${character.get('name')} or under ${prev.name}. You should only keep one, and it should be named IAConfig-${character.get('name')}. Open handouts for comparison?<br>`;
             api = `http://journal.roll20.net/handout/`;
-            btn = oldhos.reduce((a, v, i) => { return a + apibutton_api({ bg: cfgObj.bg, api: api + v.id, label: `(${i + 1}) ${v.get('name').replace(/iaconfig-/i, "")}`, css: "min-width: 25px;" + cfgObj.css }) + ' ' }, "");
-            btn = newhos.reduce((a, v, i) => { return a + apibutton_api({ bg: cfgObj.bg, api: api + v.id, label: `(${i + 1}) ${v.get('name').replace(/iaconfig-/i, "")}`, css: "min-width: 25px;" + cfgObj.css }) + ' ' }, btn);
+            btn = oldhos.reduce((a, v, i) => { return a + apibutton_api({ bg: cfgObj.bg, api: api + v.id, label: `(${i + 1})&nbsp;${v.get('name').replace(/iaconfig-/i, "").replace(/\s/g, '&nbsp;')}`, css: "min-width: 25px;" + cfgObj.css }) + ' ' }, "");
+            btn = newhos.reduce((a, v, i) => { return a + apibutton_api({ bg: cfgObj.bg, api: api + v.id, label: `(${i + 1})&nbsp;${v.get('name').replace(/iaconfig-/i, "").replace(/\s/g, '&nbsp;')}`, css: "min-width: 25px;" + cfgObj.css }) + ' ' }, btn);
             
         } else {                                                // only get here if there is a config for the old name but not the new (ie, no collision)
             let o = oldrx.exec(oldhos[0].get('name'));
@@ -580,22 +614,37 @@ const insertarg = (() => {
     // ==================================================
     //		HANDLE CONFIG
     // ==================================================
-    // listens for handout changes, detects config handouts, and copies those into the state variable for the appropriate speaker
-    // calls parseConfig
-    const handleConfig = (cfgho) => {
-        let horx = /^iaconfig-(.+)$/i;
+
+    let horx = /^iaconfig-(.+)$/i;
         //group 1: forName from iaconfig-forName
+
+    // listens for handout changes, detects config handouts, and copies those into the state variable for the appropriate speaker
+    // calls cfgIntoState, which calls parseConfig
+    const handleConfig = (cfgho, prev) => {
+        // 4 cases to manage: config file named to non-config, non-config named to config, config named to another config, or changes to notes
         let honame = cfgho.get('name');
-        if (!horx.test(honame)) return;                                                 // if this isn't a config template, we don't care
-        let honamepart = horx.exec(honame)[1].toLowerCase();                            // extract the character name portion, convert to lowercase
-        cfgho.get('notes', (notes) => {
-            state.insertarg[honamepart] = state.insertarg[honamepart] || {};            // initialize the speaker's object in the state
-            state.insertarg[honamepart].cfgObj = state.insertarg.global.cfgObj || {};   // baseline the cfgObj to the global configuration
-            Object.assign(state.insertarg[honamepart].cfgObj, parseConfig(notes));      // parseConfig returns an object of properties to apply to the cfgObj
-
-            return;
-        });
-
+        if (!(horx.test(honame) || horx.test(prev.name) )) return;                          // if this wasn't a config template at some point in the change, we don't care
+        let honamepart;
+        if (honame !== prev.name) {                                                         // name was changed
+            if (horx.test(prev.name)) {                                                     // if the old name is a config file
+                handleConfigDestroy({ get: (p) => { if (p === "name") return prev.name; else return ""; } });                                   // call our garbage collection to remove it from state
+            }
+            if (horx.test(honame)) {                                                        // if the new name is a config file
+                honamepart = horx.exec(honame)[1].toLowerCase();                            // get the character name portion
+                cfgho.get('notes', (notes) => { cfgIntoState({ charname: honamepart, notes: notes }) });    // baseline the config in state and parse the config handout
+            }
+        } else {                                                                            // notes were changed
+            honamepart = horx.exec(honame)[1].toLowerCase();                                // extract the character name portion, convert to lowercase
+            cfgho.get('notes', (notes) => { cfgIntoState({ charname: honamepart, notes: notes }) });
+                // state.insertarg[honamepart] = state.insertarg[honamepart] || {};            // initialize the speaker's object in the state
+                // state.insertarg[honamepart].cfgObj = state.insertarg.global.cfgObj || {};   // baseline the cfgObj to the global configuration
+                // Object.assign(state.insertarg[honamepart].cfgObj, parseConfig(notes));      // parseConfig returns an object of properties to apply to the cfgObj
+        }
+    };
+    const cfgIntoState = ({ charname: c, notes: n }) => {
+        state.insertarg[c] = state.insertarg[c] || {};                                      // initialize the speaker's object in the state
+        state.insertarg[c].cfgObj = state.insertarg.global.cfgObj || {};                    // baseline the cfgObj to the global configuration
+        Object.assign(state.insertarg[c].cfgObj, parseConfig(n));                           // parseConfig returns an object of properties to apply to the cfgObj
     };
     const parseConfig = (notes) => {
         let cfgObj = {};
@@ -625,6 +674,26 @@ const insertarg = (() => {
             });
         }
         return cfgObj;
+    };
+
+    // listens for a handout deletion
+    // if a config handout is deleted, revert the associated state configuration to blank/starting value
+    const handleConfigDestroy = (cfgho) => {
+        let honame = cfgho.get('name');
+        if (!horx.test(honame)) return;                                                 // if this isn't a config template, we don't care
+        let honamepart = horx.exec(honame)[1].toLowerCase();                            // extract the character name portion, convert to lowercase
+        if (honamepart !== "global") {                                                  // if this is an individual config, delete it from state
+            let charstate = state.insertarg[honamepart] || {};
+            if (charstate.hasOwnProperty("cfgObj")) delete charstate.cfgObj;
+        } else {                                                                        // if this is the global config, reassign the global
+            let globalstate = state.insertarg.global || { cfgObj: {} };
+            globalstate.cfgObj = getDefaultConfigObj(); 
+        }
+        let duphos = findObjs({ type: 'handout', name: cfgho.get('name') });            // see if there is another config of that same name we should load, now
+        if (duphos.length > 0) {                                                        
+            let replacecfg = duphos[0];
+            replacecfg.get('notes', (notes) => { cfgIntoState({ charname: honamepart, notes: notes }) });
+        }
     };
 
     // ==================================================
@@ -745,6 +814,7 @@ const insertarg = (() => {
     const registerEventHandlers = () => {
         on('chat:message', handleInput);
         on("change:handout", handleConfig);
+        on("destroy:handout", handleConfigDestroy);
         on("change:character:name", handleCharNameChange)
     };
 
@@ -754,7 +824,7 @@ const insertarg = (() => {
         RegisterEventHandlers: registerEventHandlers,
         ParseConfig: parseConfig,
         HandleConfig: handleConfig,
-        DefaultCfgObj: { table: menutable, row: menurow, bg: bgcolor, css: "" },
+        DefaultCfgObj: getDefaultConfigObj,
     };
 
 })();
