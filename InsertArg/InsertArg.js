@@ -1,20 +1,16 @@
 ﻿/*
 =========================================================
 Name			:	InsertArgs (insertargs)
-Version			:	0.5
-Last Update		:	7/9/2020
-GitHub			:	
+Version			:	0.52
+Last Update		:	7/14/2020
+GitHub			:	https://github.com/TimRohr22/Cauldron/tree/master/InsertArg
 Roll20 Contact	:	timmaugh
 =========================================================
 
 TO DO:
------ html encoding for hook - either all or nested only... double encode?
 ----- hardcode "load" as necessary to drop the finished command line into the InsertArgs attribute
 ----- in game help panel of api buttons to set options and/or start xrays (using speaker id or target)
------ ----- automate building handout to store/read html for menu (using default menutable and menurow)
------ ----- give option to set global default settings and/or personal default settings (color, button css)
 ----- button to view the constructed list/query (or just send it encoded in a message box)
------ test various circumstances of character name changes and handout name changes, with [0, 1, many] config name conflicts
 ----- work through speaker vs character -- any place where we've taken it for granted?
 ----- check controlledby property of handout before you change it
 ----- add controlledby setting to handout when it is created
@@ -27,8 +23,8 @@ const insertarg = (() => {
     //		VERSION
     // ==================================================
     const versionInfo = () => {
-        const vrs = '0.4';
-        const vd = new Date(1594317004945);
+        const vrs = '0.52';
+        const vd = new Date(1594758915878);
         log('\u0166\u0166 InsertArg v' + vrs + ', ' + vd.getFullYear() + '/' + (vd.getMonth() + 1) + '/' + vd.getDate() + ' \u0166\u0166');
         return;
     };
@@ -78,6 +74,8 @@ const insertarg = (() => {
         "~": "&#126;",
         "(": "&#40;",
         ")": "&#41;",
+        "<": "&#60;",
+        ">": "&#62;",
     };
     const rowbg = ["#ffffff", "#dedede"];
     const bgcolor = "#ff9747";
@@ -117,6 +115,11 @@ const insertarg = (() => {
     const splitArgs = (a) => { return a.split("#") };
     const joinVals = (a) => { return [a.slice(0)[0], a.slice(1).join("#").trim()]; };
     const escapeRegExp = (string) => { return string.replace(/[.*+\-?^${}()|[\]\\]/g, '\\$&'); };
+    const getFuncRegex = (obj) => {
+        return new RegExp('^(' + Object.keys(obj).join("|") + ')\\(([^)]*)?\\)?');
+        // group 1: function from function(arguments)
+        // group 2: arguments from function(arguments)
+    };
     const decodeUrlEncoding = (t) => {                                              // TO DO - this is supposed to handle handout decoding test with not-pre-formatted text
         return t.replace(/%([0-9A-Fa-f]{1,2})/g, (f, n) => { return String.fromCharCode(parseInt(n, 16)); });
     }
@@ -192,6 +195,54 @@ const insertarg = (() => {
             .join("|"), 'gmi'), (r) => { return searchfor[r]; })
             .replace(new RegExp(/\n/,'gmi'),'<br><br>');
         return s;
+    };
+    const beautifyHTML = (html, newline='\n') => {
+        let indent = '',
+            tab = '    ',
+            i = 0,
+            pre = [];
+
+        html = html
+            .replace(new RegExp('<pre>((.|\\t|\\n|\\r)+)?</pre>'), (x) => {
+                pre.push({ indent: '', tag: x });
+                return '<--TEMPPRE' + i++ + '/-->'
+            })
+            .replace(new RegExp('<[^<>]+>[^<]?', 'g'), (x) => {
+                let ret;
+                let tag = /<\/?([^\s/>]+)/.exec(x)[1];
+                let p = new RegExp('<--TEMPPRE(\\d+)/-->').exec(x);
+
+                if (p) pre[p[1]].indent = newline + indent;
+
+                if (['area', 'base', 'br', 'col', 'command', 'embed', 'hr', 'img', 'input', 'keygen', 'link', 'menuitem', 'meta', 'param', 'source', 'track', 'wbr'].indexOf(tag) >= 0) // self closing tag
+                    ret = newline + indent + x;
+                else {
+                    if (/<!--.*?-->/.test(x)) {                     // comment
+                        ret = newline + indent + x;
+                    } else if (/<\/.*/.test(x)) {                   // close tag
+                        indent = indent.substr(0, indent.length - 1);
+                        if (/.*?>$/.test(x)) {                      // ends in a caret
+                            ret = newline + indent + x;
+                        } else {
+                            ret = newline + indent + x.substr(0, x.length - 1) + newline + indent + x.substr(x.length - 1, x.length);
+                        }
+                    } else {                                        // open tag
+                        if (/.*?>$/.test(x)) {                      // ends in a caret
+                            ret = newline + indent + x;
+                        } else {
+                            ret = newline + indent + x.substr(0, x.length - 1) + newline + indent + tab + x.substr(x.length - 1, x.length);
+                        }
+                        !p && (indent += tab);
+                    }
+                }
+                return ret;
+            });
+
+        for (i = pre.length; i--;) {
+            html = html.replace('<--TEMPPRE' + i + '/-->', pre[i].tag.replace('<pre>', '<pre>\n').replace('</pre>', pre[i].indent + '</pre>'));
+        }
+
+        return html.charAt(0) === '\n' ? html.substr(1, html.length - 1) : html;
     };
 
     // ==================================================
@@ -297,11 +348,12 @@ const insertarg = (() => {
         let retObj = { ret: "", safe: true, suspend: true };
 
         // available functions to the handout process
-        const rename = ({ oldn: oldn,                           // old handout name, if provided
-                          oldid: oldid,                         // old handout id, if provided
-                          nn: nn = "",                          // new handout name
-                          cfgObj: cfgObj,                       // config settings
-                        } = {}) => {
+        const rename = ({                                       // !insertarg --handout#rename(...)
+            oldn: oldn,                                         // old handout name, if provided
+            oldid: oldid,                                       // old handout id, if provided
+            nn: nn = "",                                        // new handout name
+            cfgObj: cfgObj,                                     // config settings
+            } = {}) => {
 
             if (!nn) {                                          // no new name provided
                 msgOutput({ c: "Unable to rename: no new name provided.", t: "ERROR", send: true });
@@ -309,7 +361,9 @@ const insertarg = (() => {
                 let ho,
                     btn = "",
                     msg = "";
-                if (oldn) {                                     // user provided old handout name
+                if (findObjs({ type: 'handout', name: nn }).length > 0) {   // handout with new name already exists
+                    msg = "Handout already exists with the new name.";
+                } else if (oldn) {                              // user provided old handout name
                     ho = findObjs({ type: 'handout', name: oldn });
                     if (ho.length < 1) {
                         msg = "No handout found with that name.";
@@ -328,27 +382,55 @@ const insertarg = (() => {
                     msgOutput({ c: msg, t: "ERROR", send: true, btn: btn, wto: theSpeaker.localName });
                     return retObj;
                 }
-                log(`About to rename handout.`);
                 ho[0].set({ name: nn });                        // if we get this far, it's safe to rename the handout
             }
             return retObj;
         };
-        const make = ({
+        const make = ({                                         // !insertarg --handout#make(!!doc#...)
             theSpeaker: theSpeaker,
             cfgObj: cfgObj,
             doc: doc = "",
-            t
             
-        } = {}) => { };
+        } = {}) => {
+            if (!doc) return retObj;
+
+            if (doc === "help") {                               // !insertarg --handout#make(!!doc#help)
+                // TO DO - build output of HELP handout
+            } else {                                            // !insertarg --handout#make(!!doc#config|...)
+                let docarg = doc.split("|");
+                if (docarg[0] === "config") {
+                    if (docarg.length < 2) {
+                        msgOutput({ c: "No config document specified.", t: "INVALID STRUCTURE", send: true, wto: theSpeaker.localName });
+                        return retObj;
+                    }
+                    let hoObj,
+                        defcfg;
+                    docarg.slice(1).map((c) => {
+                        hoObj = findObjs({ type: "handout", name: `IAConfig-${c}` })[0] || { fail: true };
+                        if (hoObj.hasOwnProperty("fail")) {     // only write the handout if one doesn't exist
+                            defcfg = `<pre>${htmlCoding(beautifyHTML(menutable, '\r'))}\n${htmlCoding(beautifyHTML(menurow,'\r'))}</pre>\n`;
+                            defcfg += `<pre>${htmlCoding('<!-- BEGIN CONFIG -->')}\n`;
+                            defcfg += htmlCoding(`--bg#${bgcolor}`) + `\n`;
+                            defcfg += htmlCoding(`--css#margin:2px 0px;height:10px;line-height:10px;`) + `\n`;
+                            defcfg += `${htmlCoding('<!-- END CONFIG -->')}</pre>`;
+                            hoObj = createObj("handout", { name: `IAConfig-${c}` });
+                            hoObj.set('notes', defcfg);
+                        }
+                    });
+                }
+            }
+            return retObj;
+        };
 
         // available function library, mapping the text supplied to the internal function
         const funcTable = {
             rename: rename,
+            make: make,
         };
 
-        let funcregex = new RegExp('^(' + Object.keys(funcTable).join("|") + ')\\(([^)]*)?\\)?');
-                // group 1: function from function(arguments)
-                // group 2: arguments from function(arguments)
+        let funcregex = getFuncRegex(funcTable);
+            // group 1: function from function(arguments)
+            // group 2: arguments from function(arguments)
         let f = funcregex.exec(args);
         if (f) {
             retObj = funcTable[f[1]]({
@@ -361,7 +443,7 @@ const insertarg = (() => {
                 cfgObj: cfgObj,
             });
         } else {
-            // What to do if no function is included
+            // What to do if no recognized function is included
         }
         return retObj;
     };
@@ -408,7 +490,6 @@ const insertarg = (() => {
                     theSpeaker: theSpeaker,                             // speaker object from the message
                 } = {}) => {
         let retObj = { ret: "", safe: true };
-
         if (!bg) bg = cfgObj.bg;
         if (!css) css = cfgObj.css;
 
@@ -428,14 +509,12 @@ const insertarg = (() => {
         } else if (t) {
             character = findObjs({ type: 'character', id: (getObj("graphic", t) || { get: () => { return "" } }).get("represents") })[0] || { fail: true };
         } else {
-            log(`Here is S: >${s}<`);
             character = findObjs({ type: 'character', id: s })[0] ||
                 findObjs({ type: 'character' }).filter((chr) => { return chr.get('name') === s; })[0] ||
                 findObjs({ type: 'character', id: (getObj("graphic", s) || { get: () => { return "" } }).get("represents") })[0] ||
                 { fail: true };
                 s = "repeating";                                        // we found the character based on s, so we want to start at the top level of that character
         }
-        log(`Does the character have a FAIL property: ${character.hasOwnProperty("fail")}`);
         if (character.hasOwnProperty("fail")) {
             retObj.ret = msgOutput({ c: "No character sheet found.", t: "ERROR" });
             return retObj;
@@ -513,7 +592,6 @@ const insertarg = (() => {
             retObj.ret = msgOutput({ c: "No character sheet found.", t: "ERROR" });
             return retObj;
         }
-
         if (!bg) bg = cfgObj.bg;
         if (!css) css = cfgObj.css;
 
@@ -552,7 +630,6 @@ const insertarg = (() => {
     // ==================================================
     // this listens for a character name change, and checks whether there is a configuration file that needs to be managed
     const handleCharNameChange = (character, prev) => {
-        log(`===== HANDLE CHAR NAME CHANGE =====`);
         let oldrx = new RegExp(`\s*(iaconfig-)(${escapeRegExp(prev.name).replace(/\s/g, `\\s`).toLowerCase()})\s*`, 'i');
         // group 1: iaconfig- from iaconfig-prevname
         // group 2: prevName from iaconfig-prevname
@@ -627,7 +704,7 @@ const insertarg = (() => {
         let honamepart;
         if (honame !== prev.name) {                                                         // name was changed
             if (horx.test(prev.name)) {                                                     // if the old name is a config file
-                handleConfigDestroy({ get: (p) => { if (p === "name") return prev.name; else return ""; } });                                   // call our garbage collection to remove it from state
+                handleConfigDestroy({ get: (p) => { if (p === "name") return prev.name; else return ""; } });   // call our garbage collection to remove it from state
             }
             if (horx.test(honame)) {                                                        // if the new name is a config file
                 honamepart = horx.exec(honame)[1].toLowerCase();                            // get the character name portion
@@ -666,7 +743,7 @@ const insertarg = (() => {
             let settings = ["css", "bg"],                               // settings available in the config section
                 sdata;                                                  // to hold the data from each setting read out of the config
             settings.map((s) => {
-                sdata = new RegExp(`^--${s}#(.*?)\r?\n`, 'gmis').exec(m[1]);
+                sdata = new RegExp(`^--${s}#(.*?)(?=\r\n|\r|\n)`, 'gmis').exec(m[1]);
                 //group 1: user input for the setting from --setting#user input
                 if (sdata) {
                     cfgObj[s] = sdata[1];
@@ -717,13 +794,13 @@ const insertarg = (() => {
         const abil = args.shift();                                      // assign the first arg to abil
 
         // get the player or character's configuration (if present), or the global
-        let speakerstate = state.insertarg[theSpeaker.localName.toLowerCase()] || state.insertarg.global,
+        let statesource = state.insertarg[theSpeaker.localName.toLowerCase()] || state.insertarg.global,
             cfgObj = {},
             cmdline = "",
             safechat = true,
-            rep = {},
+            retObj = {},
             f;
-        Object.assign(cfgObj, speakerstate.cfgObj);                     // copy the settings for this run (either from the speaker's state or the global configuration)
+        Object.assign(cfgObj, statesource.cfgObj);                     // copy the settings for this run (either from the speaker's state or the global configuration)
 
         if (apicatch === "ia") {
             if (((abil[0] === "chat" || abil[0] === "whisper") && abil[1] === "") || (abilFuncs.hasOwnProperty(abil[0]))) {
@@ -741,31 +818,28 @@ const insertarg = (() => {
 
             cfgObj.bg = validateHexColor(cfgObj.bg);
 
-            // ABIL FUNCTIONS
-            log(`Abil0: ${abil[0]}`);
-            log(`Abil1: ${abil[1]}`);
-            log(`abilFuncs: ${abilFuncs.hasOwnProperty(abil[0])}`);
+            // FIRST ARGUMENT FUNCTIONS
             if (abilFuncs.hasOwnProperty(abil[0].toLowerCase())) {                                      // test if abil has an associated function in abilFuncs
-                rep = abilFuncs[abil[0]]({                                                              // call the associated function with destructuring assignment on the receiving end
-                    args: abil[1],                                                                         // parsing handled on receiving end (minimizes having to enter them individually in 2 places)
+                retObj = abilFuncs[abil[0]]({                                                           // call the associated function with destructuring assignment on the receiving end
+                    args: abil[1],                                                                      // parsing handled on receiving end (minimizes having to enter them individually in 2 places)
                     theSpeaker: theSpeaker,
                     m: msg_orig,
                     cfgObj: cfgObj,
                 });
-                if (rep.suspend === "true") return;                                                     // should this end further processing // TO DO - is this even needed? could we allow further processing?
-                safechat = !rep.safe ? false : safechat;                                                // trip safechat if necessary
+                if (retObj.suspend === "true") return;                                                  // should this end further processing // TO DO - is this even needed? could we allow further processing?
+                safechat = !retObj.safe ? false : safechat;                                             // trip safechat if necessary
             }
 
             // OTHER ARGUMENTS
-            let funcregex = new RegExp('^(' + Object.keys(availFuncs).join("|") + ')\\(([^)]*)?\\)?');
-            // group 1: function from function(arguments)
-            // group 2: arguments from function(arguments)
             if (args.length < 1) return;                                                                // need at least one replacement hook // TO DO - provide message here "no hooks provided"?
+            let funcregex = getFuncRegex(availFuncs);                                                   // build regex to detect functions
+                // group 1: function from function(arguments)
+                // group 2: arguments from function(arguments)
             args.filter((a) => { return !Object.keys(cfgObj).includes(a[0].toLowerCase()); })           // deal with only the custom hooks (not part of cfgObj)
                 .map((a) => {
                     f = funcregex.exec(a[1]);
                     if (f) {                                                                            // if we find a function
-                        rep = availFuncs[f[1]]({                                                        // pass object to use with destructuring assignment on the receiving end
+                        retObj = availFuncs[f[1]]({                                                     // pass object to use with destructuring assignment on the receiving end
                             ...(Object.fromEntries((f[2] || "").split("!!")                             // this turns anything provided with a !! prefix into an available parameter for the receiving function
                                 .filter((p) => { return p !== ""; })
                                 .map(splitArgs)
@@ -775,10 +849,10 @@ const insertarg = (() => {
                             cfgObj: cfgObj,
                         });
                     } else {
-                        rep = { ret: a[1], safe: true };                                                // if no internal function was designated, treat as flat text
+                        retObj = { ret: a[1], safe: true };                                             // if no internal function was designated, treat as flat text
                     }
-                    safechat = !rep.safe ? false : safechat;                                            // trip safechat if necessary
-                    cmdline = cmdline.replace(new RegExp(escapeRegExp(a[0]), 'g'), rep.ret);            // replace all instances of the hook with the replacement text
+                    safechat = !retObj.safe ? false : safechat;                                         // trip safechat if necessary
+                    cmdline = cmdline.replace(new RegExp(escapeRegExp(a[0]), 'g'), retObj.ret);         // replace all instances of the hook with the replacement text
                     return;
                 });
 
@@ -796,8 +870,8 @@ const insertarg = (() => {
                     sendChat("API", `/w "${theSpeaker.localName}" ${abil[1]} loaded and ready.`);
                 }
             }
-        } else {
-            rep = unavailFuncs[apicatch]({                                                              // pass object to use with destructuring assignment on the receiving end
+        } else {                                                                                        // anything other than 'ia' as the apicatch
+            retObj = unavailFuncs[apicatch]({                                                           // pass object to use with destructuring assignment on the receiving end
                 ...(Object.fromEntries(args)),                                                          // this turns anything provided with a -- prefix into an available parameter for the receiving function
                 s: abil[0],
                 v: abil[1],
@@ -806,7 +880,7 @@ const insertarg = (() => {
                 cfgObj: cfgObj,
             });
 
-            sendChat("API", `/w "${theSpeaker.localName}" ${rep.ret}`);
+            sendChat("API", `/w "${theSpeaker.localName}" ${retObj.ret}`);
         }
 
     };
@@ -834,6 +908,7 @@ on('ready', () => {
     insertarg.LogSig();
     insertarg.RegisterEventHandlers();
 
+    delete state.insertarg;
     state.insertarg = {};
     state.insertarg.global = {};
     state.insertarg.global.cfgObj = insertarg.DefaultCfgObj;                                        // explicitly write the defaults, because if there is a global config it will overwrite in a moment
