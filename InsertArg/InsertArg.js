@@ -220,7 +220,7 @@ const insertarg = (() => {
                     if (/<!--.*?-->/.test(x)) {                     // comment
                         ret = newline + indent + x;
                     } else if (/<\/.*/.test(x)) {                   // close tag
-                        indent = indent.substr(0, indent.length - 1);
+                        indent = indent.substr(0, indent.length - tab.length);
                         if (/.*?>$/.test(x)) {                      // ends in a caret
                             ret = newline + indent + x;
                         } else {
