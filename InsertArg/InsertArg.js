@@ -1,8 +1,8 @@
 ﻿/*
 =========================================================
 Name			:	InsertArgs (insertargs)
-Version			:	0.52
-Last Update		:	7/14/2020
+Version			:	0.53
+Last Update		:	7/15/2020
 GitHub			:	https://github.com/TimRohr22/Cauldron/tree/master/InsertArg
 Roll20 Contact	:	timmaugh
 =========================================================
@@ -23,8 +23,8 @@ const insertarg = (() => {
     //		VERSION
     // ==================================================
     const versionInfo = () => {
-        const vrs = '0.52';
-        const vd = new Date(1594758915878);
+        const vrs = '0.53';
+        const vd = new Date(1594827472406);
         log('\u0166\u0166 InsertArg v' + vrs + ', ' + vd.getFullYear() + '/' + (vd.getMonth() + 1) + '/' + vd.getDate() + ' \u0166\u0166');
         return;
     };
@@ -110,7 +110,7 @@ const insertarg = (() => {
         return speaking;
     };
     const getDefaultConfigObj = () => {
-        return { table: menutable, row: menurow, bg: bgcolor, css: "" };
+        return { table: menutable, row: menurow, bg: bgcolor, css: "", store: 'InsertArg', label: 'Loaded Ability' };
     };
     const splitArgs = (a) => { return a.split("#") };
     const joinVals = (a) => { return [a.slice(0)[0], a.slice(1).join("#").trim()]; };
@@ -328,6 +328,7 @@ const insertarg = (() => {
     };
 
     // const rptHook (produce repeating hook (seed + iteration)... will need a "output to repeating hook" function, too)
+    // const chatcb (run another script in callback that produces a return that we can insert somewhere)?
 
     // ----------- AVAILABLE FUNCTION LIBRARY -----------
     const availFuncs = {                                                // library of available functions as prop:func
@@ -789,13 +790,13 @@ const insertarg = (() => {
         let args = msg_orig.content.split(/\s--/)
             .slice(1)                                                   // get rid of api handle
             .map(splitArgs)									            // split each arg (foo:bar becomes [foo, bar])
-            .map(joinVals);									            // if the value included a colon (the delimiter), join the parts that were inadvertently separated
+            .map(joinVals);									            // if the value included a # (the delimiter), join the parts that were inadvertently separated
 
         const abil = args.shift();                                      // assign the first arg to abil
 
         // get the player or character's configuration (if present), or the global
         let statesource = state.insertarg[theSpeaker.localName.toLowerCase()] || state.insertarg.global,
-            cfgObj = {},
+            cfgObj = getDefaultConfigObj(),
             cmdline = "",
             safechat = true,
             retObj = {},
@@ -855,13 +856,12 @@ const insertarg = (() => {
                     cmdline = cmdline.replace(new RegExp(escapeRegExp(a[0]), 'g'), retObj.ret);         // replace all instances of the hook with the replacement text
                     return;
                 });
-
             // TO DO - if the chat can't be set, it should instead be loaded as an api button
             if ((abil[0] === "chat" || abil[0] === "whisper") && safechat) {
                 sendChat(abil[0] === "whisper" ? `API` : theSpeaker.chatSpeaker, (abil[0] === "whisper" ? `/w "${theSpeaker.localName}" ` : "") + cmdline);
             }
             else if (theSpeaker.speakerType === "character") {
-                let saveAbil = findObjs({ type: 'ability', characterid: theSpeaker.id, name: cfgObj.store })[0] ||
+                let saveAbil = findObjs({ type: 'ability', characterid: theSpeaker.id, name: cfgObj.store})[0] ||
                     createObj("ability", { name: cfgObj.store, action: cmdline, characterid: theSpeaker.id });
                 saveAbil.set({ action: cmdline });
                 if (abil[0] === "button") {
