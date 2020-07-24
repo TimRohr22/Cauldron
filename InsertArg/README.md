@@ -7,7 +7,7 @@ Replacement script with custom hooks, ad hoc processing, and selective output. I
 ## Command Line Breakdown
 A command line is processed as the API handle, the first parameter (currently labeled as `abil`), and then all other subsequent parameters. Each of these provide insertion points for internal functions or processing.
 ### Delimiters
-First level parameters are denoted by `/\s-\-/`, and are split as `key#value`:
+First level parameters are denoted by `/\s+--/`, and are split as `key#value`:
 
     !insertarg --abil#value --hook1#value1
 
