@@ -241,7 +241,7 @@ const ialibcore = (() => {
         return retObj;
     };
     const getattr = ({
-        a: a,                                       // attribute name or id
+        a: a,                                       // attribute id or (character)|(attribute)
         v: v = "current",                           // value wanted (current or max)
         h: h = 'false',                             // whether to encode html characters
         theSpeaker: theSpeaker                      // speaker object
@@ -311,8 +311,8 @@ const ialibcore = (() => {
         return { ret: ret, safe: false };
     };
     const getselected = ({
-        m: m,                                     // msg object
-        d: d = " "                                // delimiter (default is space)
+        m: m,                                           // msg object
+        d: d = " "                                      // delimiter (default is space)
     }) => {
         d = checkTicks(d);                              // check for opening/closing tick marks
         let r = "";
@@ -320,10 +320,11 @@ const ialibcore = (() => {
         return { ret: r, safe: true };
     };
     const getsections = ({
-        c: c,                                     // character (id, name, or token)
-        d: d = " ",                               // delimiter (default is space)
-        theSpeaker: theSpeaker,                   // speaker object
-        f: f = ""                                 // filters
+        c: c,                                           // character (id, name, or token)
+        d: d = " ",                                     // delimiter (default is space)
+        theSpeaker: theSpeaker,                         // speaker object
+        f: f = "",                                       // filters
+        frmt: frmt = ''                                 // formatting options
     }) => {
         let retObj = { ret: "", safe: true };
         d = checkTicks(d);                              // check for opening/closing tick marks

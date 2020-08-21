@@ -168,7 +168,6 @@ const ia = (() => {
         let colorRegX = /(^#?[0-9A-F]{6}$)|(^#?[0-9A-F]{3}$)/i;
         return '#' + (colorRegX.test(s) ? s.replace('#', '') : d);
     };
-
     const htmlCoding = (s = "", encode = true) => {
         if (typeof s !== "string") return undefined;
         let searchfor = encode ? htmlTable : _invert(htmlTable);
@@ -974,8 +973,8 @@ const ia = (() => {
         }
 
         let cmdSrc, allowedPlayers;
-        if (mapArg[1] !== "" && !Object.keys(mapArgFuncs).includes(mapArg[0])) {                                                                                                 // value of mapArg is either (source) or character|(source) 
-            cmdSrc = abilFromAmbig(mapArg[1]) || macroFromAmbig(mapArg[1]);                                                     // get either the ability or macro source
+        if (mapArg[1] !== "" && !Object.keys(mapArgFuncs).includes(mapArg[0])) {                                                // value of mapArg is either (source) or character|(source) 
+            cmdSrc = abilFromAmbig(mapArg[1]) || macroFromAmbig(mapArg[1].replace(/^macro\|/, ''));                             // get either the ability or macro source
             if (!cmdSrc && theSpeaker.speakerType === 'character') cmdSrc = abilFromAmbig(`${theSpeaker.id}|${mapArg[1]}`);     // if the value was a object name (rather than id) and the speaker is a character, look for that combination
             if (!cmdSrc) {
                 msgbox({ c: `Could not find ${mapArg[1]}.`, t: "UNKNOWN SOURCE", send: true, wto: theSpeaker.localName });
@@ -986,8 +985,8 @@ const ia = (() => {
             } else {
                 allowedPlayers = cmdSrc.get('visibleto');
             }
-            if (!allowedPlayers.split(/\s*,\s*/).includes(msg_orig.playerid) && !allowedPlayers.split(/\s*,\s*/).includes('all')) {
-                msgbox({ c: `You don't have rights to that character for the source object.`, t: "ERROR", send: true, wto: theSpeaker.localName });
+            if (!allowedPlayers.split(/\s*,\s*/).includes(msg_orig.playerid) && !allowedPlayers.split(/\s*,\s*/).includes('all') && !playerIsGM(msg_orig.playerid)) {
+                msgbox({ c: `You don't have rights to that source object.`, t: "ERROR", send: true, wto: theSpeaker.localName });
                 return;
             }
 
@@ -1048,7 +1047,7 @@ const ia = (() => {
             if (mapArg[0] === "button") {
                 sendChat("API", `/w "${theSpeaker.localName}" ${btnElem({ ...cfgObj, charname: theSpeaker.localName })}`);
             } else {
-                msgbox({ c: `${mapArg[1]} is loaded and ready.`, t: 'COMMAND LOADED', btn: btnElem({ ...cfgObj, charname: theSpeaker.localName }), send: true, wto: theSpeaker.localName });
+                msgbox({ c: `${outputStore.get('name')} is loaded and ready.`, t: 'COMMAND LOADED', btn: btnElem({ ...cfgObj, charname: theSpeaker.localName }), send: true, wto: theSpeaker.localName });
             }
         }
     };
@@ -1060,7 +1059,7 @@ const ia = (() => {
         // hook  : everything between [before] and [after] in [before][hook][after]
         // after : ^^, ++, ^^++, or ++^^ at the end of [before][hook][after]
 
-        let delimrx = /^(.+?)\|([^|].*$)/g;
+        let delimrx = /^(.+?)\|([^|].*$|\|$)/g;
         // group 1: hook from hook|delim
         // group 2: delim from hook|delim
 
