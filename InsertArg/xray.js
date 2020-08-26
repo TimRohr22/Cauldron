@@ -1,8 +1,8 @@
 ﻿/*
 =========================================================
 Name			:	xray
-Version			:	1.0
-Last Update		:	8/20/2020
+Version			:	1.1
+Last Update		:	8/24/2020
 GitHub			:	https://github.com/TimRohr22/Cauldron/tree/master/InsertArg
 Roll20 Contact	:	timmaugh
 =========================================================
@@ -20,7 +20,7 @@ const xray = (() => {
     // ==================================================
     const versionInfo = () => {
         const vrs = '1.0';
-        const vd = new Date(1597968247992);
+        const vd = new Date(1598322817361);
         log('\u0166\u0166 XRAY v' + vrs + ', ' + vd.getFullYear() + '/' + (vd.getMonth() + 1) + '/' + vd.getDate() + ' \u0166\u0166');
         return;
     };
@@ -253,7 +253,7 @@ const xray = (() => {
 
         let retval = "",
             sectiontable = msgtable.replace("__bg__", rowbg[0]),
-            sectionheader = msg2header.replace("__bg__", rowbg[1]).replace("__cell1__", "GROUP").replace("__cell2__", "XRAY"),
+            sectionheader = msg1header.replace("__colspan__", '2').replace("__bg__", rowbg[1]).replace("__cell1__", `XRAY: ${character.get('name').toUpperCase()}`) + msg2header.replace("__bg__", rowbg[1]).replace("__cell1__", "GROUP").replace("__cell2__", "XRAY"),
             rowtemplate = msg2row;
         let apixray = `!xray --${character.id}#__section__ --0#25`;
         let btnabil = ia.BtnAPI({ bg: bg, api: apixray.replace('__section__', 'ability'), label: "XRay", charid: character.id, css: css });
@@ -316,7 +316,7 @@ const xray = (() => {
             menufor = "",
             menuapi = "",
             attrtable = msgtable.replace("__bg__", rowbg[0]),
-            attrheader = msg1header.replace("__colspan__", '3').replace("__bg__", rowbg[1]).replace("__cell1__", `XRAY: ${character.get('name').toUpperCase()}`) + msg3header.replace("__bg__", rowbg[1]).replace("__cell1__", "SUFFIX").replace("__cell2__","MENU").replace("__cell3__", (attrValTable[v] || attrValTable.c).toUpperCase()),
+            attrheader = msg1header.replace("__colspan__", '3').replace("__bg__", rowbg[1]).replace("__cell1__", `XRAY: ${character.get('name').toUpperCase()}: ${s}`) + msg3header.replace("__bg__", rowbg[1]).replace("__cell1__", "SUFFIX").replace("__cell2__","MENU").replace("__cell3__", (attrValTable[v] || attrValTable.c).toUpperCase()),
             rowtemplate = msg3row,
             attrrows = attrs.reduce((a, val, i) => {
                 retval = val.get(attrValTable[v] || attrValTable.c);
@@ -400,7 +400,7 @@ const xray = (() => {
             menulast5 = "",
             menuapi = "",
             attrtable = msgtable.replace("__bg__", rowbg[0]),
-            attrheader = msg1header.replace("__colspan__",'3').replace("__bg__",rowbg[1]).replace("__cell1__",`XRAY: ${character.get('name').toUpperCase()}`) + msg3header.replace("__bg__", rowbg[1]).replace("__cell1__", s.toUpperCase()).replace("__cell2__", "MENU").replace("__cell3__", attrValTable[v].toUpperCase()),
+            attrheader = msg1header.replace("__colspan__",'3').replace("__bg__",rowbg[1]).replace("__cell1__",`XRAY: ${character.get('name').toUpperCase()}: ${s}`) + msg3header.replace("__bg__", rowbg[1]).replace("__cell1__", s.toUpperCase()).replace("__cell2__", "MENU").replace("__cell3__", attrValTable[v].toUpperCase()),
             rowtemplate = msg3row,
             outputrows = sheetObjs.reduce((a, val, i) => {
                 retval = val.get(attrValTable[v]);

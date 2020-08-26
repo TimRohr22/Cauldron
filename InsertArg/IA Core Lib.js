@@ -1,8 +1,8 @@
 /*
 =========================================================
 Name			:	InsertArg Core Lib (ialibcore)
-Version			:	1.0
-Last Update		:	8/20/2020
+Version			:	1.1
+Last Update		:	8/25/2020
 GitHub			:	https://github.com/TimRohr22/Cauldron/tree/master/InsertArg
 Roll20 Contact	:	timmaugh
 =========================================================
@@ -14,8 +14,8 @@ const ialibcore = (() => {
     //		VERSION
     // ==================================================
     const versionInfo = () => {
-        const vrs = '1.0';
-        const vd = new Date(1597968247992);
+        const vrs = '1.1';
+        const vd = new Date(1598408550569);
         log('\u0166\u0166 InsertArg Core Lib v' + vrs + ', ' + vd.getFullYear() + '/' + (vd.getMonth() + 1) + '/' + vd.getDate() + ' \u0166\u0166');
         return;
     };
@@ -183,7 +183,7 @@ const ialibcore = (() => {
                         break;
                     case 'er':                              // both 'e' and 'r', reading the action text in a msgbox and spreading the return over multiple table elements
                     case 're':
-                        retObj.ret = attrs.map(a => { return a.label + ia.ElemSplitter.inner + ia.BtnAPI({ bg: bg, api: `!ia --whisper --show#msgbox{{!!c#get${elem}{{!!a#${a.execObj.id} !!h#true !!v#${v}}} !!t#${a.label} !!send#true !!sendas#getme{{!!r#cs}}}}`, label: a.label, charid: character.id, entity: btnElem[elem], css: css }) })
+                        retObj.ret = list.map(a => { return a.label + ia.ElemSplitter.inner + ia.BtnAPI({ bg: bg, api: `!ia --whisper --show#msgbox{{!!c#get${elem}{{!!a#${a.execObj.id} !!h#true !!v#${v}}} !!t#${a.label} !!send#true !!sendas#getme{{!!r#cs}}}}`, label: a.label, charid: character.id, entity: btnElem[elem], css: css }) })
                             .join(ia.ElemSplitter.outer);
                         break;
                     case "":
@@ -219,6 +219,18 @@ const ialibcore = (() => {
                 retObj.ret = list;
                 break;
             case "l":   // produce list of the labels
+                if (op.length > 1) q2 = op.slice(1);
+                switch (q2) {
+                    case 've':
+                        list = list.map(a => { return a.label + ia.ElemSplitter.inner + a.execText; }).join(ia.ElemSplitter.outer);
+                        retObj.ret = list;
+                        break;
+                    default:
+                        list = list.map(a => a.label).join(d);
+                        retObj.ret = list;
+                        break;
+                }
+                break;
             default:
                 list = list.map(a => a.label).join(d);
                 retObj.ret = list;
@@ -248,7 +260,7 @@ const ialibcore = (() => {
     }) => {
         let retObj = { ret: "", safe: true };
         ['m', 'max'].includes(v) ? v = 'max' : v = 'current';
-        let attr = ia.AttrFromAmbig(a);
+        let attr = ia.AttrFromAmbig(a, theSpeaker.id);
         if (!attr) {
             ia.MsgBox({ c: `getattr: No attribute found for ${a}.`, t: 'NO ATTRIBUTE', send: true, wto: theSpeaker.localName });
             return retObj;
@@ -262,7 +274,7 @@ const ialibcore = (() => {
         theSpeaker: theSpeaker                      // speaker object
     }) => {
         let retObj = { ret: "", safe: true };
-        let abil = ia.AbilFromAmbig(a);
+        let abil = ia.AbilFromAmbig(a, theSpeaker.id);
         if (!abil) {
             ia.MsgBox({ c: `getabil: No ability found for ${a}.`, t: 'NO ABILITY', send: true, wto: theSpeaker.localName });
             return retObj;
@@ -276,7 +288,7 @@ const ialibcore = (() => {
         theSpeaker: theSpeaker                      // speaker object
     }) => {
         let retObj = { ret: "", safe: true };
-        let mac = ia.macroFromAmbig(a);
+        let mac = ia.macroFromAmbig(a, theSpeaker);
         if (!mac) {
             ia.MsgBox({ c: `getmacro: No macro found for ${a}.`, t: 'NO MACRO', send: true, wto: theSpeaker.localName });
             return retObj;
@@ -323,7 +335,7 @@ const ialibcore = (() => {
         c: c,                                           // character (id, name, or token)
         d: d = " ",                                     // delimiter (default is space)
         theSpeaker: theSpeaker,                         // speaker object
-        f: f = "",                                       // filters
+        f: f = "",                                      // filters
         frmt: frmt = ''                                 // formatting options
     }) => {
         let retObj = { ret: "", safe: true };
@@ -361,6 +373,7 @@ const ialibcore = (() => {
         s: s = "",                                      // repeating section
         sfxn: sfxn = "",                                // suffix denoting name attribute for a given entry in a repeating section
         sfxa: sfxa = "",                                // suffix denoting action attribute for a given entry in a repeating section
+        sfxrlbl: sfxrlbl = '',                          // suffix denoting the roll label when used with elem output
         c: c,                                           // character (id, name, or token)
         d: d = " ",                                     // delimiter (default is space)
         op: op = "l",                                   // how to output (b: button, q: query, n: nested query, a: label list (action name), v: value list (action value), [default]/[none]: label list (naming attribute value)
@@ -370,9 +383,10 @@ const ialibcore = (() => {
         theSpeaker: theSpeaker,                         // speaker object
         css: css = "",                                  // free input css for api button
         f: f = "",                                      // filter conditions
+        ef: ef = "",                                    // filter conditions (executable)
         frmt: frmt = "",                                // pipe-delimited list of formatting options
-        efrmt: efrmt = "",                               // pipe-delimited list of formatting options for executing text (use carefully!)
-        rlbl: rlbl = 'Roll',                            // label for a repeating button set (for iterative output)
+        efrmt: efrmt = "",                              // pipe-delimited list of formatting options for executing text (use carefully!)
+        rlbl: rlbl = '',                                // label for a repeating button set (for iterative output)
         cfgObj: cfgObj                                  // configuration settings
     }) => {
         let retObj = { ret: "", safe: true };
@@ -404,7 +418,6 @@ const ialibcore = (() => {
         bg = bg ? bg : cfgObj.bg;
         css = `${cfgObj.css}${css}`;
         rlbl = checkTicks(rlbl);
-        if (!rlbl) rlbl = 'Roll';
 
         ['m', 'max'].includes(v) ? v = 'max' : v = 'current';
 
@@ -414,10 +427,17 @@ const ialibcore = (() => {
             .filter(r => repRX.test(r.get('name')))
             .map(a => {
                 let repid = repRX.exec(a.get('name'))[1];
+                let locrlbl = '';
                 repRX.lastIndex = 0;
                 // get the attribute object for the action/exec attribute
                 let aObj = findObjs({ type: 'attribute', characterid: character.id }).filter(ao => ao.get('name') === `repeating_${s}_${repid}_${sfxa}`)[0] || { id: '', get: () => { return 'not found'; } };
-                return { nameObj: a, execObj: aObj, label: a.get('current'), execName: aObj.get('name'), execText: aObj.get(v), rlbl: rlbl };
+                // get the attribute object for the sfxrlbl, if one is provided
+                if (!rlbl) {
+                    if (sfxrlbl) {
+                        locrlbl = (findObjs({ type: 'attribute', characterid: character.id }).filter(a => new RegExp(`^repeating_${s}_${repid}_${sfxrlbl}$`).test(a.get('name')))[0] || { get: () => { return 'Roll' } }).get('current');
+                    } else locrlbl = 'Roll';
+                } else locrlbl = rlbl;
+                return { nameObj: a, execObj: aObj, label: a.get('current'), execName: aObj.get('name'), execText: aObj.get(v), rlbl: locrlbl || 'Roll' };
             });
         // we should now have an array of objects of the form {nameObj, execObj, label, execName, execText, rlbl}
         // test to make sure there was actually an attribute for sfxn & sfxa
@@ -430,11 +450,12 @@ const ialibcore = (() => {
         }
 
         // ---------------- FILTER CONDITIONS ----------------
-        list = applyFilterOptions(f, list);                          // apply filter conditions
+        list = applyFilterOptions(f, list, 'label');                          // apply filter conditions
+        list = applyFilterOptions(ef, list, 'execText');
         // -------------- END FILTER CONDITIONS --------------
 
         // --------------- FORMATTING OPTIONS ----------------
-        list = applyFormatOptions(frmt, list);
+        list = applyFormatOptions(frmt, list, 'label');
         list = applyFormatOptions(efrmt, list, 'execText');
         // ------------- END FORMATTING OPTIONS --------------
 
@@ -460,7 +481,8 @@ const ialibcore = (() => {
         bg: bg,                                         // background color for api button
         theSpeaker: theSpeaker,                         // speaker object
         css: css = "",                                  // free input css for api button
-        f: f = "",                                      // filter conditions
+        f: f = "",                                      // filter conditions (label)
+        ef: ef = "",                                    // filter conditions (executable)
         frmt: frmt = "",                                // pipe-delimited list of formatting options
         efrmt: efrmt = "",                               // pipe-delimited list of formatting options for executing text (use carefully!)
         rlbl: rlbl = 'Roll',                            // label for a repeating button set (for iterative output)
@@ -506,13 +528,14 @@ const ialibcore = (() => {
                 largs.push(l);
             }
             list = largs.map(a => a.split(" "))                                             // if there is a space, we have a label, too
-                .map(a => { return { nameObj: ia.AttrFromAmbig(a[0]), label: a.slice(1).join(" ") || "" }; })   // join everything after the first space, return an object in the form of {nameObj, label}
+                .map(a => { return { nameObj: ia.AttrFromAmbig(a[0], character.id), label: a.slice(1).join(" ") || "" }; })   // join everything after the first space, return an object in the form of {nameObj, label}
                 .filter(a => a.nameObj)                                                     // filter for where we didn't find an object
                 .map(a => { return { nameObj: a.nameObj, execObj: a.nameObj, label: a.label || a.nameObj.get('name'), execName: a.nameObj.get('name'), execText: a.nameObj.get(v), rlbl: rlbl }; });    // expand each entry into all of the properties we need
         }
 
         // ---------------- FILTER CONDITIONS ----------------
         list = applyFilterOptions(f, list);
+        list = applyFilterOptions(ef, list, 'execText');
         // -------------- END FILTER CONDITIONS --------------
 
         // --------------- FORMATTING OPTIONS ----------------
@@ -542,6 +565,7 @@ const ialibcore = (() => {
         theSpeaker: theSpeaker,                         // speaker object
         css: css = "",                                  // free input css for api button
         f: f = "",                                      // filter conditions
+        ef: ef = "",                                    // filter conditions (executable)
         frmt: frmt = "",                                // pipe-delimited list of formatting options
         efrmt: efrmt = "",                               // pipe-delimited list of formatting options for executing text (use carefully!)
         rlbl: rlbl = 'Roll',                            // label for a repeating button set (for iterative output)
@@ -587,13 +611,13 @@ const ialibcore = (() => {
                 largs.push(l);
             }
             list = largs.map(a => a.split(" "))                                             // if there is a space, we have a label, too
-                .map(a => { return { nameObj: ia.AttrFromAmbig(a[0]), label: a.slice(1).join(" ") }; })   // join everything after the first space, return an object in the form of {nameObj, label}
+                .map(a => { return { nameObj: ia.AttrFromAmbig(a[0], character.id), label: a.slice(1).join(" ") }; })   // join everything after the first space, return an object in the form of {nameObj, label}
                 .filter(a => a.nameObj)                                                     // filter for where we didn't find an object
                 .map(a => { return { nameObj: a.nameObj, execObj: a.nameObj, label: a.label || a.get('name'), execName: a.nameObj.get('name'), execText: a.nameObj.get(v), rlbl: rlbl }; });    // expand each entry into all of the properties we need
         }
         // ---------------- FILTER CONDITIONS ----------------
-
         list = applyFilterOptions(f, list);
+        list = applyFilterOptions(ef, list, 'execText');
         // -------------- END FILTER CONDITIONS --------------
 
         // --------------- FORMATTING OPTIONS ----------------
@@ -755,6 +779,7 @@ const ialibcore = (() => {
                 ['l', 'list of names of the sheet objects\' name elements<br>repeating: sfxn sub sttribute name<br>standard attributes: name<br>abilities: name'],
                 ['a', 'list of names of the sheet objects\' action elements (differs from \'l\' only for repeating sections<br>repeating: sfxa sub sttribute name<br>standard attributes: name<br>abilities: name'],
                 ['v', 'list of values for the sheet objects\' action elements<br>repeating: sfxa sub sttribute current or max<br>standard attributes: current or max<br>abilities: action'],
+                ['lve', 'a list/value output arranged for spreading across elem rows of a table']
             ]
         },
         [`format${ia.GetHelpArg()}`]: {
@@ -776,8 +801,8 @@ const ialibcore = (() => {
             ]
         },
         [`filter${ia.GetHelpArg()}`]: {
-            msg: 'Enter filters for the returned values to restrict the returned items according to your specifications. Filters are passed using the \'f\' parameter, if the internal function accepts it; multiple filters can be passed as a pipe-separated list where each element is constructed as:<br>(filter type)#(test condition)<br>\
-                        ...where the filter type is drawn from the following list...',
+            msg: 'Enter filters for the returned values to restrict the returned items according to your specifications. Filters are passed using the \'f\' parameter to filter on the name or label of the object, or using the \'ef\' parameter to filter on the executable (action) text; multiple filters can be passed as a pipe-separated list where each element is constructed as:<br>(filter type)#(test condition)<br>\
+                        ...and the filter type is drawn from the following list...',
             args: [
                 ['x', 'executable; tests the first character for the presence of an executing character:<br>&#64;&nbsp;&nbsp;&#37;&nbsp;&nbsp;&#63;&nbsp;&nbsp;&amp;&nbsp;&nbsp;&#33;'],
                 ['^f', 'begins with'],
@@ -861,6 +886,7 @@ const ialibcore = (() => {
                 ['s', 'section name (as returned from getsection); "section" from repeating_section_id_subattr'],
                 ['sfxn', 'name portion of the sub-attribute responsible for naming an attribute set from the section; "subattr" from repeating_section_is_subattr<br>if left blank, getrepeating will look for a sub-attribute with the text "name" in the current value'],
                 ['sfxa', 'name portion of the sub-attribute you wish to return (for instance, the roll formula); "subattr" from repeating_section_id_subattr'],
+                ['sfxrlbl', 'name portion of the sub-attribute you wish to use for button labels if using elem menu output, overwritten by explicit declaration of rlbl'],
                 ['v', 'value to retrieve (current or max); default: current; anything other than "m" or "max" maps to current'],
                 ['p', 'prompt for query (or nested query) output; default: Select'],
                 ['bg', 'css background-color for api button output to override that designated by any config handout; default: (detected from speaker handout, global handout, or default config)'],

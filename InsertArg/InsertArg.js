@@ -1,8 +1,8 @@
 ﻿/*
 =========================================================
 Name			:	InsertArg (ia)
-Version			:	1.0
-Last Update		:	8/20/2020
+Version			:	1.1
+Last Update		:	8/25/2020
 GitHub			:	https://github.com/TimRohr22/Cauldron/tree/master/InsertArg
 Roll20 Contact	:	timmaugh
 =========================================================
@@ -13,8 +13,8 @@ const ia = (() => {
     // ==================================================
     //		VERSION
     // ==================================================
-    const vrs = '1.0';
-    const vd = new Date(1597968247992);
+    const vrs = '1.1';
+    const vd = new Date(1598408525887);
     const versionInfo = () => {
         log('\u0166\u0166 InsertArg v' + vrs + ', ' + vd.getFullYear() + '/' + (vd.getMonth() + 1) + '/' + vd.getDate() + ' \u0166\u0166');
         return;
@@ -330,16 +330,22 @@ const ia = (() => {
             findObjs({ type: 'character', id: (getObj("graphic", info) || { get: () => { return "" } }).get("represents") })[0];
         return character;
     };
-    const playerFromAmbig = (info) => {                                       // find a character where info is an identifying piece of information (id, name, or token id)
+    const playerFromAmbig = (info) => {                                       // find a player where info is an identifying piece of information (id or name)
         let player;
         player = findObjs({ type: 'player', id: info })[0] ||
             findObjs({ type: 'player' }).filter(p => p.get('displayname') === info)[0];
         return player;
     };
-    const abilFromAmbig = (info) => {                                       // find an abil where info is an identifying piece of information for the ability (id or character|name)
+    const abilFromAmbig = (info, character = '') => {                                       // find an abil where info is an identifying piece of information for the ability (id or character|name)
         let abil = findObjs({ type: 'ability', id: info })[0];
         if (abil) return abil;
-        let [c, n] = info.split("|");
+        let c, n;
+        if (info.indexOf("|") > -1) {
+            [c, n] = info.split("|");
+        } else {
+            c = character;
+            n = info;
+        }
         if (!c || !n) return abil;
         c = charFromAmbig(c);
         if (!c) return abil;
@@ -347,10 +353,16 @@ const ia = (() => {
             findObjs({ type: 'ability', characterid: c.id }).filter(a => a.id === n)[0];
         return abil;
     };
-    const attrFromAmbig = (info) => {                                       // find an attr where info is an identifying piece of information for the attribute (id or character|name)
+    const attrFromAmbig = (info, character = '') => {                                       // find an attr where info is an identifying piece of information for the attribute (id or character|name)
         let attr = findObjs({ type: 'attribute', id: info })[0];
         if (attr) return attr;
-        let [c, n] = info.split("|");
+        let c, n;
+        if (info.indexOf("|") > -1) {
+            [c, n] = info.split("|");
+        } else {
+            c = character;
+            n = info;
+        }
         if (!c || !n) return attr;
         c = charFromAmbig(c);
         if (!c) return attr;
