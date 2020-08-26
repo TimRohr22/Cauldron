@@ -1093,7 +1093,7 @@ const ia = (() => {
             [, hook, d] = delimrx.exec(h.breakout.hook);
             delimrx.lastIndex = 0;
         }
-        d = (d.indexOf("`") === 0 && d.charAt(s.length - 1) === "`" ? d.slice(1, d.length - 1) : d);
+        d = (d.indexOf("`") === 0 && d.charAt(d.length - 1) === "`" ? d.slice(1, d.length - 1) : d);
         if (hook === 'cmd') hook = cmdline;
         if (h.breakout.lazy) {                                                              // LAZY
             reparray = retObj.ret.split(d);
