@@ -1,8 +1,8 @@
 ﻿/*
 =========================================================
 Name			:	InsertArg (ia)
-Version			:	1.1
-Last Update		:	8/25/2020
+Version			:	1.11
+Last Update		:	8/26/2020
 GitHub			:	https://github.com/TimRohr22/Cauldron/tree/master/InsertArg
 Roll20 Contact	:	timmaugh
 =========================================================
@@ -13,8 +13,8 @@ const ia = (() => {
     // ==================================================
     //		VERSION
     // ==================================================
-    const vrs = '1.1';
-    const vd = new Date(1598408525887);
+    const vrs = '1.11';
+    const vd = new Date(1598474831863);
     const versionInfo = () => {
         log('\u0166\u0166 InsertArg v' + vrs + ', ' + vd.getFullYear() + '/' + (vd.getMonth() + 1) + '/' + vd.getDate() + ' \u0166\u0166');
         return;
@@ -520,7 +520,7 @@ const ia = (() => {
     };
     const availHelp = {
         query: {
-            msg: 'Turns a list of options (l) into a query using prompt argumnet (p). Alternatively, produces a nested query by including the argument "n". \
+            msg: 'Turns a list of options (l) into a query using prompt argument (p). Alternatively, produces a nested query by including the argument "n". \
                     For internal calls, supports an array object passed to "a" instead of a list.',
             args: [
                 ['p', 'prompt for query (or nested query) output; default: Select'],
@@ -697,12 +697,12 @@ const ia = (() => {
                             if (charFromAmbig(c)) {
                                 corp = charFromAmbig(c);
                                 cby = corp.get('controlledby');
-                                corp = corp.get('name').toLowerCase();
+                                corp = corp.get('name');
                             }
                             else if (playerFromAmbig(c)) {
                                 corp = playerFromAmbig(c);
                                 cby = corp.id;
-                                corp = corp.get('displayname').toLowerCase();
+                                corp = corp.get('displayname');
                             }
                             else {
                                 corp = c;
@@ -979,8 +979,8 @@ const ia = (() => {
         }
 
         let mapArg = args.shift();                                      // assign the first arg to mapArg
-        if (!['chat', 'whisper', 'menu', 'load', ...Object.keys(mapArgFuncs)].includes(mapArg[0])) { // test for recognized first argument
-            msgbox({ c: `First argument must come from this list:<br>chat, whisper, menu, load, ${Object.keys(mapArgFuncs).join(", ")}<br>Use a # to include an ability source for the command line.`, t: "UNRECOGNIZED ARGUMENT", send: true, wto: theSpeaker.localName });
+        if (!['button', 'chat', 'load', 'menu', 'whisper', ...Object.keys(mapArgFuncs)].includes(mapArg[0])) { // test for recognized first argument
+            msgbox({ c: `First argument must come from this list:<br>button, chat, load, menu, whisper, ${Object.keys(mapArgFuncs).join(", ")}<br>Use a # to include an ability source for the command line.`, t: "UNRECOGNIZED ARGUMENT", send: true, wto: theSpeaker.localName });
             return;
         }
 
