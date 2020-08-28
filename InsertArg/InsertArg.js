@@ -1,8 +1,8 @@
 ﻿/*
 =========================================================
 Name			:	InsertArg (ia)
-Version			:	1.11
-Last Update		:	8/26/2020
+Version			:	1.2
+Last Update		:	8/28/2020
 GitHub			:	https://github.com/TimRohr22/Cauldron/tree/master/InsertArg
 Roll20 Contact	:	timmaugh
 =========================================================
@@ -13,8 +13,8 @@ const ia = (() => {
     // ==================================================
     //		VERSION
     // ==================================================
-    const vrs = '1.11';
-    const vd = new Date(1598474831863);
+    const vrs = '1.2';
+    const vd = new Date(1598616099619);
     const versionInfo = () => {
         log('\u0166\u0166 InsertArg v' + vrs + ', ' + vd.getFullYear() + '/' + (vd.getMonth() + 1) + '/' + vd.getDate() + ' \u0166\u0166');
         return;
@@ -178,7 +178,26 @@ const ia = (() => {
         return s;
     };
     const displayIAConfig = (theSpeaker, cfgObj = getDefaultConfigObj()) => {
-        let msg = `InsertArg, version ${vrs}<br><br>\
+        let clVersion = '(none)';
+        let clMsg = '';
+        try {
+            clVersion = ialibcore.GetVrs();
+        } catch (error) {
+            clMsg = '<tr><td colspan = "2">It doesn\'t seem you have the IA Core Library of functions installed (a separate script).\
+                You could have a third-party library installed which I can\'t detect,\
+                but without some bank of functions, InsertArg may not work for you.</td></tr>';
+        }
+        let msg = `<table style="width:100%;">\
+                        <tr>\
+                            <td style="font-weight:bold;">InsertArg</td>\
+                            <td style="text-align:right;font-weight:bold;">v&nbsp;${vrs}&nbsp;&nbsp;</td>\
+                        </tr>\
+                        <tr>\
+                            <td style="font-weight:bold;">Core Library</td>\
+                            <td style="text-align:right;font-weight:bold;">${clVersion === '(none)' ? '' : 'v&nbsp;'}${clVersion}&nbsp;&nbsp;</td>\
+                        </tr>\
+                        ${clMsg}\
+                    </table><br>\
                     <table style="width:100%;">\
                         <tr>\
                             <td>&nbsp;&nbsp;&nbsp;&nbsp;Logging is ${state.ia.logparser ? 'ON' : 'OFF'}</td>\
@@ -397,6 +416,194 @@ const ia = (() => {
         }
     };
     const getHelpArg = () => { return 'ArgOption'; };
+    const applyFormatOptions = (f, l, prop = 'label') => {
+        // expects f to be a pipe-separated list of formatting options in the form of fo[#(options)]
+        // list is an array of objects in the form of {nameObj, execObj, label, execName, execText, rlbl}
+        // prop is the property in the object to format
+        let insertcheck;
+        Object.keys(Object.fromEntries(f.split("|").map(fo => [fo, true]))).forEach(fo => {
+            switch (fo) {
+                case 'su':  // space before uppercase
+                    l = l.map(a => Object.assign(a, { [prop]: a[prop].replace(/((?<!\b)[A-Z])/g, ' $1') }));
+                    break;
+                case '_s':  // replace underscore with space
+                    l = l.map(a => Object.assign(a, { [prop]: a[prop].replace(/((?<!\b)_(?!\b))/g, ' ') }))
+                        .map(a => Object.assign(a, { [prop]: a[prop].replace(/_/g, ' ') }));
+                    break;
+                case 'ss':  // remove extra white-space
+                    l = l.map(a => Object.assign(a, { [prop]: a[prop].replace(/\s+/g, ' ') }));
+                    break;
+                case 'uc':  // to uppercase
+                    l = l.map(a => Object.assign(a, { [prop]: a[prop].toUpperCase() }));
+                    break;
+                case 'lc':  // to lowercase
+                    l = l.map(a => Object.assign(a, { [prop]: a[prop].toLowerCase() }));
+                    break;
+                case 'tc':  // to titlecase
+                    l = l.map(a => Object.assign(a, { [prop]: a[prop].replace(/((?<=\b(?<![^\s]'))[a-z])/g, l => l.toUpperCase()) }));
+                    break;
+                case 'o+':  // sort ascending (order)
+                    l = l.sort((a, b) => (a[prop] > b[prop]) ? 1 : -1);
+                    break;
+                case 'o-':  // sort descending (order)
+                    l = l.sort((a, b) => (a[prop] > b[prop]) ? -1 : 1);
+                    break;
+                case 'n':
+                    l = l.map(a => Object.assign(a, { [prop]: ia.RunInternal("nest")({ s: a[prop] }).ret }));
+                    break;
+                default:
+                    // case fr
+                    if (/fr#.+/.test(fo)) {		// find#replace
+                        [, frmtsearch, frmtreplace = ''] = fo.split("#");
+                        frmtsearch = checkTicks(frmtsearch);
+                        frmtreplace = checkTicks(frmtreplace);
+                        l = l.map(a => Object.assign(a, { [prop]: a[prop].replace(new RegExp(escapeRegExp(frmtsearch), 'g'), frmtreplace) }));
+                    }
+
+                    // case ^t or t^
+                    insertcheck = /^(\^t|t\^)#(.+)/.exec(fo);
+                    // group 1: type from type#insert
+                    // group 2: insert from type#insert
+                    if (insertcheck) {		    // insert around text
+                        let ipre = insertcheck[1] === '^t' ? checkTicks(insertcheck[2]) : '';
+                        let ipost = insertcheck[1] === 't^' ? checkTicks(insertcheck[2]) : '';
+
+                        l = l.map(a => Object.assign(a, { [prop]: `${ipre}${a[prop]}${ipost}` }));
+                    }
+
+                    // case rslv
+                    if (/^rslv#.+/.test(fo)) {  // resolve; like find/replace, except searches for the "find" as @{find}
+                        [, frmtsearch, frmtreplace = ''] = fo.split("#");
+                        frmtsearch = `@{${checkTicks(frmtsearch)}}`;
+                        frmtreplace = checkTicks(frmtreplace);
+                        l = l.map(a => Object.assign(a, { [prop]: a[prop].replace(new RegExp(escapeRegExp(frmtsearch), 'g'), frmtreplace) }));
+
+                    }
+                    break;
+            }
+        });
+        return l;
+    };
+    const applyFilterOptions = (f, l, prop = 'execName', xprop = 'execText') => {
+        // expects l to be an array of objects in the form of {nameObj, execObj, label, execName, execText, rlbl}
+        if (f) {
+            let topx;
+            let filters = f.split("|").map(f => f.split("#")).map(f => { return { filter: f[0], cond: checkTicks(f.slice(1).join("#")) || "" }; });
+            filters.forEach(f => {
+                switch (f.filter) {
+                    case 'x':       // only executable values
+                        l = l.filter(a => typeof a[xprop] === 'string' && a[xprop].length && execCharSet.includes(a[xprop].charAt(0)));   // test for the presence of an executing character
+                        break;
+                    case '^f':      // starts with
+                        l = l.filter(a => a[prop].startsWith(f.cond));
+                        break;
+                    case 'f^':      // ends with
+                        l = l.filter(a => new RegExp(`${escapeRegExp(f.cond)}$`).test(a[prop]));
+                        break;
+                    case '^f^':     // contains
+                        l = l.filter(a => new RegExp(`${escapeRegExp(f.cond)}`).test(a[prop]));
+                        break;
+                    case '-^f':     // does not start with
+                        l = l.filter(a => !a[prop].startsWith(f.cond));
+                        break;
+                    case '-f^':     // does not end with
+                        l = l.filter(a => !(new RegExp(`${escapeRegExp(f.cond)}$`).test(a[prop])));
+                        break;
+                    case '-^f^':    // does not contain
+                        l = l.filter(a => !(new RegExp(`${escapeRegExp(f.cond)}`).test(a[prop])));
+                        break;
+                    case '-s':      // token status markers do not include
+                        l = l.filter(a => !a.nameObj.get('statusmarkers').split(",").includes(f.cond));
+                        break;
+                    case 's':      // token status markers include
+                        l = l.filter(a => a.nameObj.get('statusmarkers').split(",").includes(f.cond));
+                        break;
+                    case 'top':
+                        topx = parseInt(f.cond);
+                        if (isNaN(topx) || topx === 0) break;
+                        l = topx > 0 ? l.slice(0, topx) : l.slice(topx);
+                        break;
+                    default:
+                        break;
+                }
+            });
+        }
+        return l;
+    };
+    const buildOutputOptions = ({ p: p, op: op, list: list, bg: bg, css: css, character: character = { get: () => { return '' } }, elem: elem = 'attr', v: v = 'current', theSpeaker: theSpeaker, d: d }) => {
+        let retObj = { ret: "", safe: true };
+        v = elem === 'abil' ? 'action' : v;
+        let q2 = "", prop = 'l';
+        switch (op.charAt(0)) {
+            case "b":   // buttons
+                if (op.length > 1) q2 = op.slice(1);
+                switch (q2) {
+                    case 'r':                               // read the action text in a msgbox
+                        retObj.ret = list.map(a => ia.BtnAPI({ bg: bg, api: `!ia --whisper --show#msgbox{{!!c#get${elem}{{!!a#${a.execObj.id} !!h#true !!v#${v}}} !!t#${a.label} !!send#true !!sendas#getme{{!!r#cs}}}}`, label: a.label, charid: character.id, entity: btnElem[elem], css: css }))
+                            .join(d);
+                        break;
+                    case 'e':                               // spread the return out over multiple table elements
+                        retObj.ret = list.map(a => { return a.label + ia.ElemSplitter.inner + ia.BtnElem({ bg: bg, store: a.execName, label: a.rlbl, charname: character.get('name'), entity: btnElem.attr, css: css }) })
+                            .join(ia.ElemSplitter.outer);
+                        break;
+                    case 'er':                              // both 'e' and 'r', reading the action text in a msgbox and spreading the return over multiple table elements
+                    case 're':
+                        retObj.ret = list.map(a => { return a.label + ia.ElemSplitter.inner + ia.BtnAPI({ bg: bg, api: `!ia --whisper --show#msgbox{{!!c#get${elem}{{!!a#${a.execObj.id} !!h#true !!v#${v}}} !!t#${a.label} !!send#true !!sendas#getme{{!!r#cs}}}}`, label: a.label, charid: character.id, entity: btnElem[elem], css: css }) })
+                            .join(ia.ElemSplitter.outer);
+                        break;
+                    case "":
+                    default:
+                        retObj.ret = list.map(a => ia.BtnElem({ bg: bg, store: a.execName, label: a.label, charname: character.get('name'), entity: btnElem[elem], css: css }))
+                            .join(d);
+                        break;
+                }
+                break;
+            case "q":   // query
+            case "n":   // nested query
+                if (op.length > 1) q2 = op.slice(1);
+                switch (q2) {
+                    case 'l':       // list of labels
+                        list = list.map(a => a.label.replace(/,/g, '')).join("|");
+                        break;
+                    case 'v':       // list of values
+                        list = list.map(a => a.execText).join("|");
+                        break;
+                    case 'ln':      // label, value (or character name)
+                        list = list.map(a => [a.label.replace(/,/g, ''), a.execName]);
+                        prop = 'a';                                                     // change the property to which we will feed the list to be 'a' since we have built an array
+                        break;
+                    case 'lv':      // label, value
+                    default:
+                        list = list.map(a => [a.label.replace(/,/g, ''), a.execText]);
+                        prop = 'a';                                                     // change the property to which we will feed the list to be 'a' since we have built an array
+                }
+                retObj = ia.RunInternal("query")({ p: p, [prop]: list, n: (op.charAt(0) === "n") ? 'true' : 'false', theSpeaker: theSpeaker });
+                break;
+            case "v":   // produce list of the values
+                list = list.map(a => a.execText).join(d);
+                retObj.ret = list;
+                break;
+            case "l":   // produce list of the labels
+                if (op.length > 1) q2 = op.slice(1);
+                switch (q2) {
+                    case 've':
+                        list = list.map(a => { return a.label + ia.ElemSplitter.inner + a.execText; }).join(ia.ElemSplitter.outer);
+                        retObj.ret = list;
+                        break;
+                    default:
+                        list = list.map(a => a.label).join(d);
+                        retObj.ret = list;
+                        break;
+                }
+                break;
+            default:
+                list = list.map(a => a.label).join(d);
+                retObj.ret = list;
+                break;
+        }
+        return retObj;
+    }
+
 
     // ==================================================
     //		AVAIL INTERNAL FUNCTIONS, HELP, and MENUS
@@ -1379,7 +1586,10 @@ const ia = (() => {
         HTMLCoding: htmlCoding,
         Base64: base64,
         CMDLineParser: cmdLineParser,
-        GetHelpArg: getHelpArg
+        GetHelpArg: getHelpArg,
+        BuildOutputOptions: buildOutputOptions,
+        ApplyFilterOptions: applyFilterOptions,
+        ApplyFormatOptions: applyFormatOptions
     };
 
 })();

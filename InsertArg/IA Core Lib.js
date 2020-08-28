@@ -1,7 +1,7 @@
 /*
 =========================================================
 Name			:	InsertArg Core Lib (ialibcore)
-Version			:	1.1
+Version			:	1.2
 Last Update		:	8/25/2020
 GitHub			:	https://github.com/TimRohr22/Cauldron/tree/master/InsertArg
 Roll20 Contact	:	timmaugh
@@ -13,12 +13,13 @@ const ialibcore = (() => {
     // ==================================================
     //		VERSION
     // ==================================================
+    const vrs = '1.2';
     const versionInfo = () => {
-        const vrs = '1.1';
-        const vd = new Date(1598408550569);
+        const vd = new Date(1598616529504);
         log('\u0166\u0166 InsertArg Core Lib v' + vrs + ', ' + vd.getFullYear() + '/' + (vd.getMonth() + 1) + '/' + vd.getDate() + ' \u0166\u0166');
         return;
     };
+    const getVrs = () => { return vrs; };
 
     // ==================================================
     //		UTILITIES
@@ -51,193 +52,6 @@ const ialibcore = (() => {
         return special[s] || (s.indexOf("`") === 0 && s.charAt(s.length - 1) === "`" ? s.slice(1, s.length - 1) : s);
 
     };
-    const applyFormatOptions = (f, l, prop = 'label') => {
-        // expects f to be a pipe-separated list of formatting options in the form of fo[#(options)]
-        // list is an array of objects in the form of {nameObj, execObj, label, execName, execText, rlbl}
-        // prop is the property in the object to format
-        let insertcheck;
-        Object.keys(Object.fromEntries(f.split("|").map(fo => [fo, true]))).forEach(fo => {
-            switch (fo) {
-                case 'su':  // space before uppercase
-                    l = l.map(a => Object.assign(a, { [prop]: a[prop].replace(/((?<!\b)[A-Z])/g, ' $1') }));
-                    break;
-                case '_s':  // replace underscore with space
-                    l = l.map(a => Object.assign(a, { [prop]: a[prop].replace(/((?<!\b)_(?!\b))/g, ' ') }))
-                        .map(a => Object.assign(a, { [prop]: a[prop].replace(/_/g, ' ') }));
-                    break;
-                case 'ss':  // remove extra white-space
-                    l = l.map(a => Object.assign(a, { [prop]: a[prop].replace(/\s+/g, ' ') }));
-                    break;
-                case 'uc':  // to uppercase
-                    l = l.map(a => Object.assign(a, { [prop]: a[prop].toUpperCase() }));
-                    break;
-                case 'lc':  // to lowercase
-                    l = l.map(a => Object.assign(a, { [prop]: a[prop].toLowerCase() }));
-                    break;
-                case 'tc':  // to titlecase
-                    l = l.map(a => Object.assign(a, { [prop]: a[prop].replace(/((?<=\b(?<![^\s]'))[a-z])/g, l => l.toUpperCase()) }));
-                    break;
-                case 'o+':  // sort ascending (order)
-                    l = l.sort((a, b) => (a[prop] > b[prop]) ? 1 : -1);
-                    break;
-                case 'o-':  // sort descending (order)
-                    l = l.sort((a, b) => (a[prop] > b[prop]) ? -1 : 1);
-                    break;
-                case 'n':
-                    l = l.map(a => Object.assign(a, { [prop]: ia.RunInternal("nest")({ s: a[prop] }).ret }));
-                    break;
-                default:
-                    // case fr
-                    if (/fr#.+/.test(fo)) {		// find#replace
-                        [, frmtsearch, frmtreplace = ''] = fo.split("#");
-                        frmtsearch = checkTicks(frmtsearch);
-                        frmtreplace = checkTicks(frmtreplace);
-                        l = l.map(a => Object.assign(a, { [prop]: a[prop].replace(new RegExp(escapeRegExp(frmtsearch), 'g'), frmtreplace) }));
-                    }
-
-                    // case ^t or t^
-                    insertcheck = /^(\^t|t\^)#(.+)/.exec(fo);
-                    // group 1: type from type#insert
-                    // group 2: insert from type#insert
-                    if (insertcheck) {		    // insert around text
-                        let ipre = insertcheck[1] === '^t' ? checkTicks(insertcheck[2]) : '';
-                        let ipost = insertcheck[1] === 't^' ? checkTicks(insertcheck[2]) : '';
-
-                        l = l.map(a => Object.assign(a, { [prop]: `${ipre}${a[prop]}${ipost}` }));
-                    }
-
-                    // case rslv
-                    if (/^rslv#.+/.test(fo)) {  // resolve; like find/replace, except searches for the "find" as @{find}
-                        [, frmtsearch, frmtreplace = ''] = fo.split("#");
-                        frmtsearch = `@{${checkTicks(frmtsearch)}}`;
-                        frmtreplace = checkTicks(frmtreplace);
-                        l = l.map(a => Object.assign(a, { [prop]: a[prop].replace(new RegExp(escapeRegExp(frmtsearch), 'g'), frmtreplace) }));
-
-                    }
-                    break;
-            }
-        });
-        return l;
-    };
-    const applyFilterOptions = (f, l, prop = 'execName', xprop = 'execText') => {
-        // expects l to be an array of objects in the form of {nameObj, execObj, label, execName, execText, rlbl}
-        if (f) {
-            let topx;
-            let filters = f.split("|").map(f => f.split("#")).map(f => { return { filter: f[0], cond: checkTicks(f.slice(1).join("#")) || "" }; });
-            filters.forEach(f => {
-                switch (f.filter) {
-                    case 'x':       // only executable values
-                        l = l.filter(a => typeof a[xprop] === 'string' && a[xprop].length && execCharSet.includes(a[xprop].charAt(0)));   // test for the presence of an executing character
-                        break;
-                    case '^f':      // starts with
-                        l = l.filter(a => a[prop].startsWith(f.cond));
-                        break;
-                    case 'f^':      // ends with
-                        l = l.filter(a => new RegExp(`${escapeRegExp(f.cond)}$`).test(a[prop]));
-                        break;
-                    case '^f^':     // contains
-                        l = l.filter(a => new RegExp(`${escapeRegExp(f.cond)}`).test(a[prop]));
-                        break;
-                    case '-^f':     // does not start with
-                        l = l.filter(a => !a[prop].startsWith(f.cond));
-                        break;
-                    case '-f^':     // does not end with
-                        l = l.filter(a => !(new RegExp(`${escapeRegExp(f.cond)}$`).test(a[prop])));
-                        break;
-                    case '-^f^':    // does not contain
-                        l = l.filter(a => !(new RegExp(`${escapeRegExp(f.cond)}`).test(a[prop])));
-                        break;
-                    case '-s':      // token status markers do not include
-                        l = l.filter(a => !a.nameObj.get('statusmarkers').split(",").includes(f.cond));
-                        break;
-                    case 's':      // token status markers include
-                        l = l.filter(a => a.nameObj.get('statusmarkers').split(",").includes(f.cond));
-                        break;
-                    case 'top':
-                        topx = parseInt(f.cond);
-                        if (isNaN(topx) || topx === 0) break;
-                        l = topx > 0 ? l.slice(0, topx) : l.slice(topx);
-                        break;
-                    default:
-                        break;
-                }
-            });
-        }
-        return l;
-    };
-    const buildOutputOptions = ({ p: p, op: op, list: list, bg: bg, css: css, character: character = { get: () => { return '' } }, elem: elem = 'attr', v: v = 'current', theSpeaker: theSpeaker, d: d }) => {
-        let retObj = { ret: "", safe: true };
-        v = elem === 'abil' ? 'action' : v;
-        let q2 = "", prop = 'l';
-        switch (op.charAt(0)) {
-            case "b":   // buttons
-                if (op.length > 1) q2 = op.slice(1);
-                switch (q2) {
-                    case 'r':                               // read the action text in a msgbox
-                        retObj.ret = list.map(a => ia.BtnAPI({ bg: bg, api: `!ia --whisper --show#msgbox{{!!c#get${elem}{{!!a#${a.execObj.id} !!h#true !!v#${v}}} !!t#${a.label} !!send#true !!sendas#getme{{!!r#cs}}}}`, label: a.label, charid: character.id, entity: btnElem[elem], css: css }))
-                            .join(d);
-                        break;
-                    case 'e':                               // spread the return out over multiple table elements
-                        retObj.ret = list.map(a => { return a.label + ia.ElemSplitter.inner + ia.BtnElem({ bg: bg, store: a.execName, label: a.rlbl, charname: character.get('name'), entity: btnElem.attr, css: css }) })
-                            .join(ia.ElemSplitter.outer);
-                        break;
-                    case 'er':                              // both 'e' and 'r', reading the action text in a msgbox and spreading the return over multiple table elements
-                    case 're':
-                        retObj.ret = list.map(a => { return a.label + ia.ElemSplitter.inner + ia.BtnAPI({ bg: bg, api: `!ia --whisper --show#msgbox{{!!c#get${elem}{{!!a#${a.execObj.id} !!h#true !!v#${v}}} !!t#${a.label} !!send#true !!sendas#getme{{!!r#cs}}}}`, label: a.label, charid: character.id, entity: btnElem[elem], css: css }) })
-                            .join(ia.ElemSplitter.outer);
-                        break;
-                    case "":
-                    default:
-                        retObj.ret = list.map(a => ia.BtnElem({ bg: bg, store: a.execName, label: a.label, charname: character.get('name'), entity: btnElem[elem], css: css }))
-                            .join(d);
-                        break;
-                }
-                break;
-            case "q":   // query
-            case "n":   // nested query
-                if (op.length > 1) q2 = op.slice(1);
-                switch (q2) {
-                    case 'l':       // list of labels
-                        list = list.map(a => a.label.replace(/,/g, '')).join("|");
-                        break;
-                    case 'v':       // list of values
-                        list = list.map(a => a.execText).join("|");
-                        break;
-                    case 'ln':      // label, value (or character name)
-                        list = list.map(a => [a.label.replace(/,/g, ''), a.execName]);
-                        prop = 'a';                                                     // change the property to which we will feed the list to be 'a' since we have built an array
-                        break;
-                    case 'lv':      // label, value
-                    default:
-                        list = list.map(a => [a.label.replace(/,/g, ''), a.execText]);
-                        prop = 'a';                                                     // change the property to which we will feed the list to be 'a' since we have built an array
-                }
-                retObj = ia.RunInternal("query")({ p: p, [prop]: list, n: (op.charAt(0) === "n") ? 'true' : 'false', theSpeaker: theSpeaker });
-                break;
-            case "v":   // produce list of the values
-                list = list.map(a => a.execText).join(d);
-                retObj.ret = list;
-                break;
-            case "l":   // produce list of the labels
-                if (op.length > 1) q2 = op.slice(1);
-                switch (q2) {
-                    case 've':
-                        list = list.map(a => { return a.label + ia.ElemSplitter.inner + a.execText; }).join(ia.ElemSplitter.outer);
-                        retObj.ret = list;
-                        break;
-                    default:
-                        list = list.map(a => a.label).join(d);
-                        retObj.ret = list;
-                        break;
-                }
-                break;
-            default:
-                list = list.map(a => a.label).join(d);
-                retObj.ret = list;
-                break;
-        }
-        return retObj;
-    }
 
     // ==================================================
     //		LIBRARY FUNCTIONS
@@ -304,7 +118,7 @@ const ialibcore = (() => {
         if (['n', 'name'].includes(r)) r = 'localName';
         else if (['c', 'cs'].includes(r)) r = 'chatSpeaker';
         else r = 'id';
-        let formattedme = applyFormatOptions(frmt, [{ name: theSpeaker[r] }], 'name')[0].name;
+        let formattedme = ia.ApplyFormatOptions(frmt, [{ name: theSpeaker[r] }], 'name')[0].name;
         return { ret: formattedme, safe: true };
     };
     const puttargets = ({
@@ -359,11 +173,11 @@ const ialibcore = (() => {
         uniquekeys = uniquekeys.map(k => { return { key: k }; });
 
         // ---------------- FILTER CONDITIONS ----------------
-        if (f) uniquekeys = applyFilterOptions(f, uniquekeys, 'key');                          // apply filter conditions
+        if (f) uniquekeys = ia.ApplyFilterOptions(f, uniquekeys, 'key');                          // apply filter conditions
         // -------------- END FILTER CONDITIONS --------------
 
         // --------------- FORMATTING OPTIONS ----------------
-        uniquekeys = applyFormatOptions(frmt, uniquekeys, 'label');
+        uniquekeys = ia.ApplyFormatOptions(frmt, uniquekeys, 'label');
         // ------------- END FORMATTING OPTIONS --------------
 
         retObj.ret = uniquekeys.map(k => k.key).join(d);
@@ -450,13 +264,13 @@ const ialibcore = (() => {
         }
 
         // ---------------- FILTER CONDITIONS ----------------
-        list = applyFilterOptions(f, list, 'label');                          // apply filter conditions
-        list = applyFilterOptions(ef, list, 'execText');
+        list = ia.ApplyFilterOptions(f, list, 'label');                          // apply filter conditions
+        list = ia.ApplyFilterOptions(ef, list, 'execText');
         // -------------- END FILTER CONDITIONS --------------
 
         // --------------- FORMATTING OPTIONS ----------------
-        list = applyFormatOptions(frmt, list, 'label');
-        list = applyFormatOptions(efrmt, list, 'execText');
+        list = ia.ApplyFormatOptions(frmt, list, 'label');
+        list = ia.ApplyFormatOptions(efrmt, list, 'execText');
         // ------------- END FORMATTING OPTIONS --------------
 
         if (!list.length) {                                 // no entries means there were no attributes found from any of the options
@@ -466,7 +280,7 @@ const ialibcore = (() => {
 
         op = op.length ? op : 'l';                          // make sure there is at least 1 character in op
         let templist = deepCopy(list);                      // preserve the list while the retObj is written
-        retObj = buildOutputOptions({ p: p, op: op, list: list, bg: bg, css: css, character: character, elem: 'attr', v: v, theSpeaker: theSpeaker, d: d });
+        retObj = ia.BuildOutputOptions({ p: p, op: op, list: list, bg: bg, css: css, character: character, elem: 'attr', v: v, theSpeaker: theSpeaker, d: d });
         retObj.objarray = templist;                         // in case another function needs the array of objects
 
         return retObj;
@@ -534,13 +348,13 @@ const ialibcore = (() => {
         }
 
         // ---------------- FILTER CONDITIONS ----------------
-        list = applyFilterOptions(f, list);
-        list = applyFilterOptions(ef, list, 'execText');
+        list = ia.ApplyFilterOptions(f, list);
+        list = ia.ApplyFilterOptions(ef, list, 'execText');
         // -------------- END FILTER CONDITIONS --------------
 
         // --------------- FORMATTING OPTIONS ----------------
-        list = applyFormatOptions(frmt, list);
-        list = applyFormatOptions(efrmt, list, 'execText');
+        list = ia.ApplyFormatOptions(frmt, list);
+        list = ia.ApplyFormatOptions(efrmt, list, 'execText');
         // ------------- END FORMATTING OPTIONS --------------
 
         if (!list.length) {                                 // no entries means there were no attributes found from any of the options
@@ -550,7 +364,7 @@ const ialibcore = (() => {
 
         op = op.length ? op : 'l';                          // make sure there is at least 1 character in op
         let templist = deepCopy(list);                      // preserve the list while the retObj is written
-        retObj = buildOutputOptions({ p: p, op: op, list: list, bg: bg, css: css, character: character, elem: 'attr', v: v, theSpeaker: theSpeaker, d: d });
+        retObj = ia.BuildOutputOptions({ p: p, op: op, list: list, bg: bg, css: css, character: character, elem: 'attr', v: v, theSpeaker: theSpeaker, d: d });
         retObj.objarray = templist;                         // in case another function needs the array of objects
         return retObj;
 
@@ -616,13 +430,13 @@ const ialibcore = (() => {
                 .map(a => { return { nameObj: a.nameObj, execObj: a.nameObj, label: a.label || a.get('name'), execName: a.nameObj.get('name'), execText: a.nameObj.get(v), rlbl: rlbl }; });    // expand each entry into all of the properties we need
         }
         // ---------------- FILTER CONDITIONS ----------------
-        list = applyFilterOptions(f, list);
-        list = applyFilterOptions(ef, list, 'execText');
+        list = ia.ApplyFilterOptions(f, list);
+        list = ia.ApplyFilterOptions(ef, list, 'execText');
         // -------------- END FILTER CONDITIONS --------------
 
         // --------------- FORMATTING OPTIONS ----------------
-        list = applyFormatOptions(frmt, list);
-        list = applyFormatOptions(efrmt, list, 'execText');
+        list = ia.ApplyFormatOptions(frmt, list);
+        list = ia.ApplyFormatOptions(efrmt, list, 'execText');
         // ------------- END FORMATTING OPTIONS --------------
 
         if (!list.length) {                                 // no entries means there were no abilities found from any of the options
@@ -632,7 +446,7 @@ const ialibcore = (() => {
 
         op = op.length ? op : 'l';                          // make sure there is at least 1 character in op
         let templist = deepCopy(list);                      // preserve the list while the retObj is written
-        retObj = buildOutputOptions({ p: p, op: op, list: list, bg: bg, css: css, character: character, elem: 'abil', v: v, theSpeaker: theSpeaker, d: d });
+        retObj = ia.BuildOutputOptions({ p: p, op: op, list: list, bg: bg, css: css, character: character, elem: 'abil', v: v, theSpeaker: theSpeaker, d: d });
         retObj.objarray = templist;                         // in case another function needs the array of objects
         return retObj;
     };
@@ -718,11 +532,11 @@ const ialibcore = (() => {
         list = rep ? list.filter(t => t.execObj) : list;                                    // filter for representing a character, if rep is true
 
         // ---------------- FILTER CONDITIONS ----------------
-        list = applyFilterOptions(f, list, 'execText');
+        list = ia.ApplyFilterOptions(f, list, 'execText');
         // -------------- END FILTER CONDITIONS --------------
 
         // --------------- FORMATTING OPTIONS ----------------
-        list = applyFormatOptions(frmt, list, 'execText');
+        list = ia.ApplyFormatOptions(frmt, list, 'execText');
         // ------------- END FORMATTING OPTIONS --------------
 
         if (!list.length) {                                 // no entries means there were no abilities found from any of the options
@@ -732,7 +546,7 @@ const ialibcore = (() => {
 
         op = op.length ? op : 'l';                          // make sure there is at least 1 character in op
         let templist = deepCopy(list);                      // preserve the list while the retObj is written
-        retObj = buildOutputOptions({ p: p, op: op, list: list, bg: bg, css: css, elem: 'abil', v: v, theSpeaker: theSpeaker, d: d });
+        retObj = ia.BuildOutputOptions({ p: p, op: op, list: list, bg: bg, css: css, elem: 'abil', v: v, theSpeaker: theSpeaker, d: d });
         retObj.objarray = templist;                         // in case another function needs the array of objects
         return retObj;
     };
@@ -924,7 +738,7 @@ const ialibcore = (() => {
             args: [
                 ['c', 'character identifier (id, name, or token id)'],
                 delimHelp,
-                ['l', 'list of abilities to retrieve; abilities may be referred to by id or name; each abilities may be followed by a space and then a label to use instead of the abilities name;<br>\
+                ['l', 'list of abilities to retrieve; abilities may be referred to by id or name; each ability may be followed by a space and then a label to use instead of the ability\'s name;<br>\
                         list argument must be formatted as<br>\
                         (list delimiter)|(abilities)(list delimiter)(abilities 2)...<br>\
                         for instance, the following line would list abilities named STR and DEX, renamed to Strength and Dexterity, using the delimiter of a pipe<br>\
@@ -959,9 +773,17 @@ const ialibcore = (() => {
 
     on('ready', () => {
         versionInfo;
-        if (ia) ia.RegisterRule(puttext, getattr, getabil, getmacro, puttargets, getselected, getme, getsections, getrepeating, getattrs, getabils, gettokens);
-        if (ia) ia.RegisterHelp(help);
+        try {
+            ia.RegisterRule(puttext, getattr, getabil, getmacro, puttargets, getselected, getme, getsections, getrepeating, getattrs, getabils, gettokens);
+            ia.RegisterHelp(help);
+        } catch (error) {
+            log(error);
+            log(`This probably happened because you don't have the IA script installed.`);
+        }
+
     });
 
-    return {};
+    return {
+        GetVrs: getVrs
+    };
 })();
