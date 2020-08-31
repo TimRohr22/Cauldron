@@ -1,8 +1,8 @@
 ﻿/*
 =========================================================
 Name			:	InsertArg (ia)
-Version			:	1.2
-Last Update		:	8/28/2020
+Version			:	1.2.1
+Last Update		:	8/29/2020
 GitHub			:	https://github.com/TimRohr22/Cauldron/tree/master/InsertArg
 Roll20 Contact	:	timmaugh
 =========================================================
@@ -13,8 +13,8 @@ const ia = (() => {
     // ==================================================
     //		VERSION
     // ==================================================
-    const vrs = '1.2';
-    const vd = new Date(1598616099619);
+    const vrs = '1.2.1';
+    const vd = new Date(1598908041610);
     const versionInfo = () => {
         log('\u0166\u0166 InsertArg v' + vrs + ', ' + vd.getFullYear() + '/' + (vd.getMonth() + 1) + '/' + vd.getDate() + ' \u0166\u0166');
         return;
@@ -117,6 +117,8 @@ const ia = (() => {
     const decodeUrlEncoding = (t) => {
         return t.replace(/%([0-9A-Fa-f]{1,2})/g, (f, n) => { return String.fromCharCode(parseInt(n, 16)); });
     };
+    const execCharSet = ["&", "!", "@", "#", "%", "?"];
+    const sheetElem = { attr: '&#64;', abil: '&#37;', macro: '&#35;' };
 
     const getAltColor = (primarycolor, fade = .35) => {
 
@@ -539,21 +541,21 @@ const ia = (() => {
                 if (op.length > 1) q2 = op.slice(1);
                 switch (q2) {
                     case 'r':                               // read the action text in a msgbox
-                        retObj.ret = list.map(a => ia.BtnAPI({ bg: bg, api: `!ia --whisper --show#msgbox{{!!c#get${elem}{{!!a#${a.execObj.id} !!h#true !!v#${v}}} !!t#${a.label} !!send#true !!sendas#getme{{!!r#cs}}}}`, label: a.label, charid: character.id, entity: btnElem[elem], css: css }))
+                        retObj.ret = list.map(a => ia.BtnAPI({ bg: bg, api: `!ia --whisper --show#msgbox{{!!c#get${elem}{{!!a#${a.execObj.id} !!h#true !!v#${v}}} !!t#${a.label} !!send#true !!sendas#getme{{!!r#cs}}}}`, label: a.label, charid: character.id, entity: sheetElem[elem], css: css }))
                             .join(d);
                         break;
                     case 'e':                               // spread the return out over multiple table elements
-                        retObj.ret = list.map(a => { return a.label + ia.ElemSplitter.inner + ia.BtnElem({ bg: bg, store: a.execName, label: a.rlbl, charname: character.get('name'), entity: btnElem.attr, css: css }) })
+                        retObj.ret = list.map(a => { return a.label + ia.ElemSplitter.inner + ia.BtnElem({ bg: bg, store: a.execName, label: a.rlbl, charname: character.get('name'), entity: sheetElem.attr, css: css }) })
                             .join(ia.ElemSplitter.outer);
                         break;
                     case 'er':                              // both 'e' and 'r', reading the action text in a msgbox and spreading the return over multiple table elements
                     case 're':
-                        retObj.ret = list.map(a => { return a.label + ia.ElemSplitter.inner + ia.BtnAPI({ bg: bg, api: `!ia --whisper --show#msgbox{{!!c#get${elem}{{!!a#${a.execObj.id} !!h#true !!v#${v}}} !!t#${a.label} !!send#true !!sendas#getme{{!!r#cs}}}}`, label: a.label, charid: character.id, entity: btnElem[elem], css: css }) })
+                        retObj.ret = list.map(a => { return a.label + ia.ElemSplitter.inner + ia.BtnAPI({ bg: bg, api: `!ia --whisper --show#msgbox{{!!c#get${elem}{{!!a#${a.execObj.id} !!h#true !!v#${v}}} !!t#${a.label} !!send#true !!sendas#getme{{!!r#cs}}}}`, label: a.label, charid: character.id, entity: sheetElem[elem], css: css }) })
                             .join(ia.ElemSplitter.outer);
                         break;
                     case "":
                     default:
-                        retObj.ret = list.map(a => ia.BtnElem({ bg: bg, store: a.execName, label: a.label, charname: character.get('name'), entity: btnElem[elem], css: css }))
+                        retObj.ret = list.map(a => ia.BtnElem({ bg: bg, store: a.execName, label: a.label, charname: character.get('name'), entity: sheetElem[elem], css: css }))
                             .join(d);
                         break;
                 }
@@ -603,6 +605,16 @@ const ia = (() => {
         }
         return retObj;
     }
+    const checkTicks = (s) => {
+        let special = {
+            "`br`": "<br>",
+            "`hr`": "<hr>"
+        }
+
+        if (typeof s !== 'string') return s;
+        return special[s] || (s.indexOf("`") === 0 && s.charAt(s.length - 1) === "`" ? s.slice(1, s.length - 1) : s);
+
+    };
 
 
     // ==================================================
@@ -1589,7 +1601,8 @@ const ia = (() => {
         GetHelpArg: getHelpArg,
         BuildOutputOptions: buildOutputOptions,
         ApplyFilterOptions: applyFilterOptions,
-        ApplyFormatOptions: applyFormatOptions
+        ApplyFormatOptions: applyFormatOptions,
+        CheckTicks: checkTicks
     };
 
 })();

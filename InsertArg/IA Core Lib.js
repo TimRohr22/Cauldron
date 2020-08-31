@@ -1,8 +1,8 @@
 /*
 =========================================================
 Name			:	InsertArg Core Lib (ialibcore)
-Version			:	1.2
-Last Update		:	8/25/2020
+Version			:	1.2.2
+Last Update		:	8/29/2020
 GitHub			:	https://github.com/TimRohr22/Cauldron/tree/master/InsertArg
 Roll20 Contact	:	timmaugh
 =========================================================
@@ -13,9 +13,9 @@ const ialibcore = (() => {
     // ==================================================
     //		VERSION
     // ==================================================
-    const vrs = '1.2';
+    const vrs = '1.2.2';
     const versionInfo = () => {
-        const vd = new Date(1598616529504);
+        const vd = new Date(1598908041610);
         log('\u0166\u0166 InsertArg Core Lib v' + vrs + ', ' + vd.getFullYear() + '/' + (vd.getMonth() + 1) + '/' + vd.getDate() + ' \u0166\u0166');
         return;
     };
@@ -40,18 +40,6 @@ const ialibcore = (() => {
         return outObject
     };
     const escapeRegExp = (string) => { return string.replace(/[.*+\-?^${}()|[\]\\]/g, '\\$&'); };
-    const execCharSet = ["&", "!", "@", "#", "%", "?"];
-    const btnElem = { attr: '&#64;', abil: '&#37;', macro: '&#35;' }
-    const checkTicks = (s) => {
-        let special = {
-            "`br`": "<br>",
-            "`hr`": "<hr>"
-        }
-
-        if (typeof s !== 'string') return s;
-        return special[s] || (s.indexOf("`") === 0 && s.charAt(s.length - 1) === "`" ? s.slice(1, s.length - 1) : s);
-
-    };
 
     // ==================================================
     //		LIBRARY FUNCTIONS
@@ -63,7 +51,7 @@ const ialibcore = (() => {
         ...t                                                            // everything else the user passes will go here
     }) => {
         let retObj = { ret: "", safe: true };
-        retObj.ret += Object.keys(t).reduce((a, v) => a + checkTicks(t[v]), "");
+        retObj.ret += Object.keys(t).reduce((a, v) => a + ia.CheckTicks(t[v]), "");
         return retObj;
     };
     const getattr = ({
@@ -127,7 +115,7 @@ const ialibcore = (() => {
         r: r = "token_id",                              // what to return in the targeting call
         d: d = " "                                      // delimiter (default is space)
     }) => {
-        d = checkTicks(d);                              // check for opening/closing tick marks
+        d = ia.CheckTicks(d);                              // check for opening/closing tick marks
         let ret = (Array(Number(n)).fill(0)
             .reduce((a, v, i) => {
                 let iter = n > 1 ? ` ${i + 1}` : ``;
@@ -140,7 +128,7 @@ const ialibcore = (() => {
         m: m,                                           // msg object
         d: d = " "                                      // delimiter (default is space)
     }) => {
-        d = checkTicks(d);                              // check for opening/closing tick marks
+        d = ia.CheckTicks(d);                              // check for opening/closing tick marks
         let r = "";
         if (m.selected) r = m.selected.reduce((a, v) => a + v._id + d, "").replace(new RegExp(`${d}$`), '');
         return { ret: r, safe: true };
@@ -153,7 +141,7 @@ const ialibcore = (() => {
         frmt: frmt = ''                                 // formatting options
     }) => {
         let retObj = { ret: "", safe: true };
-        d = checkTicks(d);                              // check for opening/closing tick marks
+        d = ia.CheckTicks(d);                              // check for opening/closing tick marks
         let character = ia.CharFromAmbig(c);
         if (!character) {
             ia.MsgBox({ c: `getsections: No character found for ${c}.`, t: 'NO CHARACTER', send: true, wto: theSpeaker.localName });
@@ -205,7 +193,7 @@ const ialibcore = (() => {
     }) => {
         let retObj = { ret: "", safe: true };
         let character = ia.CharFromAmbig(c);
-        d = checkTicks(d);                              // check for opening/closing tick marks
+        d = ia.CheckTicks(d);                              // check for opening/closing tick marks
         if (!character) {
             ia.MsgBox({ c: `getrepeating: No character found for ${c}.`, t: 'NO CHARACTER', send: true, wto: theSpeaker.localName });
             return retObj;
@@ -231,7 +219,7 @@ const ialibcore = (() => {
 
         bg = bg ? bg : cfgObj.bg;
         css = `${cfgObj.css}${css}`;
-        rlbl = checkTicks(rlbl);
+        rlbl = ia.CheckTicks(rlbl);
 
         ['m', 'max'].includes(v) ? v = 'max' : v = 'current';
 
@@ -304,7 +292,7 @@ const ialibcore = (() => {
     }) => {
         let retObj = { ret: "", safe: true };
         let attr;
-        d = checkTicks(d);                              // check for opening/closing tick marks
+        d = ia.CheckTicks(d);                              // check for opening/closing tick marks
         ['m', 'max'].includes(v) ? v = 'max' : v = 'current';
         if (!c) {
             ia.MsgBox({ c: `getattrs: You must supply a character (c) which could be a character name, id, or token id (if the token represents a character).`, t: 'NO CHARACTER', send: true, wto: theSpeaker.localName });
@@ -318,7 +306,7 @@ const ialibcore = (() => {
 
         bg = bg ? bg : cfgObj.bg;
         css = `${cfgObj.css}${css}`;
-        rlbl = checkTicks(rlbl);
+        rlbl = ia.CheckTicks(rlbl);
         if (!rlbl) rlbl = 'Roll';
         let list = [];                                                                      // this will hold an array of objects in the form of {nameObj, execObj, label, execName, execText, rlbl}
         let ldelim = "", largs = [];
@@ -387,7 +375,7 @@ const ialibcore = (() => {
     }) => {
         let retObj = { ret: "", safe: true };
         let abil;
-        d = checkTicks(d);                              // check for opening/closing tick marks
+        d = ia.CheckTicks(d);                              // check for opening/closing tick marks
         if (!c) {
             ia.MsgBox({ c: `getabilities: You must supply a character (c) which could be a character name, id, or token id (if the token represents a character).`, t: 'NO CHARACTER', send: true, wto: theSpeaker.localName });
             return retObj;
@@ -400,7 +388,7 @@ const ialibcore = (() => {
 
         bg = bg ? bg : cfgObj.bg;
         css = `${cfgObj.css}${css}`;
-        rlbl = checkTicks(rlbl);
+        rlbl = ia.CheckTicks(rlbl);
         if (!rlbl) rlbl = 'Roll';
 
         let list = [];                                                                      // this will hold an array of objects in the form of {nameObj, execObj, label, execName, execText, rlbl}
@@ -469,7 +457,7 @@ const ialibcore = (() => {
         cfgObj: cfgObj                                                  // config object
     }) => {
         let retObj = { ret: "", safe: true };
-        d = checkTicks(d);                                              // check for opening/closing tick marks
+        d = ia.CheckTicks(d);                                              // check for opening/closing tick marks
         bg = bg ? bg : cfgObj.bg;
         css = `${cfgObj.css}${css}`;
         rep = ['true', 't', 'yes', 'y', true].includes(rep) ? true : false;
