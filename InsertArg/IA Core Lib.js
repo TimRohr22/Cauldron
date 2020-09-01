@@ -554,8 +554,8 @@ const ialibcore = (() => {
             args: [
                 ['b', 'buttons<br>repeating elements structured as (label: sfxn, action: sfxa); standard attributes (label: name, action: current or max)<br>abilities (label: name, action: action)'],
                 ['be', 'as \'b\', except intended for individual elem rows for menu with external labels; utilizes the rlbl property for the button label'],
-                ['br', 'buttons to read the contents of the attribute in chat'],
-                ['bre/ber', 'as \'br\', except intended for individual elem rows for menu with external labels; utilizes the rlbl property for the button labels'],
+                ['br/bR', 'buttons to read the contents of the attribute in chat; if the \'r\' is capitalized, button readout will be spoken; if lowercase, it will be whispered'],
+                ['bre/ber/bRe/beR', 'as \'br\', except intended for individual elem rows for menu with external labels; utilizes the rlbl property for the button labels; if the \'r\' is capitalized, button readout will be spoken; if lowercase, it will be whispered'],
                 ['q', 'query producing (label,return) pairs; uses prompt argument (p) for query interrogative; can be refined with further letters as follows; defaults to \'qlv\''],
                 ['ql', 'query producing (label) list; uses prompt argument (p) for query interrogative<br>\
                         &nbsp;&nbsp;&nbsp;&nbsp;repeating (label: sfxn)<br>\
