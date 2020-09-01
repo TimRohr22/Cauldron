@@ -1,8 +1,8 @@
 ﻿/*
 =========================================================
 Name			:	InsertArg (ia)
-Version			:	1.3
-Last Update		:	8/31/2020
+Version			:	1.31
+Last Update		:	9/1/2020
 GitHub			:	https://github.com/TimRohr22/Cauldron/tree/master/InsertArg
 Roll20 Contact	:	timmaugh
 =========================================================
@@ -13,8 +13,8 @@ const ia = (() => {
     // ==================================================
     //		VERSION
     // ==================================================
-    const vrs = '1.3';
-    const vd = new Date(1598930927672);
+    const vrs = '1.31';
+    const vd = new Date(1598967159132);
     const versionInfo = () => {
         log('\u0166\u0166 InsertArg v' + vrs + ', ' + vd.getFullYear() + '/' + (vd.getMonth() + 1) + '/' + vd.getDate() + ' \u0166\u0166');
         return;
@@ -738,8 +738,8 @@ const ia = (() => {
                     .replace(/\bmaintextcolor\b/g, maintextcolor)                       // replace maintextcolor references
                     .replace(/\baltcolor\b/g, altcolor)                                 // replace rowbgcolor references
                     .replace(/\balttextcolor\b/g, alttextcolor)                         // replace rowtextcolor references
-                    .replace(/\btitle\b/, t)                                            // replace the title
-                    .replace(/\browsource\b/, s);                                       // finally, insert the source into the row
+                    .replace(/\btitle\b/, checkTicks(t))                                // replace the title
+                    .replace(/\browsource\b/, checkTicks(s));                           // finally, insert the source into the row
 
                 break;
 
