@@ -569,7 +569,7 @@ const ia = (() => {
                     case 'eR':
                     case 'Re':
                         if (['Re', 'eR'].includes(q2)) mArg = 'chat';
-                        retObj.ret = list.map(a => { return a.label + ia.ElemSplitter.inner + ia.BtnAPI({ bg: bg, api: ia.InternalCallCoding(`!ia --whisper --show#msgbox{{!!c#get${elem}{{!!a#${a.execObj.id} !!h#true !!v#${v}}} !!t#${a.label} !!send#true !!sendas#getme{{!!r#cs}}}}`,true), label: a.label, charid: character.id, entity: sheetElem[elem], css: css }) })
+                        retObj.ret = list.map(a => { return a.label + ia.ElemSplitter.inner + ia.BtnAPI({ bg: bg, api: ia.InternalCallCoding(`!ia --${mArg} --show#msgbox{{!!c#get${elem}{{!!a#${a.execObj.id} !!h#true !!v#${v}}} !!t#${a.label} !!send#true !!sendas#getme{{!!r#cs}}}}`,true), label: a.rlbl, charid: character.id, entity: sheetElem[elem], css: css }) })
                             .join(ia.ElemSplitter.outer);
                         break;
                     case "":
