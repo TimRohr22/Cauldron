@@ -1,8 +1,8 @@
 ﻿/*
 =========================================================
 Name			:	InsertArg (ia)
-Version			:	1.2.1
-Last Update		:	8/29/2020
+Version			:	1.3
+Last Update		:	8/31/2020
 GitHub			:	https://github.com/TimRohr22/Cauldron/tree/master/InsertArg
 Roll20 Contact	:	timmaugh
 =========================================================
@@ -13,8 +13,8 @@ const ia = (() => {
     // ==================================================
     //		VERSION
     // ==================================================
-    const vrs = '1.2.1';
-    const vd = new Date(1598908041610);
+    const vrs = '1.3';
+    const vd = new Date(1598930927672);
     const versionInfo = () => {
         log('\u0166\u0166 InsertArg v' + vrs + ', ' + vd.getFullYear() + '/' + (vd.getMonth() + 1) + '/' + vd.getDate() + ' \u0166\u0166');
         return;
@@ -67,6 +67,12 @@ const ia = (() => {
         "<": "&#60;",
         ">": "&#62;",
     };
+    const intCallTable = {
+        '--': '☰',
+        '{{': '〈〈',
+        '!!': '¡¡',
+        '}}': '〉〉'
+    }
     const rowbg = ["#ffffff", "#dedede"];
     const bgcolor = "#ce0f69";
     const menutable = '<div style="width:100%;font-family:Arial, Calibri, Consolas, cursive; font-size:12px;"><div style="border-radius:10px;background-color:maincolor; overflow:hidden;"><div style="width:100%;overflow:hidden;"><div style="font-size: 1.8em; line-height:24px; color: maintextcolor;text-align:left;width:95%; margin:auto;padding:4px;">title</div></div>row<div style="line-height:10px;">&nbsp;</div></div></div>';
@@ -172,11 +178,19 @@ const ia = (() => {
     };
     const htmlCoding = (s = "", encode = true) => {
         if (typeof s !== "string") return undefined;
-        let searchfor = encode ? htmlTable : _invert(htmlTable);
+        let searchfor = encode ? htmlTable : _.invert(htmlTable);
         s = s.replace(new RegExp(Object.keys(searchfor)
             .map((k) => { return escapeRegExp(k); })
             .join("|"), 'gmi'), (r) => { return searchfor[r]; })
             .replace(new RegExp(/\n/, 'gmi'), '<br><br>');
+        return s;
+    };
+    const internalCallCoding = (s = "", encode = true) => {
+        if (typeof s !== 'string') return undefined;
+        let searchfor = encode ? intCallTable : _.invert(intCallTable);
+        s = s.replace(new RegExp(Object.keys(searchfor)
+            .map(k => escapeRegExp(k))
+            .join("|"), 'gmi'), (r) => { return searchfor[r]; });
         return s;
     };
     const displayIAConfig = (theSpeaker, cfgObj = getDefaultConfigObj()) => {
@@ -535,13 +549,15 @@ const ia = (() => {
     const buildOutputOptions = ({ p: p, op: op, list: list, bg: bg, css: css, character: character = { get: () => { return '' } }, elem: elem = 'attr', v: v = 'current', theSpeaker: theSpeaker, d: d }) => {
         let retObj = { ret: "", safe: true };
         v = elem === 'abil' ? 'action' : v;
-        let q2 = "", prop = 'l';
+        let q2 = "", prop = 'l', mArg = 'whisper';
         switch (op.charAt(0)) {
             case "b":   // buttons
                 if (op.length > 1) q2 = op.slice(1);
                 switch (q2) {
-                    case 'r':                               // read the action text in a msgbox
-                        retObj.ret = list.map(a => ia.BtnAPI({ bg: bg, api: `!ia --whisper --show#msgbox{{!!c#get${elem}{{!!a#${a.execObj.id} !!h#true !!v#${v}}} !!t#${a.label} !!send#true !!sendas#getme{{!!r#cs}}}}`, label: a.label, charid: character.id, entity: sheetElem[elem], css: css }))
+                    case 'R':                               // read the action text in a msgbox
+                    case 'r':
+                        if (q2 === 'R') mArg = 'chat';
+                        retObj.ret = list.map(a => ia.BtnAPI({ bg: bg, api: ia.InternalCallCoding(`!ia --${mArg} --show#msgbox{{!!c#get${elem}{{!!a#${a.execObj.id} !!h#true !!v#${v}}} !!t#${a.label} !!send#true !!sendas#getme{{!!r#cs}}}}`,true), label: a.label, charid: character.id, entity: sheetElem[elem], css: css }))
                             .join(d);
                         break;
                     case 'e':                               // spread the return out over multiple table elements
@@ -550,7 +566,10 @@ const ia = (() => {
                         break;
                     case 'er':                              // both 'e' and 'r', reading the action text in a msgbox and spreading the return over multiple table elements
                     case 're':
-                        retObj.ret = list.map(a => { return a.label + ia.ElemSplitter.inner + ia.BtnAPI({ bg: bg, api: `!ia --whisper --show#msgbox{{!!c#get${elem}{{!!a#${a.execObj.id} !!h#true !!v#${v}}} !!t#${a.label} !!send#true !!sendas#getme{{!!r#cs}}}}`, label: a.label, charid: character.id, entity: sheetElem[elem], css: css }) })
+                    case 'eR':
+                    case 'Re':
+                        if (['Re', 'eR'].includes(q2)) mArg = 'chat';
+                        retObj.ret = list.map(a => { return a.label + ia.ElemSplitter.inner + ia.BtnAPI({ bg: bg, api: ia.InternalCallCoding(`!ia --whisper --show#msgbox{{!!c#get${elem}{{!!a#${a.execObj.id} !!h#true !!v#${v}}} !!t#${a.label} !!send#true !!sendas#getme{{!!r#cs}}}}`,true), label: a.label, charid: character.id, entity: sheetElem[elem], css: css }) })
                             .join(ia.ElemSplitter.outer);
                         break;
                     case "":
@@ -1257,6 +1276,7 @@ const ia = (() => {
 
         // OUTPUT RESULTS
         safechat = !/(?:@|\?){/gm.test(cmdline);
+        cmdline = internalCallCoding(cmdline, false);
         // if user wants to ouput to the chat but it's not safe to chat, change to button
         if (['chat','whisper','menu',...Object.keys(mapArgFuncs)].includes(mapArg[0]) && !safechat) mapArg[0] = "button";
         if (!['button','load'].includes(mapArg[0])) {
@@ -1602,7 +1622,8 @@ const ia = (() => {
         BuildOutputOptions: buildOutputOptions,
         ApplyFilterOptions: applyFilterOptions,
         ApplyFormatOptions: applyFormatOptions,
-        CheckTicks: checkTicks
+        CheckTicks: checkTicks,
+        InternalCallCoding: internalCallCoding
     };
 
 })();

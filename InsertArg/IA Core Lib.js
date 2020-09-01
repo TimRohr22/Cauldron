@@ -1,8 +1,8 @@
 /*
 =========================================================
 Name			:	InsertArg Core Lib (ialibcore)
-Version			:	1.2.2
-Last Update		:	8/29/2020
+Version			:	1.2
+Last Update		:	8/31/2020
 GitHub			:	https://github.com/TimRohr22/Cauldron/tree/master/InsertArg
 Roll20 Contact	:	timmaugh
 =========================================================
@@ -13,9 +13,9 @@ const ialibcore = (() => {
     // ==================================================
     //		VERSION
     // ==================================================
-    const vrs = '1.2.2';
+    const vrs = '1.3';
     const versionInfo = () => {
-        const vd = new Date(1598908041610);
+        const vd = new Date(1598930927672);
         log('\u0166\u0166 InsertArg Core Lib v' + vrs + ', ' + vd.getFullYear() + '/' + (vd.getMonth() + 1) + '/' + vd.getDate() + ' \u0166\u0166');
         return;
     };
