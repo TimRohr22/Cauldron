@@ -1,8 +1,8 @@
 /*
 =========================================================
 Name			:	InsertArg Core Lib (ialibcore)
-Version			:	1.2
-Last Update		:	8/31/2020
+Version			:	1.4
+Last Update		:	9/4/2020
 GitHub			:	https://github.com/TimRohr22/Cauldron/tree/master/InsertArg
 Roll20 Contact	:	timmaugh
 =========================================================
@@ -13,9 +13,9 @@ const ialibcore = (() => {
     // ==================================================
     //		VERSION
     // ==================================================
-    const vrs = '1.3';
+    const vrs = '1.4';
     const versionInfo = () => {
-        const vd = new Date(1598930927672);
+        const vd = new Date(1599233215930);
         log('\u0166\u0166 InsertArg Core Lib v' + vrs + ', ' + vd.getFullYear() + '/' + (vd.getMonth() + 1) + '/' + vd.getDate() + ' \u0166\u0166');
         return;
     };
@@ -171,11 +171,14 @@ const ialibcore = (() => {
         retObj.ret = uniquekeys.map(k => k.key).join(d);
         return retObj;
     };
+
     const getrepeating = ({
         s: s = "",                                      // repeating section
         sfxn: sfxn = "",                                // suffix denoting name attribute for a given entry in a repeating section
         sfxa: sfxa = "",                                // suffix denoting action attribute for a given entry in a repeating section
         sfxrlbl: sfxrlbl = '',                          // suffix denoting the roll label when used with elem output
+        sfxlist: sfxlist = '',                          // list of sub-attributes to include in card output
+        l: l = '',                                      // list of repeating attribute group ids and/or names (from sfxn)
         c: c,                                           // character (id, name, or token)
         d: d = " ",                                     // delimiter (default is space)
         op: op = "l",                                   // how to output (b: button, q: query, n: nested query, a: label list (action name), v: value list (action value), [default]/[none]: label list (naming attribute value)
@@ -198,6 +201,39 @@ const ialibcore = (() => {
             ia.MsgBox({ c: `getrepeating: No character found for ${c}.`, t: 'NO CHARACTER', send: true, wto: theSpeaker.localName });
             return retObj;
         }
+        bg = bg ? bg : cfgObj.bg;
+        css = `${cfgObj.css}${css}`;
+        rlbl = ia.CheckTicks(rlbl);
+
+        ['m', 'max'].includes(v) ? v = 'max' : v = 'current';
+        let list = [], largs = [], ldelim = '';
+        let fullrx = /^repeating_([^_]*?)_([^_]*?)_(.+)$/;
+        // group 1: section from repeating_section_repID_suffix
+        // group 2: repID from repeating_section_repID_suffix
+        // group 3: suffix from repeating_section_repID_suffix
+
+        if (l) {
+            if (l.indexOf("|") > -1) {                                                      // there are multiple items
+                let rxresult = /^(.*?)\|([^|].*$)/.exec(l);
+                // group 1: every thing before the last of the first set of appearing pipes
+                // group 2: the remaining list after the same pipe
+                ldelim = rxresult[1];                                                       // characters before first pipe are the internal delimiter
+                largs = rxresult[2].split(ldelim);                                          // list after the first pipe is rejoined on pipes, then split on the delimiter
+
+                if (!ldelim || !largs.length) {
+                    ia.MsgBox({ c: `getrepeating: A delimiter must precede a valid list (l).`, t: 'NO DELIMITER OR NO LIST', send: true, wto: theSpeaker.localName });
+                    return retObj;
+                }
+            } else {                                                                        // no pipe means single entry, so everything goes into largs
+                largs.push(l);
+            }
+            if (!s) {
+                let listresult = fullrx.exec(largs[0]);
+                if (listresult) {
+                    s = listresult[1];
+                }
+            }
+        }
 
         let nameRX = new RegExp(`^repeating_${s}_(?:[^_]*?)_(.+)$`, 'g');
         // group 1: suffix from repeating_section_repID_suffix
@@ -212,41 +248,55 @@ const ialibcore = (() => {
                 .filter(r => /name/g.test(r));                                          // filter where that suffix contains 'name'
             if (attrsfx.length) sfxn = attrsfx[0];                                      // if we found anything, assign sfxn to it
         }
-        if (!(sfxa && s && sfxn)) {                                                     // before we go any further, we have to have a section, naming suffix, and action suffix
-            ia.MsgBox({ c: `getrepeating: You must supply values for section (s), the returned action suffix (sfxa), and the naming suffix (sfxn) if one cannot be identified.`, t: 'MISSING PARAMETERS', send: true, wto: theSpeaker.localName });
+        if (!(s && sfxn && (sfxa || ['bc','bC','c','C'].includes(op) ))) {              // before we go any further, we have to have a section, naming suffix, and either an action suffix or an output that doesn't need an action suffix
+            ia.MsgBox({
+                c: `getrepeating: You must supply values for section (s) and the naming suffix (sfxn). If your output (op) parameter is something other than \
+                    a card or a button producing card, you must also provide the returned action suffix (sfxa)`, t: 'MISSING PARAMETERS', send: true, wto: theSpeaker.localName
+            });
             return retObj;
         }
 
-        bg = bg ? bg : cfgObj.bg;
-        css = `${cfgObj.css}${css}`;
-        rlbl = ia.CheckTicks(rlbl);
-
-        ['m', 'max'].includes(v) ? v = 'max' : v = 'current';
 
         let repRX = new RegExp(`^repeating_${s}_([^_]*?)_${sfxn}$`, 'g');
         // group 1: repID from repeating_section_repID_suffix
-        let list = findObjs({ type: 'attribute', characterid: character.id })           // this will hold an array of objects in the form of {nameObj, execObj, label, execName, execText, rlbl}
-            .filter(r => repRX.test(r.get('name')))
-            .map(a => {
-                let repid = repRX.exec(a.get('name'))[1];
-                let locrlbl = '';
-                repRX.lastIndex = 0;
-                // get the attribute object for the action/exec attribute
-                let aObj = findObjs({ type: 'attribute', characterid: character.id }).filter(ao => ao.get('name') === `repeating_${s}_${repid}_${sfxa}`)[0] || { id: '', get: () => { return 'not found'; } };
-                // get the attribute object for the sfxrlbl, if one is provided
-                if (!rlbl) {
-                    if (sfxrlbl) {
-                        locrlbl = (findObjs({ type: 'attribute', characterid: character.id }).filter(a => new RegExp(`^repeating_${s}_${repid}_${sfxrlbl}$`).test(a.get('name')))[0] || { get: () => { return 'Roll' } }).get('current');
-                    } else locrlbl = 'Roll';
-                } else locrlbl = rlbl;
-                return { nameObj: a, execObj: aObj, label: a.get('current'), execName: aObj.get('name'), execText: aObj.get(v), rlbl: locrlbl || 'Roll' };
-            });
-        // we should now have an array of objects of the form {nameObj, execObj, label, execName, execText, rlbl}
+        let repid, locrlbl = '', sublist = [];
+        if (!l) {                                                                       // no list provided, so get all non-repeating attributes
+            list = findObjs({ type: 'attribute', characterid: character.id })           // this will hold an array of objects in the form of {nameObj, execObj, label, execName, execText, rlbl, sublist}
+                .filter(r => repRX.test(r.get('name')));
+        } else {                                                                        // list provided, so parse the list
+            list = largs.map(a => ia.RepeatingFromAmbig(a, character.id, s, sfxn))   // return an object
+                .filter(r => r)
+                .filter(r => r.get('name').match(new RegExp(`repeating_${s}_([^_]*?)_${sfxn}`)));
+        }
+        let cardapi = '';
+        list = list.map(a => {
+            repRX.lastIndex = 0;
+            repid = repRX.exec(a.get('name'))[1];
+            // get the attribute object for the action/exec attribute
+            let aObj = findObjs({ type: 'attribute', characterid: character.id }).filter(ao => ao.get('name') === `repeating_${s}_${repid}_${sfxa}`)[0] || { id: '', get: () => { return 'not found'; } };
+            // get the attribute object for the sfxrlbl, if one is provided
+            if (!rlbl) {
+                if (sfxrlbl) {
+                    locrlbl = (findObjs({ type: 'attribute', characterid: character.id }).filter(a => new RegExp(`^repeating_${s}_${repid}_${sfxrlbl}$`).test(a.get('name')))[0] || { get: () => { return 'Roll' } }).get('current');
+                } else locrlbl = 'Roll';
+            } else locrlbl = rlbl;
+            sublist = [[sfxn, 'Name', getAttrByName(character.id, `repeating_${s}_${repid}_${sfxn}`)]];
+            if (sfxlist) {
+                sublist.push(...sfxlist.split("|")
+                    .map(a => a.split(" "))
+                    .map(a => [a[0], a.slice(1).join(" ") || a[0]])
+                    .map(a => [a[0], a[1], getAttrByName(character.id, `repeating_${s}_${repid}_${a[0]}`) || 'NA']));
+            }
+            cardapi = `getrepeating{{!!c#${character.id} !!s#${s} !!sfxn#${sfxn} !!l#${a.get('current')} !!op#c${rlbl ? ` !!rlbl#${rlbl}` : ''}${sfxrlbl ? ` !!sfxrlbl#${sfxrlbl}` : ''}${sfxlist ? ` !!sfxlist#${sfxlist}` : ''}${v !== 'c' ? ` !!v#${v}` : ''}${frmt ? ` !!frmt#${frmt}` : ''}}}`;
+            return { nameObj: a, execObj: aObj, label: a.get('current'), execName: aObj.get('name'), execText: aObj.get(v), rlbl: locrlbl || 'Roll', sublist: sublist, cardapi: cardapi };
+        });
+
+        // we should now have an array of objects of the form {nameObj, execObj, label, execName, execText, rlbl, sublist, cardapi}
         // test to make sure there was actually an attribute for sfxn & sfxa
         if (!list.length) {
             ia.MsgBox({ c: `getrepeating: No attributes found with that naming suffix (sfxn).`, t: 'NO ATTRIBUTE', send: true, wto: theSpeaker.localName });
             return retObj;
-        } else if (!list.filter(a => a.execObj.id).length) {
+        } else if (!((l && ['bc', 'bC', 'c', 'C'].includes(op)) || list.filter(a => a.execObj.id).length)) {
             ia.MsgBox({ c: `getrepeating: No attributes found with that action suffix (sfxa).`, t: 'NO ATTRIBUTE', send: true, wto: theSpeaker.localName });
             return retObj;
         }
@@ -555,7 +605,10 @@ const ialibcore = (() => {
                 ['b', 'buttons<br>repeating elements structured as (label: sfxn, action: sfxa); standard attributes (label: name, action: current or max)<br>abilities (label: name, action: action)'],
                 ['be', 'as \'b\', except intended for individual elem rows for menu with external labels; utilizes the rlbl property for the button label'],
                 ['br/bR', 'buttons to read the contents of the attribute in chat; if the \'r\' is capitalized, button readout will be spoken; if lowercase, it will be whispered'],
-                ['bre/ber/bRe/beR', 'as \'br\', except intended for individual elem rows for menu with external labels; utilizes the rlbl property for the button labels; if the \'r\' is capitalized, button readout will be spoken; if lowercase, it will be whispered'],
+                ['bre/ber/bRe/beR', 'as \'br\', except intended for individual elem rows for menu with external labels; utilizes the rlbl property for the button labels'],
+                ['bc/bC', 'buttons to output cards in chat; if the \'c\' is capitalized, button readout will be spoken; if lowercase, it will be whispered'],
+                ['bce/bec/bCe/beC', 'as \'bc\', except intended for individual elem rows for menu with external labels; utilizes the rlbl property for the button labels'],
+                ['c/C', 'card output for repeating section (lowercase: whisper; uppercase: chat); name suffix is included automatically, but other sub-attributes can be included in the sfxlist argument of getrepeating'],
                 ['q', 'query producing (label,return) pairs; uses prompt argument (p) for query interrogative; can be refined with further letters as follows; defaults to \'qlv\''],
                 ['ql', 'query producing (label) list; uses prompt argument (p) for query interrogative<br>\
                         &nbsp;&nbsp;&nbsp;&nbsp;repeating (label: sfxn)<br>\
@@ -689,6 +742,14 @@ const ialibcore = (() => {
                 ['sfxn', 'name portion of the sub-attribute responsible for naming an attribute set from the section; "subattr" from repeating_section_is_subattr<br>if left blank, getrepeating will look for a sub-attribute with the text "name" in the current value'],
                 ['sfxa', 'name portion of the sub-attribute you wish to return (for instance, the roll formula); "subattr" from repeating_section_id_subattr'],
                 ['sfxrlbl', 'name portion of the sub-attribute you wish to use for button labels if using elem menu output, overwritten by explicit declaration of rlbl'],
+                ['sfxlist', 'pipe-separated list of sub-attribute suffixes to include as part of a card; naming suffix is included automatically'],
+                ['l', 'list of repeating attributes to retrieve; repeating attributes can be referred to by name, id, or contents of the naming sub-attribute (i.e., what you would call the entry in the repeating list), \
+                        with or without a character reference and pipe preceding each (leaving off the character reference will use the speaking character, if available); unlike other list (l) arguments, does NOT take a label option\
+                        if more than one item is included, the list argument must be formatted as<br>\
+                        (list delimiter)|(attribute)(list delimiter)(attribute 2)...<br>\
+                        for instance, the following line would list the repeating attributes named Fireball and Inferno (the current value of the naming sub-attribute), using the delimiter of a pipe<br>\
+                        !!l#||Fireball|Inferno<br><br>\
+                        if left empty, all repeating attributes for the character will be retrieved; whatever is retrieved can be filtered by use of the f arg'],
                 ['v', 'value to retrieve (current or max); default: current; anything other than "m" or "max" maps to current'],
                 ['p', 'prompt for query (or nested query) output; default: Select'],
                 ['bg', 'css background-color for api button output to override that designated by any config handout; default: (detected from speaker handout, global handout, or default config)'],
@@ -707,7 +768,7 @@ const ialibcore = (() => {
                 delimHelp,
                 ['v', 'value to retrieve (current or max); default: current; anything other than "m" or "max" maps to current'],
                 ['l', 'list of attributes to retrieve; attributes may be referred to by id or name; each attribute may be followed by a space and then a label to use instead of the attribute name;<br>\
-                        list argument must be formatted as<br>\
+                        if more than one item is included, the list argument must be formatted as<br>\
                         (list delimiter)|(attribute)(list delimiter)(attribute 2)...<br>\
                         for instance, the following line would list attributes named STR and DEX, renamed to Strength and Dexterity, using the delimiter of a pipe<br>\
                         !!l#||STR Strength|DEX Dexterity<br><br>\

@@ -1,8 +1,8 @@
 ﻿/*
 =========================================================
 Name			:	InsertArg (ia)
-Version			:	1.31
-Last Update		:	9/1/2020
+Version			:	1.4
+Last Update		:	9/4/2020
 GitHub			:	https://github.com/TimRohr22/Cauldron/tree/master/InsertArg
 Roll20 Contact	:	timmaugh
 =========================================================
@@ -13,8 +13,8 @@ const ia = (() => {
     // ==================================================
     //		VERSION
     // ==================================================
-    const vrs = '1.31';
-    const vd = new Date(1598967159132);
+    const vrs = '1.4';
+    const vd = new Date(1599233215930);
     const versionInfo = () => {
         log('\u0166\u0166 InsertArg v' + vrs + ', ' + vd.getFullYear() + '/' + (vd.getMonth() + 1) + '/' + vd.getDate() + ' \u0166\u0166');
         return;
@@ -405,6 +405,29 @@ const ia = (() => {
             findObjs({ type: 'attribute', characterid: c.id }).filter(a => a.id === n)[0];
         return attr;
     };
+    const repeatingFromAmbig = (info, character = '', s = '', sfxn = '') => {
+        let obj = findObjs({ type: 'attribute', id: info })[0];
+        if (obj) return obj;
+        let c, n;
+        if (info.indexOf("|") > -1) {
+            [c, n] = info.split("|");
+        } else {
+            c = character;
+            n = info;
+        }
+        if (!c || !n) return obj;
+        c = charFromAmbig(c);
+        if (!c) return obj;
+        obj = findObjs({ type: 'attribute', characterid: c.id }).filter(a => a.get('name') === n)[0] ||
+            findObjs({ type: 'attribute', characterid: c.id }).filter(a => a.id === n)[0];
+        if (obj) return obj;
+        if (s && sfxn) {                                                // if we have a section and a naming suffix, test if what we have is the name of an element group from this section
+            obj = findObjs({ type: 'attribute', characterid: c.id })
+                .filter(a => new RegExp(`^repeating_${s}_.*?_${sfxn}$`).test(a.get('name')))
+                .filter(a => a.get('current') === n)[0];
+        }
+        return obj;
+    };
     const macroFromAmbig = (info) => {
         let mac = findObjs({ type: 'macro', id: info })[0];
         if (mac) return mac;
@@ -416,7 +439,7 @@ const ia = (() => {
         if (token) return token;
         token = findObjs({ type: 'graphic', subtype: 'token' }).filter(t => t.get('name') === info)[0];
         return token;
-
+        
     };
     const msgbox = ({ c: c = "chat message", t: t = "title", btn: b = "buttons", send: send = false, sendas: sas = "API", wto: wto = "" }) => {
         let tbl = msgtable.replace("__bg__", rowbg[0]);
@@ -550,23 +573,49 @@ const ia = (() => {
         let retObj = { ret: "", safe: true };
         v = elem === 'abil' ? 'action' : v;
         let q2 = "", prop = 'l', mArg = 'whisper';
+        let msg = '';
         switch (op.charAt(0)) {
             case "b":   // buttons
                 if (op.length > 1) q2 = op.slice(1);
                 switch (q2) {
-                    case 'R':                               // read the action text in a msgbox
+                    case 'c':   // card output button, set to whisper
+                    case 'C':   // card outputbutton, set to chat
+                        if (q2 === 'C') mArg = 'chat';
+                        if (!Object.prototype.hasOwnProperty.call(list[0], "cardapi")) {
+                            ia.MsgBox({ c: `buildOutputOptions: Card output is currently only intended for repeating sections.`, t: 'NOT A REPEATING SOURCE', send: true, wto: theSpeaker.localName });
+                            return retObj;
+                        }
+                        retObj.ret = list.map(a => {
+                            return ia.BtnAPI({ bg: bg, api: ia.InternalCallCoding(`!ia --${mArg} --show#${a.cardapi || ''}`, true), label: a.label, charid: character.id, entity: sheetElem[elem], css: css })
+                        }).join(d);
+                        break;
+                    case 'ec':  // card output for external labels (elem output)
+                    case 'ce':
+                    case 'eC':
+                    case 'Ce':
+                        if (['Ce','eC'].includes(q2)) mArg = 'chat';
+                        if (!Object.prototype.hasOwnProperty.call(list[0], "cardapi")) {
+                            ia.MsgBox({ c: `buildOutputOptions: Card output is currently only intended for repeating sections.`, t: 'NOT A REPEATING SOURCE', send: true, wto: theSpeaker.localName });
+                            return retObj;
+                        }
+                        retObj.ret = list.map(a => {
+                            return a.label + ia.ElemSplitter.inner + ia.BtnAPI({ bg: bg, api: ia.InternalCallCoding(`!ia --${mArg} --show#${a.cardapi || ''}`, true), label: a.rlbl, charid: character.id, entity: sheetElem[elem], css: css })
+                        }).join(ia.ElemSplitter.outer);
+
+                        break;
+                    case 'R':   // read the action text in a msgbox
                     case 'r':
                         if (q2 === 'R') mArg = 'chat';
                         retObj.ret = list.map(a => ia.BtnAPI({ bg: bg, api: ia.InternalCallCoding(`!ia --${mArg} --show#msgbox{{!!c#get${elem}{{!!a#${a.execObj.id} !!h#true !!v#${v}}} !!t#${a.label} !!send#true !!sendas#getme{{!!r#cs}}}}`,true), label: a.label, charid: character.id, entity: sheetElem[elem], css: css }))
                             .join(d);
                         break;
-                    case 'e':                               // spread the return out over multiple table elements
+                    case 'e':   // spread the return out over multiple table elements
                         retObj.ret = list.map(a => { return a.label + ia.ElemSplitter.inner + ia.BtnElem({ bg: bg, store: a.execName, label: a.rlbl, charname: character.get('name'), entity: sheetElem.attr, css: css }) })
                             .join(ia.ElemSplitter.outer);
                         break;
-                    case 'er':                              // both 'e' and 'r', reading the action text in a msgbox and spreading the return over multiple table elements
+                    case 'er':  // both 'e' and 'r', reading the action text in a msgbox and spreading the return over multiple table elements
                     case 're':
-                    case 'eR':
+                    case 'eR':  // same, but chat output (not whisper)
                     case 'Re':
                         if (['Re', 'eR'].includes(q2)) mArg = 'chat';
                         retObj.ret = list.map(a => { return a.label + ia.ElemSplitter.inner + ia.BtnAPI({ bg: bg, api: ia.InternalCallCoding(`!ia --${mArg} --show#msgbox{{!!c#get${elem}{{!!a#${a.execObj.id} !!h#true !!v#${v}}} !!t#${a.label} !!send#true !!sendas#getme{{!!r#cs}}}}`,true), label: a.rlbl, charid: character.id, entity: sheetElem[elem], css: css }) })
@@ -578,6 +627,16 @@ const ia = (() => {
                             .join(d);
                         break;
                 }
+                break;
+            case "c":   // card output (whisper or chat determined by mapArg)
+                list.map(l => {
+                    if (!Object.prototype.hasOwnProperty.call(l, "sublist")) {
+                        Object.assign(l, { sublist: [['', 'Name', l.label], ['', 'Description', l.execText]] });       // if we don't have the sublist, build it just with the stuff we do have
+                    }
+                    msg = l.sublist.map((a, i) => `<tr><${i === 0 ? 'th' : 'td'} style="vertical-align:top;">${htmlCoding(a[1]).replace(/\s/g,'&nbsp;')}</td><td>&nbsp;</td><${i === 0 ? 'th' : 'td'} style="vertical-align:top;">${typeof a[2] !== 'string' ? a[2] : htmlCoding(a[2])}</td></tr>`).join("");
+                    msg = `<table style="width:96%;">${msg}</table>`;
+                    retObj.ret += msgbox({ c: msg, t: 'CARD', send: false }) + '<br>';
+                });
                 break;
             case "q":   // query
             case "n":   // nested query
@@ -1088,7 +1147,6 @@ const ia = (() => {
 
         let oldhos = findObjs({ type: "handout" }).filter(h => oldrx.test(h.get('name')));
         if (oldhos.length === 0) return;                              // no config handouts found
-        log(`Length of oldhos: ${oldhos.length}`);
         oldhos.forEach(h => log(h.get('name')));
 
         state.ia[character.get('name')] = state.ia[character.get('name')] || {};
@@ -1100,8 +1158,6 @@ const ia = (() => {
             btn = "",
             api = "",
             newhos = findObjs({ type: "handout" }).filter(h => newrx.test(h.get('name')));
-        log(`Length of newhos: ${newhos.length}`);
-        newhos.forEach(h => log(h.get('name')));
         if (newhos.length + oldhos.length > 1) {               // detect conflicts
             msg = `That character has multiple script configurations, either under ${character.get('name')} or under ${prev.name}. You should only keep one, and it should be named IAConfig-${character.get('name')}. Open handouts for comparison?<br>`;
             api = `http://journal.roll20.net/handout/`;
@@ -1613,6 +1669,7 @@ const ia = (() => {
         PlayerFromAmbig: playerFromAmbig,
         MacroFromAmbig: macroFromAmbig,
         TokenFromAmbig: tokenFromAmbig,
+        RepeatingFromAmbig: repeatingFromAmbig,
         ElemSplitter: elemSplitter,
         GetIndivConfig: getIndivConfig,
         HTMLCoding: htmlCoding,
