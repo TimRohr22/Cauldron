@@ -1,8 +1,8 @@
 ﻿/*
 =========================================================
 Name			:	xray
-Version			:	1.1
-Last Update		:	8/24/2020
+Version			:	1.11
+Last Update		:	9/5/2020
 GitHub			:	https://github.com/TimRohr22/Cauldron/tree/master/InsertArg
 Roll20 Contact	:	timmaugh
 =========================================================
@@ -19,8 +19,8 @@ const xray = (() => {
     //		VERSION
     // ==================================================
     const versionInfo = () => {
-        const vrs = '1.0';
-        const vd = new Date(1598322817361);
+        const vrs = '1.11';
+        const vd = new Date(1599302698567);
         log('\u0166\u0166 XRAY v' + vrs + ', ' + vd.getFullYear() + '/' + (vd.getMonth() + 1) + '/' + vd.getDate() + ' \u0166\u0166');
         return;
     };
@@ -549,7 +549,7 @@ const xray = (() => {
                         xraysection({ s: section, character: character, cfgObj: cfgObj, theSpeaker: theSpeaker, pos: pos });
                 }
             } else {                                                    // character, no section = output available sections
-                xraysheet({ character: character, css: css, bg: bg, theSpeaker: theSpeaker });
+                xraysheet({ character: character, css: css, bg: bg, theSpeaker: theSpeaker, cfgObj: cfgObj });
             }
         } else if (action === 'read') {
             if (!elem) {
