@@ -1,10 +1,14 @@
 ﻿/*
 =========================================================
 Name			:	InsertArg (ia)
-Version			:	1.4
-Last Update		:	9/4/2020
 GitHub			:	https://github.com/TimRohr22/Cauldron/tree/master/InsertArg
 Roll20 Contact	:	timmaugh
+---------------------------------------------------------
+                    COMPONENTS
+---------------------------------------------------------
+Name			:	Core Engine     Core Lib        XRay
+Version			:	1.5             1.5             1.11
+Last Update		:	9/9/2020        9/8/2020        9/5/2020
 =========================================================
 
 */
@@ -13,8 +17,8 @@ const ia = (() => {
     // ==================================================
     //		VERSION
     // ==================================================
-    const vrs = '1.4';
-    const vd = new Date(1599233215930);
+    const vrs = '1.5';
+    const vd = new Date(1599625661278);
     const versionInfo = () => {
         log('\u0166\u0166 InsertArg v' + vrs + ', ' + vd.getFullYear() + '/' + (vd.getMonth() + 1) + '/' + vd.getDate() + ' \u0166\u0166');
         return;
@@ -194,15 +198,8 @@ const ia = (() => {
         return s;
     };
     const displayIAConfig = (theSpeaker, cfgObj = getDefaultConfigObj()) => {
-        let clVersion = '(none)';
-        let clMsg = '';
-        try {
-            clVersion = ialibcore.GetVrs();
-        } catch (error) {
-            clMsg = '<tr><td colspan = "2">It doesn\'t seem you have the IA Core Library of functions installed (a separate script).\
-                You could have a third-party library installed which I can\'t detect,\
-                but without some bank of functions, InsertArg may not work for you.</td></tr>';
-        }
+        let clVersion = ialibcore.GetVrs();
+        let xrVersion = xray.GetVrs();
         let msg = `<table style="width:100%;">\
                         <tr>\
                             <td style="font-weight:bold;">InsertArg</td>\
@@ -210,9 +207,12 @@ const ia = (() => {
                         </tr>\
                         <tr>\
                             <td style="font-weight:bold;">Core Library</td>\
-                            <td style="text-align:right;font-weight:bold;">${clVersion === '(none)' ? '' : 'v&nbsp;'}${clVersion}&nbsp;&nbsp;</td>\
+                            <td style="text-align:right;font-weight:bold;">v&nbsp;${clVersion}&nbsp;&nbsp;</td>\
                         </tr>\
-                        ${clMsg}\
+                        <tr>\
+                            <td style="font-weight:bold;">Xray</td>\
+                            <td style="text-align:right;font-weight:bold;">v&nbsp;${xrVersion}&nbsp;&nbsp;</td>\
+                        </tr>\
                     </table><br>\
                     <table style="width:100%;">\
                         <tr>\
@@ -578,7 +578,7 @@ const ia = (() => {
             case "b":   // buttons
                 if (op.length > 1) q2 = op.slice(1);
                 switch (q2) {
-                    case 'c':   // card output button, set to whisper
+                    case 'c':   // card output button
                     case 'C':   // card outputbutton, set to chat
                         if (q2 === 'C') mArg = 'chat';
                         if (!Object.prototype.hasOwnProperty.call(list[0], "cardapi")) {
@@ -633,9 +633,15 @@ const ia = (() => {
                     if (!Object.prototype.hasOwnProperty.call(l, "sublist")) {
                         Object.assign(l, { sublist: [['', 'Name', l.label], ['', 'Description', l.execText]] });       // if we don't have the sublist, build it just with the stuff we do have
                     }
-                    msg = l.sublist.map((a, i) => `<tr><${i === 0 ? 'th' : 'td'} style="vertical-align:top;">${htmlCoding(a[1]).replace(/\s/g,'&nbsp;')}</td><td>&nbsp;</td><${i === 0 ? 'th' : 'td'} style="vertical-align:top;">${typeof a[2] !== 'string' ? a[2] : htmlCoding(a[2])}</td></tr>`).join("");
+                    msg = l.sublist.slice(1).map((a, i) => {
+                        if (a[1].endsWith('(fw)')) {                                    // allow full-width elements
+                            return `<tr><td style="vertical-align:top;font-weight: bold;" colspan = "1">${htmlCoding(a[1].slice(0, -4)).replace(/\s/g, '&nbsp;')}</td></tr><tr><td style="vertical-align:top;" colspan = "3">${typeof a[2] !== 'string' ? a[2] : htmlCoding(a[2])}</td></tr>`;
+                        } else {
+                            return `<tr><td style="vertical-align:top;width:1%; white-space: nowrap;font-weight: bold;">${htmlCoding(a[1]).replace(/\s/g, '&nbsp;')}</td><td>&nbsp;</td><td style="vertical-align:top;">${typeof a[2] !== 'string' ? a[2] : htmlCoding(a[2])}</td></tr>`;
+                        }
+                    }).join("");
                     msg = `<table style="width:96%;">${msg}</table>`;
-                    retObj.ret += msgbox({ c: msg, t: 'CARD', send: false }) + '<br>';
+                    retObj.ret += msgbox({ c: msg, t: l.sublist[0][2].toUpperCase(), send: false }) + '<br>';
                 });
                 break;
             case "q":   // query
@@ -693,7 +699,6 @@ const ia = (() => {
         return special[s] || (s.indexOf("`") === 0 && s.charAt(s.length - 1) === "`" ? s.slice(1, s.length - 1) : s);
 
     };
-
 
     // ==================================================
     //		AVAIL INTERNAL FUNCTIONS, HELP, and MENUS
@@ -1009,7 +1014,7 @@ const ia = (() => {
                             corp = 'global';
                             cby = getAllGMs().map(g => g.id).join(",");
                         }
-                        if (corp === 'global' && !playerIsGM(theSpeaker.playerid)) {
+                        if (corp === 'global' && !playerIsGM(m.playerid)) {
                             msgbox({ c: "You must be a GM to create the global config.", t: "GM RIGHTS REQUIRED", send: true, wto: theSpeaker.localName });
                         } else {
                             hoObj = findObjs({ type: "handout", name: `IAConfig-${corp}` })[0] || { fail: true };
@@ -1681,6 +1686,1390 @@ const ia = (() => {
         ApplyFormatOptions: applyFormatOptions,
         CheckTicks: checkTicks,
         InternalCallCoding: internalCallCoding
+    };
+
+})();
+
+const ialibcore = (() => {
+    // ==================================================
+    //		VERSION
+    // ==================================================
+    const vrs = '1.5';
+    const versionInfo = () => {
+        const vd = new Date(1599623675981);
+        log('\u0166\u0166 InsertArg Core Lib v' + vrs + ', ' + vd.getFullYear() + '/' + (vd.getMonth() + 1) + '/' + vd.getDate() + ' \u0166\u0166');
+        return;
+    };
+    const getVrs = () => { return vrs; };
+
+    // ==================================================
+    //		UTILITIES
+    // ==================================================
+    const deepCopy = (inObject) => {                                            // preserve complex arrays/objects
+        let outObject, value, key;
+        if (typeof inObject !== "object" || inObject === null) {
+            return inObject // Return the value if inObject is not an object
+        }
+        // Create an array or object to hold the values
+        outObject = Array.isArray(inObject) ? [] : {}
+
+        for (key in inObject) {
+            value = inObject[key]
+            // Recursively (deep) copy for nested objects, including arrays
+            outObject[key] = deepCopy(value)
+        }
+        return outObject
+    };
+    const escapeRegExp = (string) => { return string.replace(/[.*+\-?^${}()|[\]\\]/g, '\\$&'); };
+
+    // ==================================================
+    //		LIBRARY FUNCTIONS
+    // ==================================================
+    const puttext = ({
+        m: m,                                                           // message object (included only because it is being passed and we don't want to output it with the rest)
+        theSpeaker: theSpeaker,                                         // speaker object (included only because it is being passed and we don't want to output it with the rest)
+        cfgObj: cfgObj,                                                 // config object (included only because it is being passed and we don't want to output it with the rest)
+        ...t                                                            // everything else the user passes will go here
+    }) => {
+        let retObj = { ret: "", safe: true };
+        retObj.ret += Object.keys(t).reduce((a, v) => a + ia.CheckTicks(t[v]), "");
+        return retObj;
+    };
+    const getattr = ({
+        a: a,                                       // attribute id or (character)|(attribute)
+        v: v = "current",                           // value wanted (current or max)
+        h: h = 'false',                             // whether to encode html characters
+        theSpeaker: theSpeaker                      // speaker object
+    }) => {
+        let retObj = { ret: "", safe: true };
+        ['m', 'max'].includes(v) ? v = 'max' : v = 'current';
+        let attr = ia.AttrFromAmbig(a, theSpeaker.id);
+        if (!attr) {
+            ia.MsgBox({ c: `getattr: No attribute found for ${a}.`, t: 'NO ATTRIBUTE', send: true, wto: theSpeaker.localName });
+            return retObj;
+        }
+        retObj.ret = ['t', 'true', 'y', 'yes'].includes(h) ? ia.HTMLCoding(attr.get(v)) : attr.get(v);
+        return retObj;
+    };
+    const getabil = ({
+        a: a,                                       // ability id, or (character)|(ability)
+        h: h = 'false',                             // whether to encode html characters
+        theSpeaker: theSpeaker                      // speaker object
+    }) => {
+        let retObj = { ret: "", safe: true };
+        let abil = ia.AbilFromAmbig(a, theSpeaker.id);
+        if (!abil) {
+            ia.MsgBox({ c: `getabil: No ability found for ${a}.`, t: 'NO ABILITY', send: true, wto: theSpeaker.localName });
+            return retObj;
+        }
+        retObj.ret = ['t', 'true', 'y', 'yes'].includes(h) ? ia.HTMLCoding(abil.get('action')) : abil.get('action');
+        return retObj;
+    };
+    const getmacro = ({
+        a: a,                                       // macro id or name
+        h: h = 'false',                             // whether to encode html characters
+        theSpeaker: theSpeaker                      // speaker object
+    }) => {
+        let retObj = { ret: "", safe: true };
+        let mac = ia.macroFromAmbig(a, theSpeaker);
+        if (!mac) {
+            ia.MsgBox({ c: `getmacro: No macro found for ${a}.`, t: 'NO MACRO', send: true, wto: theSpeaker.localName });
+            return retObj;
+        }
+        retObj.ret = ['t', 'true', 'y', 'yes'].includes(h) ? ia.HTMLCoding(mac.get('action')) : mac.get('action');
+        return retObj;
+    };
+    const getme = ({
+        r: r = 'id',                                // what to return (id or name)
+        frmt: frmt = '',                            // formatting options
+        theSpeaker: theSpeaker                      // speaker object
+    }) => {
+        if (['n', 'name'].includes(r)) r = 'localName';
+        else if (['c', 'cs'].includes(r)) r = 'chatSpeaker';
+        else r = 'id';
+        let formattedme = ia.ApplyFormatOptions(frmt, [{ name: theSpeaker[r] }], 'name')[0].name;
+        return { ret: formattedme, safe: true };
+    };
+    const puttargets = ({
+        n: n = 1,                                       // number of targets
+        l: l = "Target",                                // label for each targeting iteration
+        r: r = "token_id",                              // what to return in the targeting call
+        d: d = " "                                      // delimiter (default is space)
+    }) => {
+        d = ia.CheckTicks(d);                              // check for opening/closing tick marks
+        let ret = (Array(Number(n)).fill(0)
+            .reduce((a, v, i) => {
+                let iter = n > 1 ? ` ${i + 1}` : ``;
+                return a + `@{target|${l}${iter}|${r}}${d}`;
+            }, ""))
+            .replace(new RegExp(`${escapeRegExp(d)}$`), '');
+        return { ret: ret, safe: false };
+    };
+    const getselected = ({
+        r: r = "id",                                    // what to return (token_id, represents, name)
+        m: m,                                           // msg object
+        d: d = " "                                      // delimiter (default is space)
+    }) => {
+        let retObj = { ret: "", safe: true };
+        d = ia.CheckTicks(d);                           // check for opening/closing tick marks
+        if (['name', 'n'].includes(r)) r = 'name';
+        if (['rep', 'r', 'represents'].includes(r)) r = 'represents';
+        if (!['name', 'represents'].includes(r)) r = 'id';
+        if (m.selected) retObj.ret = m.selected
+            .map(t => getObj('graphic', t._id))
+            .filter(t => (r === 'represents') ? t.get('represents') : true)
+            .map(t => r === 'id' ? t.id : t.get(r))
+            .join(d);
+        return retObj;
+    };
+    const getsections = ({
+        c: c,                                           // character (id, name, or token)
+        d: d = " ",                                     // delimiter (default is space)
+        theSpeaker: theSpeaker,                         // speaker object
+        f: f = "",                                      // filters
+        frmt: frmt = ''                                 // formatting options
+    }) => {
+        let retObj = { ret: "", safe: true };
+        d = ia.CheckTicks(d);                              // check for opening/closing tick marks
+        let character = ia.CharFromAmbig(c);
+        if (!character) {
+            ia.MsgBox({ c: `getsections: No character found for ${c}.`, t: 'NO CHARACTER', send: true, wto: theSpeaker.localName });
+            return retObj;
+        }
+
+        let sectionRX = new RegExp(`repeating_([^_]*?)_.*$`);
+        // group 1: section from repeating_section_attributeID_suffix
+        let sections = findObjs({ type: 'attribute', characterid: character.id }).filter(r => sectionRX.test(r.get('name')));
+        if (sections.length < 1) {
+            retObj.ret = msgOutput({ c: `getsections: No repeating sections on the sheet for ${c}.`, t: "NO REPEATING SECTIONS", send: true, wto: theSpeaker.localName });
+            return retObj;
+        }
+
+        let uniquekeys = [...new Set(sections.map(a => sectionRX.exec(a.get('name'))[1]))];        // extract section (group 1 of the regex), then get an array of unique values
+
+        uniquekeys = uniquekeys.map(k => { return { key: k }; });
+
+        // ---------------- FILTER CONDITIONS ----------------
+        if (f) uniquekeys = ia.ApplyFilterOptions(f, uniquekeys, 'key');                          // apply filter conditions
+        // -------------- END FILTER CONDITIONS --------------
+
+        // --------------- FORMATTING OPTIONS ----------------
+        uniquekeys = ia.ApplyFormatOptions(frmt, uniquekeys, 'label');
+        // ------------- END FORMATTING OPTIONS --------------
+
+        retObj.ret = uniquekeys.map(k => k.key).join(d);
+        return retObj;
+    };
+
+    const getrepeating = ({
+        s: s = "",                                      // repeating section
+        sfxn: sfxn = "",                                // suffix denoting name attribute for a given entry in a repeating section
+        sfxa: sfxa = "",                                // suffix denoting action attribute for a given entry in a repeating section
+        sfxrlbl: sfxrlbl = '',                          // suffix denoting the roll label when used with elem output
+        sfxlist: sfxlist = '',                          // list of sub-attributes to include in card output
+        l: l = '',                                      // list of repeating attribute group ids and/or names (from sfxn)
+        c: c,                                           // character (id, name, or token)
+        d: d = " ",                                     // delimiter (default is space)
+        op: op = "l",                                   // how to output (b: button, q: query, n: nested query, a: label list (action name), v: value list (action value), [default]/[none]: label list (naming attribute value)
+        p: p = "Select",                                // query prompt
+        v: v = "c",                                     // attribute value to retrieve (c: current, m: max)
+        bg: bg,                                         // background color for api button
+        theSpeaker: theSpeaker,                         // speaker object
+        css: css = "",                                  // free input css for api button
+        f: f = "",                                      // filter conditions
+        ef: ef = "",                                    // filter conditions (executable)
+        frmt: frmt = "",                                // pipe-delimited list of formatting options
+        efrmt: efrmt = "",                              // pipe-delimited list of formatting options for executing text (use carefully!)
+        rlbl: rlbl = '',                                // label for a repeating button set (for iterative output)
+        emptyok: emptyok,                               // whether to have output messages for no sfxn returns
+        cfgObj: cfgObj                                  // configuration settings
+    }) => {
+        let retObj = { ret: "", safe: true };
+
+        ['true', 't', 'y', 'yes', true].includes(emptyok) ? emptyok = true : emptyok = false;
+        d = ia.CheckTicks(d);                              // check for opening/closing tick marks
+        let character = ia.CharFromAmbig(c);
+        if (!character) {
+            ia.MsgBox({ c: `getrepeating: No character found for ${c}.`, t: 'NO CHARACTER', send: true, wto: theSpeaker.localName });
+            return retObj;
+        }
+        bg = bg ? bg : cfgObj.bg;
+        css = `${cfgObj.css}${css}`;
+        rlbl = ia.CheckTicks(rlbl);
+
+        ['m', 'max'].includes(v) ? v = 'max' : v = 'current';
+        let list = [], largs = [], ldelim = '';
+        let fullrx = /^repeating_([^_]*?)_([^_]*?)_(.+)$/;
+        // group 1: section from repeating_section_repID_suffix
+        // group 2: repID from repeating_section_repID_suffix
+        // group 3: suffix from repeating_section_repID_suffix
+
+        if (l) {
+            if (l.indexOf("|") > -1) {                                                      // there are multiple items
+                let rxresult = /^(.*?)\|([^|].*$)/.exec(l);
+                // group 1: every thing before the last of the first set of appearing pipes
+                // group 2: the remaining list after the same pipe
+                ldelim = rxresult[1];                                                       // characters before first pipe are the internal delimiter
+                largs = rxresult[2].split(ldelim);                                          // list after the first pipe is rejoined on pipes, then split on the delimiter
+
+                if (!ldelim || !largs.length) {
+                    ia.MsgBox({ c: `getrepeating: A delimiter must precede a valid list (l).`, t: 'NO DELIMITER OR NO LIST', send: true, wto: theSpeaker.localName });
+                    return retObj;
+                }
+            } else {                                                                        // no pipe means single entry, so everything goes into largs
+                largs.push(l);
+            }
+            if (!s) {
+                let listresult = fullrx.exec(largs[0]);
+                if (listresult) {
+                    s = listresult[1];
+                }
+            }
+        }
+
+        let nameRX = new RegExp(`^repeating_${s}_(?:[^_]*?)_(.+)$`, 'g');
+        // group 1: suffix from repeating_section_repID_suffix
+
+        if (s && !sfxn) {                                                               // if we have a section and a character but no sfxn, see if we can identify one
+            let attrsfx = findObjs({ type: 'attribute', characterid: character.id })    // get all attributes for this character
+                .filter(r => nameRX.test(r.get('name')))                                // filter for the section
+                .map(r => {
+                    nameRX.lastIndex = 0;
+                    return nameRX.exec(r.get('name'))[1];                               // isolate the suffix portion of the name of each attribute
+                })
+                .filter(r => /name/g.test(r));                                          // filter where that suffix contains 'name'
+            if (attrsfx.length) sfxn = attrsfx[0];                                      // if we found anything, assign sfxn to it
+        }
+        if (!(s && sfxn && (sfxa || ['bc', 'bC', 'c'].includes(op)))) {              // before we go any further, we have to have a section, naming suffix, and either an action suffix or an output that doesn't need an action suffix
+            ia.MsgBox({
+                c: `getrepeating: You must supply values for section (s) and the naming suffix (sfxn). If your output (op) parameter is something other than \
+                    a card ('c') or a card-producing button ('bc' or 'bC'), you must also provide the returned action suffix (sfxa)`, t: 'MISSING PARAMETERS', send: true, wto: theSpeaker.localName
+            });
+            return retObj;
+        }
+
+
+        let repRX = new RegExp(`^repeating_${s}_([^_]*?)_${sfxn}$`, 'g');
+        // group 1: repID from repeating_section_repID_suffix
+        let repid, locrlbl = '', sublist = [];
+        if (!l) {                                                                       // no list provided, so get all non-repeating attributes
+            list = findObjs({ type: 'attribute', characterid: character.id })           // this will hold an array of objects in the form of {nameObj, execObj, label, execName, execText, rlbl, sublist}
+                .filter(r => repRX.test(r.get('name')));
+        } else {                                                                        // list provided, so parse the list
+            list = largs.map(a => ia.RepeatingFromAmbig(a, character.id, s, sfxn))   // return an object
+                .filter(r => r)
+                .filter(r => r.get('name').match(new RegExp(`repeating_${s}_([^_]*?)_${sfxn}`)));
+        }
+        let cardapi = '';
+        list = list.map(a => {
+            repRX.lastIndex = 0;
+            repid = repRX.exec(a.get('name'))[1];
+            // get the attribute object for the action/exec attribute
+            let aObj = findObjs({ type: 'attribute', characterid: character.id }).filter(ao => ao.get('name') === `repeating_${s}_${repid}_${sfxa}`)[0] || { id: '', get: () => { return 'not found'; } };
+            // get the attribute object for the sfxrlbl, if one is provided
+            if (!rlbl) {
+                if (sfxrlbl) {
+                    locrlbl = (findObjs({ type: 'attribute', characterid: character.id }).filter(a => new RegExp(`^repeating_${s}_${repid}_${sfxrlbl}$`).test(a.get('name')))[0] || { get: () => { return 'Roll' } }).get('current');
+                } else locrlbl = 'Roll';
+            } else locrlbl = rlbl;
+            sublist = [[sfxn, 'Name', getAttrByName(character.id, `repeating_${s}_${repid}_${sfxn}`)]];
+            if (sfxlist) {
+                sublist.push(...sfxlist.split("|")
+                    .map(a => a.split(" "))
+                    .map(a => [a[0], a.slice(1).join(" ") || a[0]])
+                    .map(a => [a[0], a[1], getAttrByName(character.id, `repeating_${s}_${repid}_${a[0]}`) || 'NA']));
+            }
+            cardapi = `getrepeating{{!!c#${character.id} !!s#${s} !!sfxn#${sfxn} !!l#${a.get('current')} !!op#c${rlbl ? ` !!rlbl#${rlbl}` : ''}${sfxrlbl ? ` !!sfxrlbl#${sfxrlbl}` : ''}${sfxlist ? ` !!sfxlist#${sfxlist}` : ''}${v !== 'c' ? ` !!v#${v}` : ''}${frmt ? ` !!frmt#${frmt}` : ''}}}`;
+            return { nameObj: a, execObj: aObj, label: a.get('current'), execName: aObj.get('name'), execText: aObj.get(v), rlbl: locrlbl || 'Roll', sublist: sublist, cardapi: cardapi };
+        });
+
+        // we should now have an array of objects of the form {nameObj, execObj, label, execName, execText, rlbl, sublist, cardapi}
+        // test to make sure there was actually an attribute for sfxn & sfxa
+        if (!list.length) {
+            if (!emptyok) ia.MsgBox({ c: `getrepeating: No attributes found with that naming suffix (sfxn).`, t: 'NO ATTRIBUTE', send: true, wto: theSpeaker.localName });
+            return retObj;
+        } else if (!['bc', 'bC', 'c'].includes(op) && list.filter(a => a.execObj.id).length) {
+            if (!emptyok) ia.MsgBox({ c: `getrepeating: No attributes found with that action suffix (sfxa).`, t: 'NO ATTRIBUTE', send: true, wto: theSpeaker.localName });
+            return retObj;
+        }
+
+        // ---------------- FILTER CONDITIONS ----------------
+        list = ia.ApplyFilterOptions(f, list, 'label');                          // apply filter conditions
+        list = ia.ApplyFilterOptions(ef, list, 'execText');
+        // -------------- END FILTER CONDITIONS --------------
+
+        // --------------- FORMATTING OPTIONS ----------------
+        list = ia.ApplyFormatOptions(frmt, list, 'label');
+        list = ia.ApplyFormatOptions(efrmt, list, 'execText');
+        // ------------- END FORMATTING OPTIONS --------------
+
+        if (!list.length) {                                 // no entries means there were no attributes found from any of the options
+            if (!emptyok) ia.MsgBox({ c: `getrepeating: No attributes found for ${c} with the given filters.`, t: 'NO ATTRIBUTE', send: true, wto: theSpeaker.localName });
+            return retObj;
+        }
+
+        op = op.length ? op : 'l';                          // make sure there is at least 1 character in op
+        let templist = deepCopy(list);                      // preserve the list while the retObj is written
+        retObj = ia.BuildOutputOptions({ p: p, op: op, list: list, bg: bg, css: css, character: character, elem: 'attr', v: v, theSpeaker: theSpeaker, d: d });
+        retObj.objarray = templist;                         // in case another function needs the array of objects
+
+        return retObj;
+    };
+    const getattrs = ({
+        c: c = "",                                      // character (id, name, or token)
+        v: v = "current",                               // value wanted (current or max)
+        l: l = "",                                      // list of attribute ids and/or names
+        d: d = " ",                                     // delimiter (default: space)
+        op: op = "l",                                   // how to output (b: button, q: query, n: nested query, v: attribute values, l: attribute labels (names), [default]/[none]: l)
+        p: p = "Select",                                // query prompt
+        bg: bg,                                         // background color for api button
+        theSpeaker: theSpeaker,                         // speaker object
+        css: css = "",                                  // free input css for api button
+        f: f = "",                                      // filter conditions (label)
+        ef: ef = "",                                    // filter conditions (executable)
+        frmt: frmt = "",                                // pipe-delimited list of formatting options
+        efrmt: efrmt = "",                               // pipe-delimited list of formatting options for executing text (use carefully!)
+        rlbl: rlbl = 'Roll',                            // label for a repeating button set (for iterative output)
+        emptyok: emptyok,                               // whether to have output messages for no sfxn returns
+        cfgObj: cfgObj                                  // configuration settings
+    }) => {
+        let retObj = { ret: "", safe: true };
+        d = ia.CheckTicks(d);                              // check for opening/closing tick marks
+        ['m', 'max'].includes(v) ? v = 'max' : v = 'current';
+        if (!c) {
+            ia.MsgBox({ c: `getattrs: You must supply a character (c) which could be a character name, id, or token id (if the token represents a character).`, t: 'NO CHARACTER', send: true, wto: theSpeaker.localName });
+            return retObj;
+        }
+        let character = ia.CharFromAmbig(c);
+        if (!character) {
+            ia.MsgBox({ c: `getattrs: No character found for ${c}.`, t: 'NO CHARACTER', send: true, wto: theSpeaker.localName });
+            return retObj;
+        }
+
+        bg = bg ? bg : cfgObj.bg;
+        css = `${cfgObj.css}${css}`;
+        rlbl = ia.CheckTicks(rlbl);
+        if (!rlbl) rlbl = 'Roll';
+        let list = [];                                                                      // this will hold an array of objects in the form of {nameObj, execObj, label, execName, execText, rlbl}
+        let ldelim = "", largs = [];
+        if (!l) {                                                                           // no list provided, so get all non-repeating attributes
+            list = findObjs({ type: 'attribute', characterid: character.id })
+                .filter(a => !a.get('name').startsWith('repeating_'))
+                .map(a => { return { nameObj: a, execObj: a, label: a.get('name'), execName: a.get('name'), execText: a.get(v), rlbl: rlbl }; });
+        } else {                                                                            // list provided
+            if (l.indexOf("|") > -1) {                                                      // there are multiple items
+                let rxresult = /^(.*?)\|([^|].*$)/.exec(l);
+                // group 1: every thing before the last of the first set of appearing pipes
+                // group 2: the remaining list after the same pipe
+                ldelim = rxresult[1];                                                       // characters before first pipe are the internal delimiter
+                largs = rxresult[2].split(ldelim);                                          // list after the first pipe is rejoined on pipes, then split on the delimiter
+
+                if (!ldelim || !largs.length) {
+                    ia.MsgBox({ c: `getattrs: A delimiter must precede a valid list (l).`, t: 'NO DELIMITER OR NO LIST', send: true, wto: theSpeaker.localName });
+                    return retObj;
+                }
+            } else {                                                                        // no pipe means single entry, so everything goes into largs
+                largs.push(l);
+            }
+            list = largs.map(a => a.split(" "))                                             // if there is a space, we have a label, too
+                .map(a => { return { nameObj: ia.AttrFromAmbig(a[0], character.id), label: a.slice(1).join(" ") || "" }; })   // join everything after the first space, return an object in the form of {nameObj, label}
+                .filter(a => a.nameObj)                                                     // filter for where we didn't find an object
+                .map(a => { return { nameObj: a.nameObj, execObj: a.nameObj, label: a.label || a.nameObj.get('name'), execName: a.nameObj.get('name'), execText: a.nameObj.get(v), rlbl: rlbl }; });    // expand each entry into all of the properties we need
+        }
+
+        // ---------------- FILTER CONDITIONS ----------------
+        list = ia.ApplyFilterOptions(f, list);
+        list = ia.ApplyFilterOptions(ef, list, 'execText');
+        // -------------- END FILTER CONDITIONS --------------
+
+        // --------------- FORMATTING OPTIONS ----------------
+        list = ia.ApplyFormatOptions(frmt, list);
+        list = ia.ApplyFormatOptions(efrmt, list, 'execText');
+        // ------------- END FORMATTING OPTIONS --------------
+
+        if (!list.length) {                                 // no entries means there were no attributes found from any of the options
+            if (!emptyok) ia.MsgBox({ c: `getattrs: No attribute found for ${c} with the given parameters.`, t: 'NO ATTRIBUTE', send: true, wto: theSpeaker.localName });
+            return retObj;
+        }
+
+        op = op.length ? op : 'l';                          // make sure there is at least 1 character in op
+        let templist = deepCopy(list);                      // preserve the list while the retObj is written
+        retObj = ia.BuildOutputOptions({ p: p, op: op, list: list, bg: bg, css: css, character: character, elem: 'attr', v: v, theSpeaker: theSpeaker, d: d });
+        retObj.objarray = templist;                         // in case another function needs the array of objects
+        return retObj;
+
+    };
+    const getabils = ({
+        c: c = "",                                      // character (id, name, or token)
+        l: l = "",                                      // list of abilities ids and/or names
+        d: d = " ",                                     // delimiter (default: space)
+        op: op = "l",                                   // how to output (b: button, q: query, n: nested query, a: action name, x: action value, [default]/[none]: delimited list)
+        p: p = "Select",                                // query prompt
+        bg: bg,                                         // background color for api button
+        theSpeaker: theSpeaker,                         // speaker object
+        css: css = "",                                  // free input css for api button
+        f: f = "",                                      // filter conditions
+        ef: ef = "",                                    // filter conditions (executable)
+        frmt: frmt = "",                                // pipe-delimited list of formatting options
+        efrmt: efrmt = "",                               // pipe-delimited list of formatting options for executing text (use carefully!)
+        rlbl: rlbl = 'Roll',                            // label for a repeating button set (for iterative output)
+        emptyok: emptyok,                               // whether to have output messages for no sfxn returns
+        cfgObj: cfgObj                                  // configuration settings
+    }) => {
+        let retObj = { ret: "", safe: true };
+        let abil;
+        d = ia.CheckTicks(d);                              // check for opening/closing tick marks
+        if (!c) {
+            ia.MsgBox({ c: `getabilities: You must supply a character (c) which could be a character name, id, or token id (if the token represents a character).`, t: 'NO CHARACTER', send: true, wto: theSpeaker.localName });
+            return retObj;
+        }
+        let character = ia.CharFromAmbig(c);
+        if (!character) {
+            ia.MsgBox({ c: `getabilities: No character found for ${c}.`, t: 'NO CHARACTER', send: true, wto: theSpeaker.localName });
+            return retObj;
+        }
+
+        bg = bg ? bg : cfgObj.bg;
+        css = `${cfgObj.css}${css}`;
+        rlbl = ia.CheckTicks(rlbl);
+        if (!rlbl) rlbl = 'Roll';
+
+        let list = [];                                                                      // this will hold an array of objects in the form of {nameObj, execObj, label, execName, execText, rlbl}
+        let v = 'action';
+        let ldelim = "", largs = [];
+        if (!l) {                                                                           // no list provided, so get all abilities
+            list = findObjs({ type: 'ability', characterid: character.id })
+                .map(a => { return { nameObj: a, execObj: a, label: a.get('name'), execName: a.get('name'), execText: a.get(v), rlbl: rlbl }; });
+        } else {                                                                            // list provided
+            if (l.indexOf("|") > -1) {                                                      // there are multiple items
+                let rxresult = /^(.+?)\|([^|].*$)/.exec(l);
+                // group 1: every thing before the last of the first set of appearing pipes
+                // group 2: the remaining list after the same pipe
+                ldelim = rxresult[1];                                                       // characters before first pipe are the internal delimiter
+                largs = rxresult[2].split(ldelim);                                          // list after the first pipe is rejoined on pipes, then split on the delimiter
+
+                if (!ldelim || !largs.length) {
+                    ia.MsgBox({ c: `getabilities: A delimiter must precede a valid list (l).`, t: 'NO DELIMITER OR NO LIST', send: true, wto: theSpeaker.localName });
+                    return retObj;
+                }
+            } else {                                                                        // no pipe means single entry, so everything goes into largs
+                largs.push(l);
+            }
+            list = largs.map(a => a.split(" "))                                             // if there is a space, we have a label, too
+                .map(a => { return { nameObj: ia.AttrFromAmbig(a[0], character.id), label: a.slice(1).join(" ") }; })   // join everything after the first space, return an object in the form of {nameObj, label}
+                .filter(a => a.nameObj)                                                     // filter for where we didn't find an object
+                .map(a => { return { nameObj: a.nameObj, execObj: a.nameObj, label: a.label || a.get('name'), execName: a.nameObj.get('name'), execText: a.nameObj.get(v), rlbl: rlbl }; });    // expand each entry into all of the properties we need
+        }
+        // ---------------- FILTER CONDITIONS ----------------
+        list = ia.ApplyFilterOptions(f, list);
+        list = ia.ApplyFilterOptions(ef, list, 'execText');
+        // -------------- END FILTER CONDITIONS --------------
+
+        // --------------- FORMATTING OPTIONS ----------------
+        list = ia.ApplyFormatOptions(frmt, list);
+        list = ia.ApplyFormatOptions(efrmt, list, 'execText');
+        // ------------- END FORMATTING OPTIONS --------------
+
+        if (!list.length) {                                 // no entries means there were no abilities found from any of the options
+            if (!emptyok) ia.MsgBox({ c: `getabilities: No ability found for ${character.get('name')} with the given parameters.`, t: 'NO ABILITY', send: true, wto: theSpeaker.localName });
+            return retObj;
+        }
+
+        op = op.length ? op : 'l';                          // make sure there is at least 1 character in op
+        let templist = deepCopy(list);                      // preserve the list while the retObj is written
+        retObj = ia.BuildOutputOptions({ p: p, op: op, list: list, bg: bg, css: css, character: character, elem: 'abil', v: v, theSpeaker: theSpeaker, d: d });
+        retObj.objarray = templist;                         // in case another function needs the array of objects
+        return retObj;
+    };
+    const gettokens = ({
+        l: l = '',                                                      // list of tokens to retrieve
+        v: v = 'id',                                                    // value to return (id, cid, name)
+        pg: pg = '',                                                    // page id to draw tokens from
+        rep: rep = 'false',                                             // whether the tokens should be limited to only those represent characters
+        lyr: lyr = 'objects',                                           // pipe separated list for layer for tokens, default: token
+        d: d = ' ',                                                     // delimiter (default: space)
+        p: p = 'Select',                                                // prompt for query output
+        op: op = "l",                                                   // how to output the retrieved tokens
+        f: f = '',                                                      // filter options
+        frmt: frmt = '',                                                // format options
+        rlbl: rlbl,
+        bg: bg = '',
+        css: css = '',
+        m: m,                                                           // message object
+        theSpeaker: theSpeaker,                                         // the speaker object
+        cfgObj: cfgObj                                                  // config object
+    }) => {
+        let retObj = { ret: "", safe: true };
+        d = ia.CheckTicks(d);                                              // check for opening/closing tick marks
+        bg = bg ? bg : cfgObj.bg;
+        css = `${cfgObj.css}${css}`;
+        rep = ['true', 't', 'yes', 'y', true].includes(rep) ? true : false;
+        if (!pg) pg = Campaign().get("playerpageid");
+        lyr = lyr.split("|");
+        if (lyr.includes('gmlayer') && !playerIsGM(m.playerid)) {
+            ia.MsgBox({ c: `gettokens: GMLayer is only accessible by GMs.`, t: 'ACCESS RESTRICTED', send: true, wto: theSpeaker.localName });
+            return retObj;
+        }
+        let list = [];                                                                      // this will hold an array of objects in the form of {nameObj, execObj, label, execName, execText, rlbl}
+        v = ['n', 'name'].includes(v) ? 'name' : 'id';
+        let ldelim = "", largs = [];
+        if (!l) {                                                                           // no list provided, so get all tokens
+            list = findObjs({ type: 'graphic', subtype: 'token' })
+                .map(t => { return { nameObj: t, execObj: t.get('represents') ? ia.CharFromAmbig(t.get('represents')) : undefined }; })
+                .map(t => {                                                                 // expand each entry into all of the properties we need
+                    return {
+                        nameObj: t.nameObj,
+                        execObj: t.execObj,
+                        label: t.nameObj.get('name'),
+                        execName: t.execObj ? t.execObj.get('name') : "",
+                        execText: t.nameObj.id,
+                        rlbl: rlbl
+                    };
+                });
+
+        } else {                                                                            // list provided
+            if (l.indexOf("|") > -1) {                                                      // there are multiple items
+                let rxresult = /^(.+?)\|([^|].*$)/.exec(l);
+                // group 1: every thing before the last of the first set of appearing pipes
+                // group 2: the remaining list after the same pipe
+                ldelim = rxresult[1];                                                       // characters before first pipe are the internal delimiter
+                largs = rxresult[2].split(ldelim);                                          // list after the first pipe is rejoined on pipes, then split on the delimiter
+
+                if (!ldelim || !largs.length) {
+                    ia.MsgBox({ c: `gettokens: A delimiter must precede a valid list (l).`, t: 'NO DELIMITER OR NO LIST', send: true, wto: theSpeaker.localName });
+                    return retObj;
+                }
+            } else {                                                                        // no pipe means single entry, so everything goes into largs
+                largs.push(l);
+            }
+            list = largs.map(a => a.split(" "))                                             // if there is a space, we have a label, too
+                .map(t => { return { nameObj: ia.TokenFromAmbig(t[0]), label: t.slice(1).join(" ") }; })   // join everything after the first space, return an object in the form of {nameObj, label}
+                .filter(t => t.nameObj)                                                     // filter for where we didn't find an object
+                .map(t => {                                                                 // expand each entry into all of the properties we need
+                    return {
+                        nameObj: t.nameObj,
+                        execObj: t.get('represents') ? ia.CharFromAmbig(t.get('represents')) : undefined,
+                        label: t.label || t.get('name'),
+                        execName: t.get('represents') ? getObj('character', t.get('represents')).get('name') : '',
+                        execText: t.id,
+                        rlbl: rlbl
+                    };
+                })
+                .filter(t => t.nameObj.get('pageid') === pg && t.nameObj.get('layer') === lyr);       // filter for page & map
+        }
+        log([...new Set(list.map(a => a.nameObj.get('layer')))].join(", "));
+        list = list.filter(t => t.nameObj.get('pageid') === pg)                             // fitler for page
+            .filter(t => lyr.includes(t.nameObj.get('layer')));                             // filter for layer
+        list = rep ? list.filter(t => t.execObj) : list;                                    // filter for representing a character, if rep is true
+
+        // ---------------- FILTER CONDITIONS ----------------
+        list = ia.ApplyFilterOptions(f, list, 'execText');
+        // -------------- END FILTER CONDITIONS --------------
+
+        // --------------- FORMATTING OPTIONS ----------------
+        list = ia.ApplyFormatOptions(frmt, list, 'execText');
+        // ------------- END FORMATTING OPTIONS --------------
+
+        if (!list.length) {                                 // no entries means there were no abilities found from any of the options
+            ia.MsgBox({ c: `gettokens: No tokens found for the given parameters.`, t: 'NO TOKENS', send: true, wto: theSpeaker.localName });
+            return retObj;
+        }
+
+        op = op.length ? op : 'l';                          // make sure there is at least 1 character in op
+        let templist = deepCopy(list);                      // preserve the list while the retObj is written
+        retObj = ia.BuildOutputOptions({ p: p, op: op, list: list, bg: bg, css: css, elem: 'abil', v: v, theSpeaker: theSpeaker, d: d });
+        retObj.objarray = templist;                         // in case another function needs the array of objects
+        return retObj;
+    };
+
+
+    // ==================================================
+    //      HELP OBJECT
+    // ==================================================
+    const formatHelp = ['frmt', `gethelp(format${ia.GetHelpArg()})`];
+    const filterHelp = ['f', `gethelp(filter${ia.GetHelpArg()})`];
+    const delimHelp = ['d', 'delimiter between each output value; enclose with tick marks to include leading/trailing space; default: (space)'];
+    const emptyokHelp = ['emptyok', 'whether to suppress error messages for empty sections (yes, y, true, and t map to true); default: false'];
+    const outputHelp = ['op', `gethelp(output${ia.GetHelpArg()})`];
+
+    const help = {
+        [`output${ia.GetHelpArg()}`]: {
+            msg: 'Use output (op) options for how to return the retrieved items. Default option is \'l\' (list).',
+            args: [
+                ['b', 'buttons<br>repeating elements structured as (label: sfxn, action: sfxa); standard attributes (label: name, action: current or max)<br>abilities (label: name, action: action)'],
+                ['be', 'as \'b\', except intended for individual elem rows for menu with external labels; utilizes the rlbl property for the button label'],
+                ['br/bR', 'buttons to read the contents of the attribute in chat; if the \'r\' is capitalized, button readout will be spoken; if lowercase, it will be whispered'],
+                ['bre/ber/bRe/beR', 'as \'br\', except intended for individual elem rows for menu with external labels; utilizes the rlbl property for the button labels'],
+                ['bc/bC', 'buttons to output cards in chat; if the \'c\' is capitalized, button readout will be spoken; if lowercase, it will be whispered'],
+                ['bce/bec/bCe/beC', 'as \'bc\', except intended for individual elem rows for menu with external labels; utilizes the rlbl property for the button labels'],
+                ['c/C', 'card output for repeating section (lowercase: whisper; uppercase: chat); name suffix is included automatically, but other sub-attributes can be included in the sfxlist argument of getrepeating'],
+                ['q', 'query producing (label,return) pairs; uses prompt argument (p) for query interrogative; can be refined with further letters as follows; defaults to \'qlv\''],
+                ['ql', 'query producing (label) list; uses prompt argument (p) for query interrogative<br>\
+                        &nbsp;&nbsp;&nbsp;&nbsp;repeating (label: sfxn)<br>\
+                        &nbsp;&nbsp;&nbsp;&nbsp;standard attributes (label: name)<br>\
+                        &nbsp;&nbsp;&nbsp;&nbsp;abilities (label: name)<br>\
+                        &nbsp;&nbsp;&nbsp;&nbsp;tokens (label: name)'],
+                ['qv', 'query producing (return) list; uses prompt argument (p) for query interrogative<br>\
+                        &nbsp;&nbsp;&nbsp;&nbsp;repeating (return: sfxa)<br>\
+                        &nbsp;&nbsp;&nbsp;&nbsp;standard attributes (return: current or max)<br>\
+                        &nbsp;&nbsp;&nbsp;&nbsp;abilities (return: action)<br>\
+                        &nbsp;&nbsp;&nbsp;&nbsp;tokens (return: id)'],
+                ['qln', 'query producing (label,return) pairs; uses prompt argument (p) for query interrogative<br>\
+                        &nbsp;&nbsp;&nbsp;&nbsp;repeating (label: sfxn, return: sfxa name)<br>\
+                        &nbsp;&nbsp;&nbsp;&nbsp;standard attributes (label: name, return: name)<br>\
+                        &nbsp;&nbsp;&nbsp;&nbsp;abilities (label: name, return: name)<br>\
+                        &nbsp;&nbsp;&nbsp;&nbsp;tokens (label: name, return: character name)'],
+                ['qlv', '(alias of q); query producing (label,return) pairs; uses prompt argument (p) for query interrogative<br>\
+                        &nbsp;&nbsp;&nbsp;&nbsp;repeating (label: sfxn, return: sfxa value)<br>\
+                        &nbsp;&nbsp;&nbsp;&nbsp;standard attributes (label: name, return: current or max)<br>\
+                        &nbsp;&nbsp;&nbsp;&nbsp;abilities (label: name, return: action)<br>\
+                        &nbsp;&nbsp;&nbsp;&nbsp;tokens (label: name, return: id)'],
+                ['n', 'as query (including all secondary options), except with nested output (html entity replacement as per nest function)'],
+                ['l', 'list of names of the sheet objects\' name elements<br>repeating: sfxn sub sttribute name<br>standard attributes: name<br>abilities: name'],
+                ['a', 'list of names of the sheet objects\' action elements (differs from \'l\' only for repeating sections<br>repeating: sfxa sub sttribute name<br>standard attributes: name<br>abilities: name'],
+                ['v', 'list of values for the sheet objects\' action elements<br>repeating: sfxa sub sttribute current or max<br>standard attributes: current or max<br>abilities: action'],
+                ['lve', 'a list/value output arranged for spreading across elem rows of a table']
+            ]
+        },
+        [`format${ia.GetHelpArg()}`]: {
+            msg: 'Use formatting options to structure or modify either your label (frmt) or your returned executable value (efrmt). Formatting options are passed using the \'frmt\' and \'efrmt\' parameters, if the internal function accepts them; multiple formatting options can be passed as a pipe-separated list where each element is constructed as:<br>(format)[#(option)]<br><br>\
+                        Formatting options are applied in left to right order to each returned value. The following frmt parameter would first insert drop everything to lowercase, then do a replace operation to remove text, then format the result as title case:<br>!!frmt#lc|fr#roll_formula#``|tc',
+            args: [
+                ['lc', 'lowercase'],
+                ['uc', 'uppercase'],
+                ['tc', 'titlecase'],
+                ['su', 'insert space before uppercase letters'],
+                ['_s', 'change underscore to space'],
+                ['o+', 'sort ascending'],
+                ['o-', 'sort descending'],
+                ['^t', 'insert before value; requires a &#35; (pound/hash) and then the text to insert'],
+                ['t^', 'insert after value; requires a &#35; (pound/hash) and then the text to insert'],
+                ['fr', 'find and replace; requires a &#35; followed by the search text followed by &#35; and then the replacemnet text; enclose strings with leading/trailing spaces in tick marks (`)'],
+                ['rslv', 'special find/replace that encloses the find text in &#64;{} before replacing it; helpful with resolution of roll template parts that might otherwise break'],
+                ['n', 'format the text for nested output, replacing the three characters: } , | with their html entities only where they are not involved in an attribute or ability lookup']
+            ]
+        },
+        [`filter${ia.GetHelpArg()}`]: {
+            msg: 'Enter filters for the returned values to restrict the returned items according to your specifications. Filters are passed using the \'f\' parameter to filter on the name or label of the object, or using the \'ef\' parameter to filter on the executable (action) text; multiple filters can be passed as a pipe-separated list where each element is constructed as:<br>(filter type)#(test condition)<br>\
+                        ...and the filter type is drawn from the following list...',
+            args: [
+                ['x', 'executable; tests the first character for the presence of an executing character:<br>&#64;&nbsp;&nbsp;&#37;&nbsp;&nbsp;&#63;&nbsp;&nbsp;&amp;&nbsp;&nbsp;&#33;'],
+                ['^f', 'begins with'],
+                ['f^', 'ends with'],
+                ['^f^', 'contains'],
+                ['-^f', 'does not begin with'],
+                ['-f^', 'does not end with'],
+                ['-^f^', 'does not contain'],
+                ['top', 'limit returns to top x returns, where x is a number; negative numbers represent bottom x returns'],
+                ['s', 'token status markers includes'],
+                ['-s', 'token status markers do not include']
+            ]
+        },
+        puttext: {
+            msg: 'Places any number of elements in the command line, in order, at the given hook. \
+                        Elements can be simple text or internal functions. Use this when you need to use \
+                        an internal function AFTER including other text and/or to establish the presence of hooks \
+                        for future replacement operations. Text that begins or ends with a space should be contained \
+                        within paired tick marks (`). Since the tick marks will be removed, if you actually need your \
+                        text enclosed by ticks, you will have to double them up at the start and end.',
+            args: [
+                ['(any)', 'text or internal function; enclose text that includes leading/trailing space with ticks (`)']
+            ]
+        },
+        getattr: {
+            msg: 'This function returns either the current or max value for a given attribute.',
+            args: [
+                ['a', 'attribute id, or (character identifier)|(attribute name)'],
+                ['v', 'value you wish to return; default: current; m or max for max'],
+                ['h', 'encode for html entitites (preserves output); "t", "true", "y", "yes" map to true; default: false']
+            ]
+        },
+        getabil: {
+            msg: 'This function returns the action text for a given ability.',
+            args: [
+                ['a', 'ability id, or (character)|(ability name)']
+            ]
+        },
+        getmacro: {
+            msg: 'This function returns the action text for a given macro.',
+            args: [
+                ['a', 'macro id or name']
+            ]
+        },
+        puttargets: {
+            msg: 'This function inserts a number of targeting constructions (ie, @{target|label|return}) into the command line. Label includes a positional index that counts up from 1.',
+            args: [
+                ['n', 'number of targets; default: 1'],
+                ['l', 'text label for each targeting construction; default: Target'],
+                ['r', 'data point to return; default: token_id'],
+                delimHelp
+            ]
+        },
+        getselected: {
+            msg: 'This function gets a list of the ids of the selected items at the time of the InsertArg call.',
+            args: [
+                ['r', 'what to return from the selected tokens (id, name, or represents, etc.); default: id'],
+                delimHelp
+            ]
+        },
+        getme: {
+            msg: 'Gets the id or name of the current speaker (player or character), or the chat speaker output (ie, Player|Name)',
+            args: [
+                ['r', 'what to return; default: id; "n" and "name" return name, "c" and "cs" return chat speaker, anything else returns the id'],
+                formatHelp
+            ]
+        },
+        getsections: {
+            msg: 'For a given character, gets the a list of unique section names for repeating elements.',
+            args: [
+                ['c', 'character identifier (id, name, or token id)'],
+                delimHelp,
+                formatHelp,
+                filterHelp
+            ]
+        },
+        getrepeating: {
+            msg: 'For a given character, gets a list of repeating attributes within a given section, using a given sub-attribute as the naming element, and sampling across a sub-attribute supplied to be the action/data element.',
+            args: [
+                ['c', 'character identifier (id, name, or token id)'],
+                delimHelp,
+                ['s', 'section name (as returned from getsection); "section" from repeating_section_id_subattr'],
+                ['sfxn', 'name portion of the sub-attribute responsible for naming an attribute set from the section; "subattr" from repeating_section_is_subattr<br>if left blank, getrepeating will look for a sub-attribute with the text "name" in the current value'],
+                ['sfxa', 'name portion of the sub-attribute you wish to return (for instance, the roll formula); "subattr" from repeating_section_id_subattr'],
+                ['sfxrlbl', 'name portion of the sub-attribute you wish to use for button labels if using elem menu output, overwritten by explicit declaration of rlbl'],
+                ['sfxlist', 'pipe-separated list of sub-attribute suffixes to include as part of a card; naming suffix is included automatically'],
+                ['l', 'list of repeating attributes to retrieve; repeating attributes can be referred to by name, id, or contents of the naming sub-attribute (i.e., what you would call the entry in the repeating list), \
+                        with or without a character reference and pipe preceding each (leaving off the character reference will use the speaking character, if available); unlike other list (l) arguments, does NOT take a label option\
+                        if more than one item is included, the list argument must be formatted as<br>\
+                        (list delimiter)|(attribute)(list delimiter)(attribute 2)...<br>\
+                        for instance, the following line would list the repeating attributes named Fireball and Inferno (the current value of the naming sub-attribute), using the delimiter of a pipe<br>\
+                        !!l#||Fireball|Inferno<br><br>\
+                        if left empty, all repeating attributes for the character will be retrieved; whatever is retrieved can be filtered by use of the f arg'],
+                ['v', 'value to retrieve (current or max); default: current; anything other than "m" or "max" maps to current'],
+                ['p', 'prompt for query (or nested query) output; default: Select'],
+                ['bg', 'css background-color for api button output to override that designated by any config handout; default: (detected from speaker handout, global handout, or default config)'],
+                ['css', 'free css input for api button to override that designated by any config handout; default: (detected from speaker handout, global handout, or default config)'],
+                ['rlbl', 'label for buttons where the name of the attribute will be outside of the button (for menu construction); default: Roll'],
+                emptyokHelp,
+                outputHelp,
+                formatHelp,
+                filterHelp,
+            ]
+        },
+        getattrs: {
+            msg: 'For a given character, gets a list of non-repeating attributes.',
+            args: [
+                ['c', 'character identifier (id, name, or token id)'],
+                delimHelp,
+                ['v', 'value to retrieve (current or max); default: current; anything other than "m" or "max" maps to current'],
+                ['l', 'list of attributes to retrieve; attributes may be referred to by id or name; each attribute may be followed by a space and then a label to use instead of the attribute name;<br>\
+                        if more than one item is included, the list argument must be formatted as<br>\
+                        (list delimiter)|(attribute)(list delimiter)(attribute 2)...<br>\
+                        for instance, the following line would list attributes named STR and DEX, renamed to Strength and Dexterity, using the delimiter of a pipe<br>\
+                        !!l#||STR Strength|DEX Dexterity<br><br>\
+                        if left empty, all non-repeating attributes for the character will be retrieved; whatever is retrieved can be filtered by use of the f arg'],
+                ['p', 'prompt for query (or nested query) output; default: Select'],
+                ['bg', 'css background-color for api button output to override that designated by any config handout; default: (detected from speaker handout, global handout, or default config)'],
+                ['css', 'free css input for api button to override that designated by any config handout; default: (detected from speaker handout, global handout, or default config)'],
+                emptyokHelp,
+                outputHelp,
+                formatHelp,
+                filterHelp,
+                ['rlbl', 'standard label for buttons if output is separated into repeating element; default: Roll']
+            ]
+        },
+        getabils: {
+            msg: 'For a given character, gets a list of abilities.',
+            args: [
+                ['c', 'character identifier (id, name, or token id)'],
+                delimHelp,
+                ['l', 'list of abilities to retrieve; abilities may be referred to by id or name; each ability may be followed by a space and then a label to use instead of the ability\'s name;<br>\
+                        list argument must be formatted as<br>\
+                        (list delimiter)|(abilities)(list delimiter)(abilities 2)...<br>\
+                        for instance, the following line would list abilities named STR and DEX, renamed to Strength and Dexterity, using the delimiter of a pipe<br>\
+                        !!l#||STR Strength|DEX Dexterity<br><br>\
+                        if left empty, all abilities for the character will be retrieved; whatever is retrieved can be filtered by use of the f arg'],
+                ['p', 'prompt for query (or nested query) output; default: Select'],
+                ['bg', 'css background-color for api button output to override that designated by any config handout; default: (detected from speaker handout, global handout, or default config)'],
+                ['css', 'free css input for api button to override that designated by any config handout; default: (detected from speaker handout, global handout, or default config)'],
+                emptyokHelp,
+                outputHelp,
+                formatHelp,
+                filterHelp,
+                ['rlbl', 'standard label for buttons if output is separated into repeating element; default: Roll']
+            ]
+        },
+        gettokens: {
+            msg: 'Retrieves tokens matching the given parameters.',
+            args: [
+                ['l', 'list of tokens to retrieve'],
+                ['v', 'value to return for simple list output (id, name); default: id'],
+                ['pg', 'page id to draw tokens from'],
+                ['rep', 'whether the tokens should be limited to only those represent characters; default: false'],
+                ['lyr', 'pipe-separated layer for tokens, default: token'],
+                delimHelp,
+                outputHelp,
+                filterHelp,
+                formatHelp,
+                ['rlbl', 'standard label for buttons if output is separated into repeating element; default: Roll']
+            ]
+        }
+    };
+
+
+    on('ready', () => {
+        versionInfo;
+        try {
+            ia.RegisterRule(puttext, getattr, getabil, getmacro, puttargets, getselected, getme, getsections, getrepeating, getattrs, getabils, gettokens);
+            ia.RegisterHelp(help);
+        } catch (error) {
+            log(error);
+        }
+
+    });
+
+    return {
+        GetVrs: getVrs
+    };
+})();
+
+const xray = (() => {
+
+    // ==================================================
+    //		VERSION
+    // ==================================================
+    const vrs = '1.11';
+    const versionInfo = () => {
+        const vd = new Date(1599302698567);
+        log('\u0166\u0166 XRAY v' + vrs + ', ' + vd.getFullYear() + '/' + (vd.getMonth() + 1) + '/' + vd.getDate() + ' \u0166\u0166');
+        return;
+    };
+    const getVrs = () => { return vrs; };
+
+    // ==================================================
+    //		TABLES AND TEMPLATES
+    // ==================================================
+    const attrValTable = { current: "current", c: "current", max: "max", m: "max", name: "name", n: "name", a: "action", action: "action" };
+    const execCharSet = ["&", "!", "@", "#", "%"];
+    const btnElem = { attr: '&#64;', abil: '&#37;', attribute: '&#64;', ability: '&#37;', macro: '&#35;' };
+    const htmlTable = {
+        "&": "&amp;",
+        "{": "&#123;",
+        "}": "&#125;",
+        "|": "&#124;",
+        ",": "&#44;",
+        "%": "&#37;",
+        "?": "&#63;",
+        "[": "&#91;",
+        "]": "&#93;",
+        "@": "&#64;",
+        "~": "&#126;",
+        "(": "&#40;",
+        ")": "&#41;",
+        "<": "&#60;",
+        ">": "&#62;",
+    };
+    const rowbg = ["#ffffff", "#dedede"];
+    const msgtable = '<div style="width:100%;"><div style="border-radius:10px;border:2px solid #000000;background-color:__bg__; margin-right:16px; overflow:hidden;"><table style="width:100%; margin: 0 auto; border-collapse:collapse;font-size:12px;">__TABLE-ROWS__</table></div></div>';
+    const msg1header = '<tr style="border-bottom:1px solid #000000;font-weight:bold;text-align:center; background-color:__bg__; line-height: 22px;"><td colspan = "__colspan__">__cell1__</td></tr>';
+    const msg2header = '<tr style="border-bottom:1px solid #000000;font-weight:bold;text-align:center; background-color:__bg__; line-height: 22px;"><td>__cell1__</td><td style="border-left:1px solid #000000;">__cell2__</td></tr>';
+    const msg3header = '<tr style="border-bottom:1px solid #000000;font-weight:bold;text-align:center; background-color:__bg__; line-height: 22px;"><td>__cell1__</td><td style="border-left:1px solid #000000;">__cell2__</td><td style="border-left:1px solid #000000;">__cell3__</td></tr>';
+    const msg1row = '<tr style="background-color:__bg__;"><td style="padding:4px;"><div style="__row-css__">__cell1__</div></td></tr>';
+    const msg2row = '<tr style="background-color:__bg__;font-weight:bold;"><td style="padding:1px 4px;">__cell1__</td><td style="border-left:1px solid #000000;text-align:center;padding:1px 4px;font-weight:normal;">__cell2__</td></tr>';
+    const msg3row = '<tr style="background-color:__bg__;font-weight:bold;"><td style="padding:1px 4px;">__cell1__</td><td style="border-left:1px solid #000000;text-align:center;padding:1px 4px;font-weight:normal;">__cell2__</td><td style="border-left:1px solid #000000;text-align:center;padding:1px 4px;font-weight:normal;">__cell3__</td></tr>';
+
+    // ==================================================
+    //		UTILITIES
+    // ==================================================
+    const getTheSpeaker = function (msg) {
+        var characters = findObjs({ type: 'character' });
+        var speaking;
+        characters.forEach((chr) => { if (chr.get('name') === msg.who) speaking = chr; });
+
+        if (speaking) {
+            speaking.speakerType = "character";
+            speaking.localName = speaking.get("name");
+        } else {
+            speaking = getObj('player', msg.playerid);
+            speaking.speakerType = "player";
+            speaking.localName = speaking.get("displayname");
+        }
+        speaking.chatSpeaker = speaking.speakerType + '|' + speaking.id;
+
+        return speaking;
+    };
+    const escapeRegExp = (string) => { return string.replace(/[.*+\-?^${}()|[\]\\]/g, '\\$&'); };
+
+    const htmlCoding = (s = "", encode = true) => {
+        if (typeof s !== "string") return undefined;
+        let searchfor = encode ? htmlTable : _invert(htmlTable);
+        s = s.replace(new RegExp(Object.keys(searchfor)
+            .map((k) => { return escapeRegExp(k); })
+            .join("|"), 'gmi'), (r) => { return searchfor[r]; })
+            .replace(new RegExp(/\n/, 'gmi'), '<br><br>');
+        return s;
+    };
+
+    const Base64 = {
+        _keyStr: "ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
+            "abcdefghijklmnopqrstuvwxyz0123456789+/=",
+        encode: function (e) {
+            var t = "";
+            var n, r, i, s, o, u, a;
+            var f = 0;
+            e = Base64._utf8_encode(e);
+            while (f < e.length) {
+                n = e.charCodeAt(f++);
+                r = e.charCodeAt(f++);
+                i = e.charCodeAt(f++);
+                s = n >> 2;
+                o = (n & 3) << 4 | r >> 4;
+                u = (r & 15) << 2 | i >> 6;
+                a = i & 63;
+                if (isNaN(r)) {
+                    u = a = 64
+                } else if (isNaN(i)) {
+                    a = 64
+                }
+                t = t +
+                    this._keyStr.charAt(s) +
+                    this._keyStr.charAt(o) +
+                    this._keyStr.charAt(u) +
+                    this._keyStr.charAt(a)
+            }
+            return t
+        },
+        decode: function (e) {
+            var t = "";
+            var n, r, i;
+            var s, o, u, a;
+            var f = 0;
+            e = e.replace(/[^A-Za-z0-9+/=]/g, "");
+            while (f < e.length) {
+                s = this._keyStr.indexOf(e.charAt(f++));
+                o = this._keyStr.indexOf(e.charAt(f++));
+                u = this._keyStr.indexOf(e.charAt(f++));
+                a = this._keyStr.indexOf(e.charAt(f++));
+                n = s << 2 | o >> 4;
+                r = (o & 15) << 4 | u >> 2;
+                i = (u & 3) << 6 | a;
+                t = t + String.fromCharCode(n);
+                if (u !== 64) {
+                    t = t + String.fromCharCode(r)
+                }
+                if (a !== 64) {
+                    t = t + String.fromCharCode(i)
+                }
+            }
+            t = Base64._utf8_decode(t);
+            return t
+        },
+        _utf8_encode: function (e) {
+            e = e.replace(/\r\n/g, "\n");
+            var t = "";
+            for (var n = 0; n < e.length; n++) {
+                var r = e.charCodeAt(n);
+                if (r < 128) {
+                    t += String.fromCharCode(r)
+                } else if (r > 127 && r < 2048) {
+                    t +=
+                        String.fromCharCode(r >> 6 | 192);
+                    t +=
+                        String.fromCharCode(r & 63 | 128)
+                } else {
+                    t +=
+                        String.fromCharCode(r >> 12 | 224);
+                    t +=
+                        String.fromCharCode(r >> 6 & 63 | 128);
+                    t +=
+                        String.fromCharCode(r & 63 | 128)
+                }
+            }
+            return t
+        },
+        _utf8_decode: function (e) {
+            var t = "";
+            var n = 0;
+            var r = c1 = c2 = 0;
+            while (n < e.length) {
+                r = e.charCodeAt(n);
+                if (r < 128) {
+                    t += String.fromCharCode(r);
+                    n++
+                } else if (r > 191 && r < 224) {
+                    c2 = e.charCodeAt(n + 1);
+                    t += String.fromCharCode(
+                        (r & 31) << 6 | c2 & 63);
+
+                    n += 2
+                } else {
+                    c2 = e.charCodeAt(n + 1);
+                    c3 = e.charCodeAt(n + 2);
+                    t += String.fromCharCode(
+                        (r & 15) << 12 | (c2 & 63)
+                        << 6 | c3 & 63);
+                    n += 3
+                }
+            }
+            return t
+        }
+    };
+
+    const xraysheet = ({
+        // for a given character, returns a list of the repeating sections, an entry for basic attributes, and one for abilities
+        character: character,                                           // character
+        css: css = "",                                                  // free input css for api button
+        bg: bg = "",                                                    // background color for api button
+        theSpeaker: theSpeaker,
+        cfgObj: cfgObj
+    } = {}) => {
+        let msg = '', btn = '';
+        bg = !bg ? cfgObj.bg : bg;
+        css = !css ? cfgObj.css : css;
+
+        let sectionRX = /^repeating_([^_]+?)_.+$/g;
+        // group 1: section from repeating_section_attributeID_suffix
+        let sections = findObjs({ type: 'attribute', characterid: character.id })
+            .filter(a => {                                              // filter where the regex matches
+                sectionRX.lastIndex = 0;
+                return sectionRX.test(a.get('name'));
+            })
+            .map(a => {                                                 // extract section (group 1 of the regex)
+                sectionRX.lastIndex = 0;
+                return sectionRX.exec(a.get('name'))[1];
+            });
+        if (!sections.length) {
+            btn = ia.BtnAPI({ bg: bg, api: `!xray`, label: 'Try Again', css: css });
+            msg = `xray: No repeating sections for ${character.get('name')}.`;
+            ia.MsgBox({ c: msg, t: 'NO SECTIONS', btn: btn, send: true, wto: theSpeaker.localName });
+            return;
+        }
+        let uniquekeys = [...new Set(sections)];                        // get an array of unique values
+
+        let retval = "",
+            sectiontable = msgtable.replace("__bg__", rowbg[0]),
+            sectionheader = msg1header.replace("__colspan__", '2').replace("__bg__", rowbg[1]).replace("__cell1__", `XRAY: ${character.get('name').toUpperCase()}`) + msg2header.replace("__bg__", rowbg[1]).replace("__cell1__", "GROUP").replace("__cell2__", "XRAY"),
+            rowtemplate = msg2row;
+        let apixray = `!xray --${character.id}#__section__ --0#25`;
+        let btnabil = ia.BtnAPI({ bg: bg, api: apixray.replace('__section__', 'ability'), label: "XRay", charid: character.id, css: css });
+        let btnattr = ia.BtnAPI({ bg: bg, api: apixray.replace('__section__', 'attribute'), label: "XRay", charid: character.id, css: css });
+
+        sectionheader += rowtemplate.replace("__bg__", rowbg[0]).replace("__cell1__", 'Abilities').replace("__cell2__", btnabil);
+        sectionheader += rowtemplate.replace("__bg__", rowbg[1]).replace("__cell1__", 'Attributes').replace("__cell2__", btnattr);
+        let attrrows = uniquekeys.reduce((a, val, i) => {
+            retval = val;
+            if (typeof retval === "string" && retval !== "") {
+                apixray = `!xray --${character.id}#${val} --?{At position...|0}`;
+                retval = ia.BtnAPI({ bg: bg, api: apixray, label: "XRay", charid: character.id, css: css });
+            }
+            return a + rowtemplate.replace("__bg__", rowbg[(i % 2)]).replace("__cell1__", val).replace("__cell2__", retval);
+        }, sectionheader);
+        sendChat('API', `/w ${theSpeaker.localName} ${sectiontable.replace("__TABLE-ROWS__", attrrows)}`);
+        return;
+    };
+    const xraysection = ({
+        // provides a cross-section view of a given element of a repeating series at position "pos"
+        // for instance, all of the sub-attributes of a spell in a repeating section "spells"
+        s: s = "",                                          // section
+        v: v = "c",                                         // attribute value to retrieve (c: current, m: max, n: name)
+        character: character,                               // character object (should be identified by now)
+        css: css = "",                                      // free input css for api button
+        bg: bg = "",                                        // background color for api button
+        pos: pos = 0,                                       // position of element to check in repeating list
+        cfgObj: cfgObj,                                     // configuration settings
+        theSpeaker: theSpeaker,                             // speaker object from the message
+    } = {}) => {
+        if (!bg) bg = cfgObj.bg;
+        if (!css) css = cfgObj.css;
+
+        let sectionRX = new RegExp(`repeating_${s}_([^_]*?)_.*$`);
+        // group 1: attributeID from repeating_section_attributeID_suffix
+        let attrsinrep = findObjs({ type: 'attribute', characterid: character.id }).filter(r => sectionRX.test(r.get('name')));
+        if (!attrsinrep.length) {
+            ia.MsgBox({ c: `xray: No elements in ${s}.`, t: `NO RETURN`, send: true, wto: theSpeaker.localName });
+            return;
+        }
+        let uniquekeys = [...new Set(attrsinrep.map(a => sectionRX.exec(a.get('name'))[1]))];        // extract attributeID (group 1 of the regex), then get an array of unique values
+        pos = Number(pos);
+        if (isNaN(pos)) {
+            ia.MsgBox({ c: `xray: Argument 'pos' not recognized as number.`, t: `INVALID POSITION`, send: true, wto: theSpeaker.localName });
+            return;
+        }
+        if (pos >= uniquekeys.length || pos < 0) {
+            ia.MsgBox({ c: `Argument 'pos' out of scope. Min value is 0. Max value for this character is ${uniquekeys.length - 1}.`, t: `INVALID POSITION`, send: true, wto: theSpeaker.localName });
+            return;
+        }
+
+        let suffixRX = new RegExp(`^repeating_${s}_${uniquekeys[pos]}_(.*)$`);
+        // group 1: suffix from repeating_section_attributeID_suffix
+        let attrs = findObjs({ type: 'attribute', characterid: character.id }).filter(r => suffixRX.test(r.get('name')));
+        let nameguessRX = new RegExp(`^repeating_${s}_${uniquekeys[pos]}_(.*?name.*)$`);
+        // group 1: suffix that contains 'name'
+        let attr_nameguess = attrs.filter(r => nameguessRX.test(r.get('name'))).map(r => nameguessRX.exec(r.get('name'))[1])[0] || "";      // filter where the word 'name' is in the suffix, [1] is the group bearing the suffix, [0] is to grab the first attribute that matches
+
+        let retval = "",
+            menufor = "",
+            menuapi = "",
+            attrtable = msgtable.replace("__bg__", rowbg[0]),
+            attrheader = msg1header.replace("__colspan__", '3').replace("__bg__", rowbg[1]).replace("__cell1__", `XRAY: ${character.get('name').toUpperCase()}: ${s}`) + msg3header.replace("__bg__", rowbg[1]).replace("__cell1__", "SUFFIX").replace("__cell2__", "MENU").replace("__cell3__", (attrValTable[v] || attrValTable.c).toUpperCase()),
+            rowtemplate = msg3row,
+            attrrows = attrs.reduce((a, val, i) => {
+                retval = val.get(attrValTable[v] || attrValTable.c);
+                menufor = "";
+                menuapi = "";
+                if (typeof retval === "string" && retval !== "") {
+                    if (execCharSet.includes(retval.charAt(0))) {                   // look for executable statements, if found, we will construct 3 buttons
+                        retval = ia.BtnAPI({ bg: bg, api: `!xray --read --${character.id}#${val.get('name')}`, label: "View", charid: character.id, css: css }) + " " +
+                            ia.BtnElem({ bg: bg, store: val.get('name'), label: "Exec", charname: character.get('name'), entity: btnElem.attr, css: css });
+                        menuapi = `!ia --whisper --show#msgbox{{!!c#The following elements were found in ${s}. This list can be further refined. !!t#ELEMENTS !!btn#getrepeating{{!!s#${s} !!sfxn#?{Naming attribute|${attr_nameguess}} !!sfxa#${suffixRX.exec(val.get('name'))[1]} !!c#${character.id} !!op#b !!f#n}} !!send#true !!wto#${theSpeaker.localName}}}`;
+                        menufor = ia.BtnAPI({ bg: bg, api: menuapi, label: "Build", charid: character.id, css: css });
+                    } else {                                                        // just text, so encode it so it doesn't break the output
+                        retval = htmlCoding(retval, true);
+                    }
+                }
+                return a + rowtemplate.replace("__bg__", rowbg[(i % 2)]).replace("__cell1__", suffixRX.exec(val.get('name'))[1]).replace("__cell2__", menufor).replace("__cell3__", retval);
+            }, attrheader);
+        let apixray = pos === 0 ? '' : `!xray --${character.id}#${s} --${pos - 1}`;
+        let pbtn = apixray ? ia.BtnAPI({ bg: bg, api: apixray, label: "PREV", charid: character.id, css: css }) : '';
+
+        apixray = pos === uniquekeys.length - 1 ? '' : `!xray --${character.id}#${s} --${pos + 1}`;
+        let nbtn = apixray ? ia.BtnAPI({ bg: bg, api: apixray, label: "NEXT", charid: character.id, css: css }) : '';
+        let msg = `${attrtable.replace("__TABLE-ROWS__", attrrows)}<div style="width:100%;overflow:hidden;"><div style="float:left;text-align:left;width:50%;display:inline-block;">${pbtn}</div><div style="float:right;text-align:right;width:50%;display:inline-block;">${nbtn}</div></div>`;
+        sendChat('API', `/w ${theSpeaker.localName} ${msg}`);
+        return;
+    };
+    const xraystandard = ({
+        // provides a listing of non-repeating attributes or abilities from position "pos"
+        // number of objects to show determined by "num" parameter
+        s: s = "attribute",                                 // section
+        v: v = "c",                                         // attribute value to retrieve (c: current, m: max; a: action)
+        character: character,                               // character object (should be identified by now)
+        css: css = "",                                      // free input css for api button
+        bg: bg = "",                                        // background color for api button
+        ord: ord = 'a',                                     // sort order for returned objects
+        pos: pos = 0,                                       // position of element to check in repeating list
+        cfgObj: cfgObj,                                     // configuration settings
+        theSpeaker: theSpeaker,                             // speaker object from the message
+        num: num = 25                                       // number of objects to show in one go
+    }) => {
+        if (!bg) bg = cfgObj.bg;
+        if (!css) css = cfgObj.css;
+        ord = ['d', 'a'].includes(ord) ? ord : 'n';         // anything other than 'a' (ascending) or 'd' (descending) triggers no sort order
+        v = ['m', 'max'].includes(v) ? 'max' : 'current';   // catch all attributes... and...
+        v = s === 'ability' ? 'action' : v;                 // correct for abilities (if necessary)
+        let sheetObjs = findObjs({ type: s, characterid: character.id });
+        if (s === 'attribute') sheetObjs = sheetObjs.filter(a => !a.get('name').startsWith('repeating'));
+        switch (ord) {
+            case 'a':
+                sheetObjs = sheetObjs.sort((a, b) => a.get('name') > b.get('name') ? 1 : -1);
+                break;
+            case 'd':
+                sheetObjs = sheetObjs.sort((a, b) => a.get('name') > b.get('name') ? -1 : 1);
+                break;
+            case 'n':
+            default:
+                break;
+        }
+        pos = parseInt(pos);
+        if (isNaN(pos)) {
+            ia.MsgBox({ c: `xray: Argument 'pos' not recognized as number.`, t: `INVALID POSITION`, send: true, wto: theSpeaker.localName });
+            return;
+        }
+        if (pos >= sheetObjs.length || pos < 0) {
+            ia.MsgBox({ c: `Argument 'pos' out of scope. Min value is 0. Max value for this character is ${sheetObjs.length - 1}.`, t: `INVALID POSITION`, send: true, wto: theSpeaker.localName });
+            return;
+        }
+        if (num === 'all' || isNaN(Number(num))) {
+            pos = 0;
+            num = sheetObjs.length;
+        } else {
+            num = parseInt(num);
+            if (num + pos > sheetObjs.length) num = sheetObjs.length - pos;
+        }
+
+        let allObjsCount = sheetObjs.length;
+        sheetObjs = sheetObjs.slice(pos, pos + num);
+
+        let retval = "",
+            menufirst5 = "",
+            menulast5 = "",
+            menuapi = "",
+            attrtable = msgtable.replace("__bg__", rowbg[0]),
+            attrheader = msg1header.replace("__colspan__", '3').replace("__bg__", rowbg[1]).replace("__cell1__", `XRAY: ${character.get('name').toUpperCase()}: ${s}`) + msg3header.replace("__bg__", rowbg[1]).replace("__cell1__", s.toUpperCase()).replace("__cell2__", "MENU").replace("__cell3__", attrValTable[v].toUpperCase()),
+            rowtemplate = msg3row,
+            outputrows = sheetObjs.reduce((a, val, i) => {
+                retval = val.get(attrValTable[v]);
+                menufirst5 = "";
+                menulast5 = "";
+                menuapi = "";
+                if (typeof retval === "string" && retval !== "") {
+                    if (execCharSet.includes(retval.charAt(0)) || s === 'ability') {                   // look for executable statements, if found, we will construct 4 buttons
+                        retval = ia.BtnAPI({ bg: bg, api: `!xray --read --${character.id}#${val.get('name')}`, label: "View", charid: character.id, css: css }) + " " +
+                            ia.BtnElem({ bg: bg, store: val.get('name'), label: "Exec", charname: character.get('name'), entity: btnElem[s], css: css });
+                        menuapi = `!ia --whisper --show#msgbox{{!!c#The following ${s === 'attribute' ? 'attributes' : 'abilities'} were found matching the first 5 characters of the chosen ${s}. This list can be further refined. !!t#ELEMENTS !!btn#get${s.slice(0, 4)}s{{!!c#${character.id} !!op#b !!f#${s === 'attribute' ? 'x#' : ''}^f#\`${val.get('name').slice(0, 5)}\`}} !!send#true !!wto#${theSpeaker.localName}}}`;
+                        menufirst5 = ia.BtnAPI({ bg: bg, api: menuapi, label: "Starts", charid: character.id, css: css });
+                        menuapi = `!ia --whisper --show#msgbox{{!!c#The following ${s === 'attribute' ? 'attributes' : 'abilities'} were found matching the last 5 characters of the chosen ${s}. This list can be further refined. !!t#ELEMENTS !!btn#get${s.slice(0, 4)}s{{!!c#${character.id} !!op#b !!f#${s === 'attribute' ? 'x#' : ''}f^#${val.get('name').slice(-5)}}} !!send#true !!wto#${theSpeaker.localName}}}`;
+                        menulast5 = ia.BtnAPI({ bg: bg, api: menuapi, label: "Ends", charid: character.id, css: css });
+                    } else {                                                        // just text, so encode it so it doesn't break the output
+                        retval = htmlCoding(retval, true);
+                    }
+                }
+                return a + rowtemplate.replace("__bg__", rowbg[(i % 2)]).replace("__cell1__", val.get('name')).replace("__cell2__", `${menufirst5} ${menulast5}`).replace("__cell3__", retval);
+            }, attrheader);
+        let apixray = parseInt(pos) - parseInt(num) < 0 ? '' : `!xray --${character.id}#${s} --${parseInt(pos) - parseInt(num)}#${num}`;
+        let pbtn = apixray ? ia.BtnAPI({ bg: bg, api: apixray, label: "PREV", charid: character.id, css: css }) : '';
+
+        apixray = parseInt(pos) + parseInt(num) >= allObjsCount ? '' : `!xray --${character.id}#${s} --${parseInt(pos) + parseInt(num)}#${num}`;
+        let nbtn = apixray ? ia.BtnAPI({ bg: bg, api: apixray, label: "NEXT", charid: character.id, css: css }) : '';
+        let msg = `${attrtable.replace("__TABLE-ROWS__", outputrows)}<div style="width:100%;overflow:hidden;"><div style="float:left;text-align:left;width:50%;display:inline-block;">${pbtn}</div><div style="float:right;text-align:right;width:50%;display:inline-block;">${nbtn}</div></div>`;
+        sendChat('API', `/w ${theSpeaker.localName} ${msg}`);
+        return;
+
+    };
+    const viewxray = ({
+        // for a given character and element, returns a message box to let you read it
+        character: character,                                           // character
+        elem: elem,                                                     // the sheet object to read
+        css: css = "",                                                  // free input css for api button
+        bg: bg = "",                                                    // background color for api button
+        theSpeaker: theSpeaker,
+        cfgObj: cfgObj
+    } = {}) => {
+        let obj = ia.AbilFromAmbig(`${character}|${elem}`) || ia.AttrFromAmbig(`${character}|${elem}`);
+        if (!obj) {
+            ia.MsgBox({ c: 'Could not find that sheet object.', t: 'NO SUCH ELEMENT', send: true, wto: theSpeaker.localName });
+            return;
+        }
+        ia.MsgBox({ c: htmlCoding(obj.get('type') === 'attribute' ? obj.get('current') : obj.get('action'), true), t: `TEXT OF ${obj.get('name')}`, send: true, wto: theSpeaker.localName });
+        return;
+    };
+
+    // ==================================================
+    //		HANDLE INPUT
+    // ==================================================
+    const handleInput = (msg_orig) => {
+        if (!(msg_orig.type === "api" && /^!xray(?:\s|$)/.test(msg_orig.content))) return;
+
+        let theSpeaker = getTheSpeaker(msg_orig);
+        let cfgObj = ia.GetIndivConfig(theSpeaker);
+        let bg = cfgObj.bg;
+        let css = cfgObj.css;
+
+        let args = msg_orig.content.split(/\s+--/)
+            .slice(1)                                                   // get rid of api handle
+
+        let charsICon = findObjs({ type: 'character' });
+        if (!playerIsGM(msg_orig.playerid)) {                                // if the player isn't GM, limit to players they control
+            charsICon = charsICon.filter(c => {
+                return c.get('controlledby').split(/\s*,\s*/).includes(msg_orig.playerid) || c.get('controlledby').split(/\s*,\s*/).includes('all');
+            });
+
+        }
+
+        if (!charsICon.length) {
+            ia.MsgBox({ c: `xray: It doesn't look like you control any characters. Fix that and try again.`, t: `NO CHARACTERS`, send: true, wto: theSpeaker.localName });
+            return;
+        }
+
+        charsICon = charsICon.sort((a, b) => a.get('name') > b.get('name') ? 1 : -1);
+
+        const charsAvailForXray = (send = true) => {
+            btn = charsICon.map(c => ia.BtnAPI({ bg: bg, api: `!xray --${c.id}`, label: c.get('name'), css: css })).join(" ");
+            msg = `These characters are in your waiting room waiting for their xray. Click on one to continue.`;
+            return ia.MsgBox({ c: msg, t: 'AVAILABLE CHARACTERS', btn: btn, send: send, wto: theSpeaker.localName });
+        };
+
+        let msg = "", btn = "";
+        if (!args.length) {
+            charsAvailForXray();
+            return;
+        }
+
+        const getCharAndSection = (arg) => {
+            let [character, item] = arg.split("#");
+            character = charsICon.filter(c => c.id === (ia.CharFromAmbig(character) || { id: 0 }).id)[0];
+            if (character && item) {
+                switch (item) {
+                    case 'ability':
+                    case 'abilities':
+                        item = 'ability';
+                        break;
+                    case 'attribute':
+                    case 'attributes':
+                        item = 'attribute';
+                        break;
+                    default:
+                        item = findObjs({ type: 'attribute', characterid: character.id }).filter(a => new RegExp(`^repeating_${item}_.*`, 'g').test(a.get('name'))).length ? item : '';
+                        if (!item) ia.MsgBox({ c: `xray: No section found to match ${mapArg}.`, t: `NO SECTION`, send: true, wto: theSpeaker.localName });
+                        break;
+                }
+            }
+            return [character, item];
+        };
+
+        let action = 'scan', character, section, elem, pos = 0, num = 0;
+
+        let mapArg = args.shift();                                      // assign the first arg to mapArg
+        if (mapArg === 'read') {
+            action = 'read';
+            [character, elem] = args.shift().split("#");
+        } else if (mapArg.indexOf('#' > -1)) {                          // if there is a hash, we have a character and section
+            [character, section] = getCharAndSection(mapArg);
+        } else {                                                        // if we didn't have a character and a section, we should have a character, only
+            character = ia.CharFromAmbig(mapArg);
+        }
+        if (!character) {
+            ia.MsgBox({ c: `xray: No character found among those you can control for ${mapArg}.`, t: `NO CHARACTER`, send: true, wto: theSpeaker.localName });
+            charsAvailForXray();
+            return;
+        }
+        if (action === 'scan' && args.length) {
+            [pos = 0, num = 0] = args.shift().split("#");               // validation and sanitation of these values is handled in the appropriate called function (since they require the set of objects to review)
+        }
+        // by now, we have filled action, character, section and/or elem, pos, and num; we just have to output the correct information
+        if (action === 'scan') {
+            if (!character) {                                           // scan, but no character, so give all characters the player controls
+                charsAvailForXray();
+                return;
+            }
+            if (section) {                                              // character + section
+                switch (section) {
+                    case 'ability':                                     // 'abilities' has been flattened to 'ability' by now 
+                        xraystandard({ s: 'ability', character: character, css: css, bg: bg, pos: pos, num: num, cfgObj: cfgObj, theSpeaker: theSpeaker });
+                        break;
+                    case 'attribute':                                   // 'attributes' has been flattened to 'attribute' by now
+                        xraystandard({ s: 'attribute', character: character, css: css, bg: bg, pos: pos, num: num, cfgObj: cfgObj, theSpeaker: theSpeaker });
+                        break;
+                    default:
+                        xraysection({ s: section, character: character, cfgObj: cfgObj, theSpeaker: theSpeaker, pos: pos });
+                }
+            } else {                                                    // character, no section = output available sections
+                xraysheet({ character: character, css: css, bg: bg, theSpeaker: theSpeaker, cfgObj: cfgObj });
+            }
+        } else if (action === 'read') {
+            if (!elem) {
+                ia.MsgBox({ c: `xray: No sheet item provided for read operation.`, t: `NO ITEM`, send: true, wto: theSpeaker.localName });
+                return;
+            }
+            viewxray({ character: character, elem: elem, theSpeaker: theSpeaker, cfgObj: cfgObj, bg: bg, css: css });
+        }
+
+        return;
+    };
+
+    const registerEventHandlers = () => {
+        on('chat:message', handleInput);
+    };
+
+    on('ready', () => {
+        versionInfo();
+        registerEventHandlers();
+
+    });
+
+    return {
+        // public interface
+        GetVrs: getVrs
     };
 
 })();
