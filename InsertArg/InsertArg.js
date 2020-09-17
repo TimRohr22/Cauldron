@@ -7,8 +7,8 @@ Roll20 Contact	:	timmaugh
                     COMPONENTS
 ---------------------------------------------------------
 Name			:	Core Engine     Core Lib        XRay
-Version			:	1.5             1.5             1.11
-Last Update		:	9/9/2020        9/8/2020        9/5/2020
+Version			:	1.5             1.5             1.2
+Last Update		:	9/9/2020        9/8/2020        9/16/2020
 =========================================================
 
 */
@@ -631,7 +631,7 @@ const ia = (() => {
             case "c":   // card output (whisper or chat determined by mapArg)
                 list.map(l => {
                     if (!Object.prototype.hasOwnProperty.call(l, "sublist")) {
-                        Object.assign(l, { sublist: [['', 'Name', l.label], ['', 'Description', l.execText]] });       // if we don't have the sublist, build it just with the stuff we do have
+                        Object.assign(l, { sublist: [['', 'Name', l.label], ['', 'Description(fw)', l.execText]] });       // if we don't have the sublist, build it just with the stuff we do have
                     }
                     msg = l.sublist.slice(1).map((a, i) => {
                         if (a[1].endsWith('(fw)')) {                                    // allow full-width elements
@@ -2437,7 +2437,7 @@ const ialibcore = (() => {
                 ['sfxn', 'name portion of the sub-attribute responsible for naming an attribute set from the section; "subattr" from repeating_section_is_subattr<br>if left blank, getrepeating will look for a sub-attribute with the text "name" in the current value'],
                 ['sfxa', 'name portion of the sub-attribute you wish to return (for instance, the roll formula); "subattr" from repeating_section_id_subattr'],
                 ['sfxrlbl', 'name portion of the sub-attribute you wish to use for button labels if using elem menu output, overwritten by explicit declaration of rlbl'],
-                ['sfxlist', 'pipe-separated list of sub-attribute suffixes to include as part of a card; naming suffix is included automatically'],
+                ['sfxlist', 'pipe-separated list of sub-attribute suffixes to include as part of a card; naming suffix is included automatically; if you want a full-width field, append \'(fw)\' to your field label'],
                 ['l', 'list of repeating attributes to retrieve; repeating attributes can be referred to by name, id, or contents of the naming sub-attribute (i.e., what you would call the entry in the repeating list), \
                         with or without a character reference and pipe preceding each (leaving off the character reference will use the speaking character, if available); unlike other list (l) arguments, does NOT take a label option\
                         if more than one item is included, the list argument must be formatted as<br>\
@@ -2538,9 +2538,9 @@ const xray = (() => {
     // ==================================================
     //		VERSION
     // ==================================================
-    const vrs = '1.11';
+    const vrs = '1.2';
     const versionInfo = () => {
-        const vd = new Date(1599302698567);
+        const vd = new Date(1600308742949);
         log('\u0166\u0166 XRAY v' + vrs + ', ' + vd.getFullYear() + '/' + (vd.getMonth() + 1) + '/' + vd.getDate() + ' \u0166\u0166');
         return;
     };
@@ -2599,7 +2599,6 @@ const xray = (() => {
         return speaking;
     };
     const escapeRegExp = (string) => { return string.replace(/[.*+\-?^${}()|[\]\\]/g, '\\$&'); };
-
     const htmlCoding = (s = "", encode = true) => {
         if (typeof s !== "string") return undefined;
         let searchfor = encode ? htmlTable : _invert(htmlTable);
@@ -2609,110 +2608,29 @@ const xray = (() => {
             .replace(new RegExp(/\n/, 'gmi'), '<br><br>');
         return s;
     };
-
-    const Base64 = {
-        _keyStr: "ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
-            "abcdefghijklmnopqrstuvwxyz0123456789+/=",
-        encode: function (e) {
-            var t = "";
-            var n, r, i, s, o, u, a;
-            var f = 0;
-            e = Base64._utf8_encode(e);
-            while (f < e.length) {
-                n = e.charCodeAt(f++);
-                r = e.charCodeAt(f++);
-                i = e.charCodeAt(f++);
-                s = n >> 2;
-                o = (n & 3) << 4 | r >> 4;
-                u = (r & 15) << 2 | i >> 6;
-                a = i & 63;
-                if (isNaN(r)) {
-                    u = a = 64
-                } else if (isNaN(i)) {
-                    a = 64
-                }
-                t = t +
-                    this._keyStr.charAt(s) +
-                    this._keyStr.charAt(o) +
-                    this._keyStr.charAt(u) +
-                    this._keyStr.charAt(a)
-            }
-            return t
-        },
-        decode: function (e) {
-            var t = "";
-            var n, r, i;
-            var s, o, u, a;
-            var f = 0;
-            e = e.replace(/[^A-Za-z0-9+/=]/g, "");
-            while (f < e.length) {
-                s = this._keyStr.indexOf(e.charAt(f++));
-                o = this._keyStr.indexOf(e.charAt(f++));
-                u = this._keyStr.indexOf(e.charAt(f++));
-                a = this._keyStr.indexOf(e.charAt(f++));
-                n = s << 2 | o >> 4;
-                r = (o & 15) << 4 | u >> 2;
-                i = (u & 3) << 6 | a;
-                t = t + String.fromCharCode(n);
-                if (u !== 64) {
-                    t = t + String.fromCharCode(r)
-                }
-                if (a !== 64) {
-                    t = t + String.fromCharCode(i)
-                }
-            }
-            t = Base64._utf8_decode(t);
-            return t
-        },
-        _utf8_encode: function (e) {
-            e = e.replace(/\r\n/g, "\n");
-            var t = "";
-            for (var n = 0; n < e.length; n++) {
-                var r = e.charCodeAt(n);
-                if (r < 128) {
-                    t += String.fromCharCode(r)
-                } else if (r > 127 && r < 2048) {
-                    t +=
-                        String.fromCharCode(r >> 6 | 192);
-                    t +=
-                        String.fromCharCode(r & 63 | 128)
-                } else {
-                    t +=
-                        String.fromCharCode(r >> 12 | 224);
-                    t +=
-                        String.fromCharCode(r >> 6 & 63 | 128);
-                    t +=
-                        String.fromCharCode(r & 63 | 128)
-                }
-            }
-            return t
-        },
-        _utf8_decode: function (e) {
-            var t = "";
-            var n = 0;
-            var r = c1 = c2 = 0;
-            while (n < e.length) {
-                r = e.charCodeAt(n);
-                if (r < 128) {
-                    t += String.fromCharCode(r);
-                    n++
-                } else if (r > 191 && r < 224) {
-                    c2 = e.charCodeAt(n + 1);
-                    t += String.fromCharCode(
-                        (r & 31) << 6 | c2 & 63);
-
-                    n += 2
-                } else {
-                    c2 = e.charCodeAt(n + 1);
-                    c3 = e.charCodeAt(n + 2);
-                    t += String.fromCharCode(
-                        (r & 15) << 12 | (c2 & 63)
-                        << 6 | c3 & 63);
-                    n += 3
-                }
-            }
-            return t
+    const repeatingOrdinal = (character_id, section = '', attr_name = '') => {
+        if (!section && !attr_name) return;
+        let ordrx, match;
+        if (attr_name) {
+            ordrx = /^repeating_([^_]+)_([^_]+)_.*$/;
+            // group 1: section             from repeating_section_repID_suffix
+            // group 2: repID               from repeating_section_repID_suffix
+            if (!ordrx.test(attr_name)) return;                                                     // the supplied attribute name isn't a repeating attribute at all
+            ordrx.lastIndex = 0;
+            match = ordrx.exec(attr_name);
+            section = match[1];
+            // group 1: section             from repeating_section_repID_suffix
         }
+        let sectionrx = new RegExp(`repeating_${section}_([^_]+)_.*$`);
+        let createOrderKeys = findObjs({ type: 'attribute', characterid: character_id })
+            .filter(a => sectionrx.test(a.get('name')))
+            .map(a => sectionrx.exec(a.get('name'))[1]);
+        let sortOrderKeys = (findObjs({ type: 'attribute', characterid: character_id, name: `_reporder_repeating_${section}` })[0] || { get: () => { return ''; } })
+            .get('current')
+            .split(/\s*,\s*/)
+            .filter(a => createOrderKeys.includes(a));
+        sortOrderKeys.push(...createOrderKeys.filter(a => !sortOrderKeys.includes(a)));
+        return attr_name ? sortOrderKeys.indexOf(match[2]) : sortOrderKeys;
     };
 
     const xraysheet = ({
@@ -2738,12 +2656,6 @@ const xray = (() => {
                 sectionRX.lastIndex = 0;
                 return sectionRX.exec(a.get('name'))[1];
             });
-        if (!sections.length) {
-            btn = ia.BtnAPI({ bg: bg, api: `!xray`, label: 'Try Again', css: css });
-            msg = `xray: No repeating sections for ${character.get('name')}.`;
-            ia.MsgBox({ c: msg, t: 'NO SECTIONS', btn: btn, send: true, wto: theSpeaker.localName });
-            return;
-        }
         let uniquekeys = [...new Set(sections)];                        // get an array of unique values
 
         let retval = "",
@@ -2751,8 +2663,8 @@ const xray = (() => {
             sectionheader = msg1header.replace("__colspan__", '2').replace("__bg__", rowbg[1]).replace("__cell1__", `XRAY: ${character.get('name').toUpperCase()}`) + msg2header.replace("__bg__", rowbg[1]).replace("__cell1__", "GROUP").replace("__cell2__", "XRAY"),
             rowtemplate = msg2row;
         let apixray = `!xray --${character.id}#__section__ --0#25`;
-        let btnabil = ia.BtnAPI({ bg: bg, api: apixray.replace('__section__', 'ability'), label: "XRay", charid: character.id, css: css });
-        let btnattr = ia.BtnAPI({ bg: bg, api: apixray.replace('__section__', 'attribute'), label: "XRay", charid: character.id, css: css });
+        let btnabil = findObjs({ type: 'ability', characterid: character.id }).length ? ia.BtnAPI({ bg: bg, api: apixray.replace('__section__', 'ability'), label: "XRay", charid: character.id, css: css }) : 'NA';
+        let btnattr = findObjs({ type: 'attribute', characterid: character.id }).filter(a => !a.get('name').startsWith('repeating')).length ? ia.BtnAPI({ bg: bg, api: apixray.replace('__section__', 'attribute'), label: "XRay", charid: character.id, css: css }) : 'NA';
 
         sectionheader += rowtemplate.replace("__bg__", rowbg[0]).replace("__cell1__", 'Abilities').replace("__cell2__", btnabil);
         sectionheader += rowtemplate.replace("__bg__", rowbg[1]).replace("__cell1__", 'Attributes').replace("__cell2__", btnattr);
@@ -2781,7 +2693,12 @@ const xray = (() => {
     } = {}) => {
         if (!bg) bg = cfgObj.bg;
         if (!css) css = cfgObj.css;
-
+        let uniquekeys = repeatingOrdinal(character.id, s);                                         // get ordered list of unique keys
+        if (!uniquekeys.length) {
+            ia.MsgBox({ c: `xray: No elements in ${s}.`, t: `NO RETURN`, send: true, wto: theSpeaker.localName });
+            return;
+        }
+/*
         let sectionRX = new RegExp(`repeating_${s}_([^_]*?)_.*$`);
         // group 1: attributeID from repeating_section_attributeID_suffix
         let attrsinrep = findObjs({ type: 'attribute', characterid: character.id }).filter(r => sectionRX.test(r.get('name')));
@@ -2790,6 +2707,7 @@ const xray = (() => {
             return;
         }
         let uniquekeys = [...new Set(attrsinrep.map(a => sectionRX.exec(a.get('name'))[1]))];        // extract attributeID (group 1 of the regex), then get an array of unique values
+*/
         pos = Number(pos);
         if (isNaN(pos)) {
             ia.MsgBox({ c: `xray: Argument 'pos' not recognized as number.`, t: `INVALID POSITION`, send: true, wto: theSpeaker.localName });
@@ -2810,8 +2728,11 @@ const xray = (() => {
         let retval = "",
             menufor = "",
             menuapi = "",
+            infoapi = "",
+            infobtn = "",
+            attrsuffix = "",
             attrtable = msgtable.replace("__bg__", rowbg[0]),
-            attrheader = msg1header.replace("__colspan__", '3').replace("__bg__", rowbg[1]).replace("__cell1__", `XRAY: ${character.get('name').toUpperCase()}: ${s}`) + msg3header.replace("__bg__", rowbg[1]).replace("__cell1__", "SUFFIX").replace("__cell2__", "MENU").replace("__cell3__", (attrValTable[v] || attrValTable.c).toUpperCase()),
+            attrheader = msg1header.replace("__colspan__", '3').replace("__bg__", rowbg[1]).replace("__cell1__", `XRAY: ${character.get('name').toUpperCase()}: ${s.toUpperCase()}<br><table style="width:98%;margin:auto;"><tr><td style="text-align:left;">repeating_${s}_${uniquekeys[pos]}</td><td style="text-align:right;">POS: ${pos}</td></tr></table>`) + msg3header.replace("__bg__", rowbg[1]).replace("__cell1__", "SUFFIX").replace("__cell2__", "MENU").replace("__cell3__", (attrValTable[v] || attrValTable.c).toUpperCase()),
             rowtemplate = msg3row,
             attrrows = attrs.reduce((a, val, i) => {
                 retval = val.get(attrValTable[v] || attrValTable.c);
@@ -2827,7 +2748,10 @@ const xray = (() => {
                         retval = htmlCoding(retval, true);
                     }
                 }
-                return a + rowtemplate.replace("__bg__", rowbg[(i % 2)]).replace("__cell1__", suffixRX.exec(val.get('name'))[1]).replace("__cell2__", menufor).replace("__cell3__", retval);
+                attrsuffix = suffixRX.exec(val.get('name'))[1];
+                infoapi = `!ia --whisper --show#msgbox{{!!c#puttext{{!!a#repeating_${s}_${uniquekeys[pos]}_${attrsuffix} !!b#\`br\` !!c#repeating_${s}_$${pos}_${attrsuffix} !!d#\`br\` !!e#${val.id}}} !!t#ATTRIBUTE INFO !!send#true !!wto#${theSpeaker.localName}}}`;
+                infobtn = ia.BtnAPI({ bg: bg, api: infoapi, label: "Info", charid: character.id, css: css });
+                return a + rowtemplate.replace("__bg__", rowbg[(i % 2)]).replace("__cell1__", `<table style="width:100%;"><tr><td style="text-align:left;">${suffixRX.exec(val.get('name'))[1]}</td><td style="text-align:right;">${infobtn}</td></tr></table>`).replace("__cell2__", menufor).replace("__cell3__", retval);
             }, attrheader);
         let apixray = pos === 0 ? '' : `!xray --${character.id}#${s} --${pos - 1}`;
         let pbtn = apixray ? ia.BtnAPI({ bg: bg, api: apixray, label: "PREV", charid: character.id, css: css }) : '';
