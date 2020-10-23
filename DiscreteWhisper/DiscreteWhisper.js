@@ -3,7 +3,7 @@
 Name			:	DiscreteWhisper
 GitHub			:	
 Roll20 Contact	:	timmaugh
-Version			:	.2
+Version			:	.3
 Last Update		:	10/23/2020
 =========================================================
 
@@ -17,7 +17,7 @@ const discretewhisper = (() => {
     //		VERSION
     // ==================================================
     const vrs = '.2';
-    const vd = new Date(1603480058855);
+    const vd = new Date(1603484720519);
     const versionInfo = () => {
         log('\u0166\u0166 DiscreteWhisper v' + vrs + ', ' + vd.getFullYear() + '/' + (vd.getMonth() + 1) + '/' + vd.getDate() + ' \u0166\u0166');
         return;
@@ -171,14 +171,14 @@ const discretewhisper = (() => {
         let sent = characters.reduce((a, c) => {
             return `${a}<br><b>${c.localName}</b><br>${c.whisper}<br>`;
         }, '').slice(4);
-        msgbox({ c: sent, t: 'DELIVERED WHISPERS', wto: `"${theSpeaker.localName}"` });
+        msgbox({ c: sent, t: 'DELIVERED WHISPERS', wto: `${theSpeaker.localName}` });
 
         // REPORT UNSENT MESSAGES
         if (undeliverable.length) {
             let unsent = undeliverable.reduce((a, c) => {
                 return `${a}<br><b>${c.localName}</b><br>${c.whisper}<br>`;
             }, '').slice(4);
-            msgbox({ c: unsent, t: 'UNDELIVERABLE ALERT', wto: `"${theSpeaker.localName}"`, bg: "#fdc6c6" });
+            msgbox({ c: unsent, t: 'UNDELIVERABLE ALERT', wto: `${theSpeaker.localName}`, bg: "#fdc6c6" });
         }
     };
 
