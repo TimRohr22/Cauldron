@@ -3,12 +3,17 @@
 Name			:	DiscreteWhisper
 GitHub			:	
 Roll20 Contact	:	timmaugh
-Version			:	.3
+Version			:	.4
 Last Update		:	10/23/2020
 =========================================================
 
 COMMAND LINE EXAMPLE:
-!w --character|character|character any text {{aside|character|character}} more text {{Aside|character}} still more text
+!w --character|character|character --any text {{aside|character|character}} more text {{Aside|character}} still more text --{{all/aside/Aside}}Button Label|
+
+BUTTONS:
+{{all}}!script boogie boogie
+{{aside}}character|ability
+{{aside}}macro
 
 */
 
@@ -16,8 +21,8 @@ const discretewhisper = (() => {
     // ==================================================
     //		VERSION
     // ==================================================
-    const vrs = '.2';
-    const vd = new Date(1603484720519);
+    const vrs = '.4';
+    const vd = new Date(1604511979789);
     const versionInfo = () => {
         log('\u0166\u0166 DiscreteWhisper v' + vrs + ', ' + vd.getFullYear() + '/' + (vd.getMonth() + 1) + '/' + vd.getDate() + ' \u0166\u0166');
         return;
@@ -52,12 +57,31 @@ const discretewhisper = (() => {
     // ==================================================
     //		TABLES AND DEFINITIONS
     // ==================================================
+    const apiproject = 'discretewhisper';
     const msgtable = '<div style="width:100%;"><div style="border-radius:10px;border:2px solid #000000;background-color:__bg__; margin-right:16px; overflow:hidden;"><table style="width:100%; margin: 0 auto; border-collapse:collapse;font-size:12px;">__TABLE-ROWS__</table></div></div>';
     const msg1header = '<tr style="border-bottom:1px solid #000000;font-weight:bold;text-align:center; background-color:__bg__; line-height: 22px;"><td>__cell1__</td></tr>';
     const msg1row = '<tr style="background-color:__bg__;"><td style="padding:4px;__row-css__">__cell1__</td></tr>';
+    const bgcolor = "#ce0f69";
+    const htmlTable = {
+        "&": "&amp;",
+        "{": "&#123;",
+        "}": "&#125;",
+        "|": "&#124;",
+        ",": "&#44;",
+        "%": "&#37;",
+        "?": "&#63;",
+        "[": "&#91;",
+        "]": "&#93;",
+        "@": "&#64;",
+        "~": "&#126;",
+        "(": "&#40;",
+        ")": "&#41;",
+        "<": "&#60;",
+        ">": "&#62;",
+    };
 
     // ==================================================
-    //		PROCESS
+    //		UTILITIES
     // ==================================================
     const getTheSpeaker = function (msg) {
         var characters = findObjs({ type: 'character' });
@@ -76,12 +100,72 @@ const discretewhisper = (() => {
 
         return speaking;
     };
+    const addHandle = (handles) => {
+        let delta = [];
+        handles.split('|').forEach(h => {
+            if (!state[apiproject].apihandles.includes(h)) {
+                state[apiproject].apihandles.push(h);
+                delta.push(h);
+            }
+        });
+        if (delta.length) getHandles(delta, 'add');
+    };
+    const remHandle = (handles) => {
+        let delta = [];
+        handles.split('|').forEach(h => {
+            if (state[apiproject].apihandles.includes(h)) {
+                state[apiproject].apihandles = state[apiproject].apihandles.filter(a => a !== h);
+                delta.push(h);
+            }
+        });
+        if (delta.length) getHandles(delta, 'rem');
+    };
+    const getHandles = (seed = '', seedtype = '') => {
+        let message = `The following handles were found for this script:<br>${apiproject}<br>${state[apiproject].apihandles.join('<br>')}`;
+        if (seed && seedtype) message = `The following handles were ${seedtype === 'add' ? 'added' : 'removed'}:<br>${seed.join(', ')}<br><br>${message}`;
+        msgbox({ c: message, t: 'API HANDLES', wto: 'GM' });
+    };
+    const getTextColor = (h) => {
+        h = `#${h.replace(/#/g, '')}`;
+        let hc = hexToRGB(h);
+        return (((hc[0] * 299) + (hc[1] * 587) + (hc[2] * 114)) / 1000 >= 128) ? "#000000" : "#ffffff";
+    };
+    const hexToRGB = (h) => {
+        let r = 0, g = 0, b = 0;
+
+        // 3 digits
+        if (h.length === 4) {
+            r = "0x" + h[1] + h[1];
+            g = "0x" + h[2] + h[2];
+            b = "0x" + h[3] + h[3];
+            // 6 digits
+        } else if (h.length === 7) {
+            r = "0x" + h[1] + h[2];
+            g = "0x" + h[3] + h[4];
+            b = "0x" + h[5] + h[6];
+        }
+        return [+r, +g, +b];
+    };
+    const validateHexColor = (s, d = 'ff9747') => {
+        let colorRegX = /(^#?[0-9A-F]{6}$)|(^#?[0-9A-F]{3}$)/i;
+        return '#' + (colorRegX.test(s) ? s.replace('#', '') : d);
+    };
+    const escapeRegExp = (string) => { return string.replace(/[.*+\-?^${}()|[\]\\]/g, '\\$&'); };
     const charFromAmbig = (info) => {                                       // find a character where info is an identifying piece of information (id, name, or token id)
         let character;
         character = findObjs({ type: 'character', id: info })[0] ||
             findObjs({ type: 'character' }).filter(c => c.get('name') === info)[0] ||
             findObjs({ type: 'character', id: (getObj("graphic", info) || { get: () => { return "" } }).get("represents") })[0];
         return character;
+    };
+    const htmlCoding = (s = "", encode = true) => {
+        if (typeof s !== "string") return undefined;
+        let searchfor = encode ? htmlTable : _.invert(htmlTable);
+        s = s.replace(new RegExp(Object.keys(searchfor)
+            .map((k) => { return escapeRegExp(k); })
+            .join("|"), 'gmi'), (r) => { return searchfor[r]; })
+            .replace(new RegExp(/\n/, 'gmi'), '<br><br>');
+        return s;
     };
     const msgbox = ({ c: c = "message", t: t = "DISCRETE WHISPER", btn: b = "buttons", sendas: sas = "API", wto: wto = "", bg: bg = "#dedede" }) => {
         const rowbg = ["#ffffff", "#dedede"];
@@ -93,36 +177,131 @@ const discretewhisper = (() => {
         if (wto) msg = `/w "${wto}" ${msg}`;
         sendChat(sas, msg);
     };
+    const btnElem = ({ bg: btnbg = bgcolor, store: s = "InsertArg", label: btnlabel = "Loaded Ability", charname: cn = "not set", entity: e = "&#37;", css: css = "" } = {}) => {
+        switch (e) {
+            case '#':
+            case 'macro':
+            case 'm':
+            case '&#35;':
+                e = '&#35;';
+                break;
+            case '@':
+            case 'attr':
+            case 'attribute':
+            case '&#64;':
+                e = '&#64;';
+                break;
+            case '%':
+            case 'abil':
+            case 'ability':
+            case '&#37;':
+            default:
+                e = '&#37;';
+                break;
+        }
+        btnbg = validateHexColor(btnbg);
+        return `<a style="background-color: ${btnbg}; color: ${getTextColor(btnbg)}; ${css}" href="!&#13;${e}{${cn}|${s}}">${btnlabel}</a>`;
+    };
+    const btnAPI = ({ bg: btnbg = bgcolor, api: api = "", label: btnlabel = "Run API", css: css = "", r20style: r20style = false } = {}) => {
+        btnbg = validateHexColor(btnbg);
+        api = htmlCoding(api, true);
+        r20style = ['t', 'true', 'y', 'yes', true].includes(r20style) ? true : false;
+        return `<a style="background-color: ${btnbg}; color: ${getTextColor(btnbg)};${r20style ? 'padding: 5px;display:inline-block;border 1px solid white;' : ''}${css}" href="${api}">${btnlabel}</a>`;
+    };
+    const parseButton = (btn) => {              // btn should be either label|!script OR label|source character|ability OR label|macro
+        let output;
+        let btnrx = /^(.*?)\|(.*)/;
+        // FROM: label|button info
+        // group 1: label
+        // group 2: button info
+        btnrx.lastIndex = 0;
+        let result = btnrx.exec(btn);
+        if (!result) return;
+        let label = result[1];
+        if (result[2].startsWith('!')) output = btnAPI({ label: label, api: result[2] });       // API BUTTON
+        else if (result[2].includes("|")) {                                                     // ABILITY BUTTON
+            let [character, abil] = result[2].split("|");
+            character = (charFromAmbig(character) || { get: () => { return character } }).get('name');
+            output = btnElem({ store: abil, charname: character, label: label, entity: 'ability' });
+        }
+        else output = btnElem({ store: result[2], entity: "macro", label: label });             // MACRO BUTTON
+        return output;
+    };
 
+    // ==================================================
+    //		PROCESS
+    // ==================================================
     const handleInput = (msg_orig) => {
         if (msg_orig.type !== 'api') return;
-        if (!(/^!discrete\b/.test(msg_orig.content) || /^!w\b/.test(msg_orig.content))) return;
+        if (!(new RegExp(apiproject)).test(msg_orig.content)) {
+            if (!state[apiproject].apihandles.reduce((a, h) => { return new RegExp(`^!${h}\\b`).test(msg_orig.content) ? true : a; }, false)) return;
+        }
 
         let msg = msg_orig;
         let theSpeaker = getTheSpeaker(msg);
 
-        let [characters, output, title] = msg.content.split(/\s+--/).slice(1);
-        if (output.length === 0) {
-            msgbox({ c: `No whispered message provided.`, t: `NO MESSAGE`, wto: theSpeaker.chatSpeaker });
+        let args = msg.content.split(/\s+--/);
+        let handleArg = args.shift();
+        if (playerIsGM(msg.playerid)) {
+            let handlerx = /^!.*#(remapi(?=\|(.+))|addapi(?=\|(.+))|getapi)\|?(.*)/g;
+            // FROM    : !apihandle#option|hande1|handle2
+            // group 1 : option
+            // group 4 : handle1|handle2
+            handlerx.lastIndex = 0;
+            let handle = handlerx.exec(handleArg);
+            if (handle) {
+                switch (handle[1]) {
+                    case 'remapi':
+                        remHandle(handle[4]);
+                        break;
+                    case 'addapi':
+                        addHandle(handle[4]);
+                        break;
+                    case 'getapi':
+                        getHandles();
+                        break;
+                    default:
+                        break;
+                }
+            }
+        }
+        if (args.length >= 4) args = [args[0], args[1], args[2], args.slice(3).join(" --")];
+
+        let [characters, output, title, buttons] = args;
+        if (!characters && !output) return;
+
+        if (!output || output.length === 0) {
+            msgbox({ c: `No whispered message provided.`, t: `NO MESSAGE`, wto: theSpeaker.localName });
             return;
         }
         output = `{{all}}${output}`;
+        if (buttons) buttons = `{{all}}${buttons}`;
+
         let undeliverable = [];
         let tempChar;
 //        characters = characters.split('|');
         characters = [...new Set(characters.split('|'))]
             .map(c => {
-                tempChar = charFromAmbig(c);
-                if (!tempChar) undeliverable.push({ localName: c, whisper:'All'})
+                if (c.toLowerCase() === 'gm') {
+                    tempChar = { get: () => { return 'GM' }, whisper: '', button: '' };
+                }
+                else if (c.startsWith('{{as}}')) {
+                    theSpeaker.chatSpeaker = c.slice(6);
+                }
+                else {
+                    tempChar = charFromAmbig(c);
+                    if (!tempChar) undeliverable.push({ localName: c, whisper: 'All' });
+                }
                 return tempChar;
             })
             .filter(c => c);
-        if (characters.length === 0) {
-            msgbox({ c: `No valid characters provided.`, t: `NO MESSAGE`, wto: theSpeaker.chatSpeaker });
+
+        if (!characters.length) {
+            msgbox({ c: `No valid characters provided.`, t: `NO MESSAGE`, wto: theSpeaker.localName });
             return;
         }
 
-        characters.forEach(c => { Object.assign(c, { whisper: '', localName: c.get('name') }) });
+        characters.forEach(c => { Object.assign(c, { whisper: '', button: '', localName: c.get('name') }) });
 
         let whisperrx = /{{(Aside\||aside\||all)(.*?)}}(.*?(?=(?:{{|$)))/g;
         // FROM   : {{aside|character|character2}}Whispered text.
@@ -160,16 +339,57 @@ const discretewhisper = (() => {
                     break;
             }
         }
+        let btnaside;
+        let btnasideCharacters = [];
+        while (btnaside = whisperrx.exec(buttons)) {
+            switch (btnaside[1]) {
+                case "Aside|":
+                    btnasideCharacters = [...new Set(btnaside[2].split('|'))];
+                    characters.filter(c => btnasideCharacters.includes(c.localName))
+                        .forEach(c => c.button = `${c.button.trim()}<br><b>Aside:</b> ${parseButton(btnaside[3]).trim()}`);
+                    btnasideCharacters.filter(a => !characters.filter(c => c.localName === a).length)
+                        .forEach(a => {
+                            tempChar = undeliverable.filter(u => u.localName === a)[0];
+                            if (tempChar) tempChar.button = `${tempChar.button}; ${parseButton(btnaside[3])}`;
+                            else undeliverable.push({ localName: a, button: parseButton(btnaside[3]) });
+                        });
+                    break;
+                case "aside|":
+                    btnasideCharacters = [...new Set(btnaside[2].split('|'))];
+                    characters.filter(c => btnasideCharacters.includes(c.localName))
+                        .forEach(c => c.button = `${c.button.trim()} ${parseButton(btnaside[3]).trim()}`);
+                    btnasideCharacters.filter(a => !characters.filter(c => c.localName === a).length)
+                        .forEach(a => {
+                            tempChar = undeliverable.filter(u => u.localName === a)[0];
+                            if (tempChar) tempChar.button = `${tempChar.button}; ${parseButton(btnaside[3])}`;
+                            else undeliverable.push({ localName: a, button: parseButton(btnaside[3]) });
+                        });
+                    break;
+                case "all":
+                    characters.forEach(c => c.button = `${c.button.trim()} ${parseButton(btnaside[3]).trim()}`);
+                    break;
+            }
+        }
 
+        characters.forEach(c => {                                           // make sure each character has a button and whisper property
+            c.whisper = c.whisper || '';
+            c.button = c.button || '';
+        });
+        undeliverable.forEach(c => {                                        // make sure each undeliverable has a button and a whisper property
+            c.whisper = c.whisper || '';
+            c.whisper = c.button || '';
+        });
+
+        // OUTPUT WHISPERS
         if (title) {                                                        // title provided, so template the output
-            characters.forEach(c => msgbox({ c: `${c.whisper}`, t: title, sas: theSpeaker.chatSpeaker, wto: c.localName }));
+            characters.forEach(c => msgbox({ c: `${c.whisper}`, t: title, sendas: theSpeaker.chatSpeaker, wto: c.localName, btn: c.button }));
         } else {                                                            // no title provided, so simple output
             characters.forEach(c => sendChat(theSpeaker.chatSpeaker, `/w "${c.localName}" ${c.whisper}`));
         }
 
         // REPORT SENT MESSAGES
         let sent = characters.reduce((a, c) => {
-            return `${a}<br><b>${c.localName}</b><br>${c.whisper}<br>`;
+            return `${a}<br><b>${c.localName}</b><br>${c.whisper}${c.button ? `<br>${c.button}`:''}<br>`;
         }, '').slice(4);
         msgbox({ c: sent, t: 'DELIVERED WHISPERS', wto: `${theSpeaker.localName}` });
 
@@ -190,6 +410,8 @@ const discretewhisper = (() => {
         versionInfo();
         logsig();
         registerEventHandlers();
+
+        if (!state[apiproject]) state[apiproject] = { apihandles: ['w','discrete'] };
 
     });
 
