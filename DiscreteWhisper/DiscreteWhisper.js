@@ -3,8 +3,8 @@
 Name			:	DiscreteWhisper
 GitHub			:	
 Roll20 Contact	:	timmaugh
-Version			:	.4
-Last Update		:	10/23/2020
+Version			:	1.0
+Last Update		:	11/5/2020
 =========================================================
 
 COMMAND LINE EXAMPLE:
@@ -21,8 +21,8 @@ const discretewhisper = (() => {
     // ==================================================
     //		VERSION
     // ==================================================
-    const vrs = '.4';
-    const vd = new Date(1604511979789);
+    const vrs = '1.0';
+    const vd = new Date(1604601010643);
     const versionInfo = () => {
         log('\u0166\u0166 DiscreteWhisper v' + vrs + ', ' + vd.getFullYear() + '/' + (vd.getMonth() + 1) + '/' + vd.getDate() + ' \u0166\u0166');
         return;
