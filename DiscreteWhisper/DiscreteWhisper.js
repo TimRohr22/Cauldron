@@ -11,12 +11,12 @@ COMMAND LINE EXAMPLE:
 !w --character|character|character --any text {{aside|character|character}} more text {{Aside|character}} still more text --{{all/aside/Aside}}Button Label|
 
 BUTTONS:
-{{all / aside}}!script boogie boogie
-{{all / aside}}local|ability
-{{all / aside}}local|@attribute
-{{all / aside}}character|ability
-{{all / aside}}character|@attribute
-{{aside}}macro
+{{all / aside}}label|!script <<args>>
+{{all / aside}}label|local|ability
+{{all / aside}}label|local|@attribute
+{{all / aside}}label|character|ability
+{{all / aside}}label|character|@attribute
+{{all / aside}}label|macro
 
 */
 
