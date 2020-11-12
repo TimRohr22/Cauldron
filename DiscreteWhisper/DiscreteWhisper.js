@@ -3,16 +3,19 @@
 Name			:	DiscreteWhisper
 GitHub			:	
 Roll20 Contact	:	timmaugh
-Version			:	1.0
-Last Update		:	11/5/2020
+Version			:	1.1.0
+Last Update		:	11/12/2020
 =========================================================
 
 COMMAND LINE EXAMPLE:
 !w --character|character|character --any text {{aside|character|character}} more text {{Aside|character}} still more text --{{all/aside/Aside}}Button Label|
 
 BUTTONS:
-{{all}}!script boogie boogie
-{{aside}}character|ability
+{{all / aside}}!script boogie boogie
+{{all / aside}}local|ability
+{{all / aside}}local|@attribute
+{{all / aside}}character|ability
+{{all / aside}}character|@attribute
 {{aside}}macro
 
 */
@@ -21,8 +24,8 @@ const discretewhisper = (() => {
     // ==================================================
     //		VERSION
     // ==================================================
-    const vrs = '1.0';
-    const vd = new Date(1604601010643);
+    const vrs = '1.1.0';
+    const vd = new Date(1605213957253);
     const versionInfo = () => {
         log('\u0166\u0166 DiscreteWhisper v' + vrs + ', ' + vd.getFullYear() + '/' + (vd.getMonth() + 1) + '/' + vd.getDate() + ' \u0166\u0166');
         return;
@@ -208,21 +211,22 @@ const discretewhisper = (() => {
         r20style = ['t', 'true', 'y', 'yes', true].includes(r20style) ? true : false;
         return `<a style="background-color: ${btnbg}; color: ${getTextColor(btnbg)};${r20style ? 'padding: 5px;display:inline-block;border 1px solid white;' : ''}${css}" href="${api}">${btnlabel}</a>`;
     };
-    const parseButton = (btn) => {              // btn should be either label|!script OR label|source character|ability OR label|macro
-        let output;
+    const parseButton = (btn, charname = '') => {              // btn should be either label|!script OR label|source character|ability OR label|local|ability OR label|macro
+        let output = '';
         let btnrx = /^(.*?)\|(.*)/;
         // FROM: label|button info
         // group 1: label
         // group 2: button info
         btnrx.lastIndex = 0;
         let result = btnrx.exec(btn);
-        if (!result) return;
+        if (!result) return output;
         let label = result[1];
         if (result[2].startsWith('!')) output = btnAPI({ label: label, api: result[2] });       // API BUTTON
-        else if (result[2].includes("|")) {                                                     // ABILITY BUTTON
-            let [character, abil] = result[2].split("|");
+        else if (result[2].includes("|")) {                                                     // ABILITY OR ATTRIBUTE BUTTON
+            let [character, btnstore] = result[2].split("|");
+            character = character === 'local' ? charname : character;
             character = (charFromAmbig(character) || { get: () => { return character } }).get('name');
-            output = btnElem({ store: abil, charname: character, label: label, entity: 'ability' });
+            output = btnElem({ store: btnstore.startsWith('@') ? btnstore.slice(1) : btnstore, charname: character, label: label, entity: btnstore.startsWith('@') ? 'attribute' : 'ability' });
         }
         else output = btnElem({ store: result[2], entity: "macro", label: label });             // MACRO BUTTON
         return output;
@@ -315,7 +319,7 @@ const discretewhisper = (() => {
                 case "Aside|":
                     asideCharacters = [...new Set(aside[2].split('|'))];
                     characters.filter(c => asideCharacters.includes(c.localName))
-                        .forEach(c => c.whisper = `${c.whisper.trim()}<br><b>Aside:</b> ${aside[3].trim()}`);
+                        .forEach(c => c.whisper = `${c.whisper.trim()} <b>[Aside:</b> ${aside[3].trim()} <b>]</b>`);
                     asideCharacters.filter(a => !characters.filter(c => c.localName === a).length)
                         .forEach(a => {
                             tempChar = undeliverable.filter(u => u.localName === a)[0];
@@ -346,7 +350,7 @@ const discretewhisper = (() => {
                 case "Aside|":
                     btnasideCharacters = [...new Set(btnaside[2].split('|'))];
                     characters.filter(c => btnasideCharacters.includes(c.localName))
-                        .forEach(c => c.button = `${c.button.trim()}<br><b>Aside:</b> ${parseButton(btnaside[3]).trim()}`);
+                        .forEach(c => c.button = `${c.button.trim()}<br><b>Aside:</b> ${parseButton(btnaside[3], c.localName).trim()}`);
                     btnasideCharacters.filter(a => !characters.filter(c => c.localName === a).length)
                         .forEach(a => {
                             tempChar = undeliverable.filter(u => u.localName === a)[0];
@@ -357,7 +361,7 @@ const discretewhisper = (() => {
                 case "aside|":
                     btnasideCharacters = [...new Set(btnaside[2].split('|'))];
                     characters.filter(c => btnasideCharacters.includes(c.localName))
-                        .forEach(c => c.button = `${c.button.trim()} ${parseButton(btnaside[3]).trim()}`);
+                        .forEach(c => c.button = `${c.button.trim()} ${parseButton(btnaside[3], c.localName).trim()}`);
                     btnasideCharacters.filter(a => !characters.filter(c => c.localName === a).length)
                         .forEach(a => {
                             tempChar = undeliverable.filter(u => u.localName === a)[0];
@@ -366,7 +370,7 @@ const discretewhisper = (() => {
                         });
                     break;
                 case "all":
-                    characters.forEach(c => c.button = `${c.button.trim()} ${parseButton(btnaside[3]).trim()}`);
+                    characters.forEach(c => c.button = `${c.button.trim()} ${parseButton(btnaside[3],c.localName).trim()}`);
                     break;
             }
         }
