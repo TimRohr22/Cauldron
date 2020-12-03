@@ -1,4 +1,4 @@
-﻿/*
+/*
 =========================================================
 Name			:	InsertArg (ia)
 GitHub			:	https://github.com/TimRohr22/Cauldron/tree/master/InsertArg
@@ -610,7 +610,7 @@ const ia = (() => {
                             .join(d);
                         break;
                     case 'e':   // spread the return out over multiple table elements
-                        retObj.ret = list.map(a => { return a.label + ia.ElemSplitter.inner + ia.BtnElem({ bg: bg, store: a.execName, label: a.rlbl, charname: character.get('name'), entity: sheetElem.attr, css: css }) })
+                        retObj.ret = list.map(a => { return a.label + ia.ElemSplitter.inner + ia.BtnElem({ bg: bg, store: a.execName, label: a.rlbl, charname: character.get('name'), entity: sheetElem[elem], css: css }) })
                             .join(ia.ElemSplitter.outer);
                         break;
                     case 'er':  // both 'e' and 'r', reading the action text in a msgbox and spreading the return over multiple table elements
@@ -1694,9 +1694,9 @@ const ialibcore = (() => {
     // ==================================================
     //		VERSION
     // ==================================================
-    const vrs = '1.5';
+    const vrs = '1.5.1';
     const versionInfo = () => {
-        const vd = new Date(1599623675981);
+        const vd = new Date(1606968110464);
         log('\u0166\u0166 InsertArg Core Lib v' + vrs + ', ' + vd.getFullYear() + '/' + (vd.getMonth() + 1) + '/' + vd.getDate() + ' \u0166\u0166');
         return;
     };
