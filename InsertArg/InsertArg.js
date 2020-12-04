@@ -7,8 +7,8 @@ Roll20 Contact	:	timmaugh
                     COMPONENTS
 ---------------------------------------------------------
 Name			:	Core Engine     Core Lib        XRay
-Version			:	1.5             1.5.1           1.2
-Last Update		:	9/9/2020        12/2/2020       9/16/2020
+Version			:	1.5.1           1.5.1           1.2
+Last Update		:	12/3/2020       12/2/2020       9/16/2020
 =========================================================
 
 */
@@ -17,8 +17,8 @@ const ia = (() => {
     // ==================================================
     //		VERSION
     // ==================================================
-    const vrs = '1.5';
-    const vd = new Date(1599625661278);
+    const vrs = '1.5.1';
+    const vd = new Date(1607054249663);
     const versionInfo = () => {
         log('\u0166\u0166 InsertArg v' + vrs + ', ' + vd.getFullYear() + '/' + (vd.getMonth() + 1) + '/' + vd.getDate() + ' \u0166\u0166');
         return;
@@ -1351,8 +1351,8 @@ const ia = (() => {
                 outputStore = abilFromAmbig(cfgObj.store) || macroFromAmbig(cfgObj.store);  // get either the ability or macro source object
                 if (!outputStore && theSpeaker.speakerType === 'character') outputStore = abilFromAmbig(`${theSpeaker.id}|${cfgObj.store}`);
                 if (!outputStore) {                                                         // we need to create the object
-                    if (theSpeaker.speakerType === 'character') createObj('ability', { name: cfgObj.store, characterid: theSpeaker.id });
-                    else createObj('macro', { name: cfgObj.store, playerid: msg_orig.playerid, visibleto: msg_orig.playerid });
+                    if (theSpeaker.speakerType === 'character') outputStore = createObj('ability', { name: cfgObj.store, characterid: theSpeaker.id });
+                    else outputStore = createObj('macro', { name: cfgObj.store, playerid: msg_orig.playerid, visibleto: msg_orig.playerid });
                 }
             }
             outputStore.set({ action: cmdline });
