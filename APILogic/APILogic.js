@@ -3,25 +3,23 @@
 Name			:	APILogic
 GitHub			:	https://github.com/TimRohr22/Cauldron/tree/master/APILogic
 Roll20 Contact	:	timmaugh
-Version			:	0.2.0
-Last Update		:	1/18/2020
+Version			:	0.3.0
+Last Update		:	1/19/2021
 =========================================================
-
-!somehandle [&if|condition]positive case command text[&else]negative case command text[&end]
 */
 var API_Meta = API_Meta || {};
 API_Meta.APILogic = { offset: Number.MAX_SAFE_INTEGER, lineCount: -1 };
 {
-    try { throw new Error(''); } catch (e) { API_Meta.APILogic.offset = (parseInt(e.stack.split(/\n/)[1].replace(/^.*:(\d+):.*$/, '$1'), 10) - (15)); }
-    sendChat('API', `APILOGIC offset is ${API_Meta.APILogic.offset}`);
+    try { throw new Error(''); } catch (e) { API_Meta.APILogic.offset = (parseInt(e.stack.split(/\n/)[1].replace(/^.*:(\d+):.*$/, '$1'), 10) - (13)); }
+    // sendChat('API', `APILOGIC offset is ${API_Meta.APILogic.offset}`);
 }
 
 const APILogic = (() => {
     // ==================================================
     //		VERSION
     // ==================================================
-    const vrs = '0.2.0';
-    const vd = new Date(1610977048710);
+    const vrs = '0.3.0';
+    const vd = new Date(1611071835238);
     const apiproject = 'APILogic';
     const versionInfo = () => {
         log(`\u0166\u0166 ${apiproject} v${vrs}, ${vd.getFullYear()}/${vd.getMonth() + 1}/${vd.getDate()} \u0166\u0166`);
@@ -919,13 +917,15 @@ const APILogic = (() => {
             }
         }
         // replace inline rolls tagged with .value
-        preserved.content = preserved.content.replace(valuerx, ((r, g1) => msg.inlinerolls[g1].results.total || 0));
+        preserved.content = preserved.content.replace(valuerx, ((r, g1) => preserved.inlinerolls[g1].results.total || 0));
         // un-escape characters
         preserved.content = preserved.content.replace(/\\(.)/gm, "$1");
         // convert nested inline rolls to value
         preserved.content = nestedInline(preserved.content);
         // replace other inline roll markers with [&#] formation
         preserved.content = preserved.content.replace(new RegExp(`\\$\\[\\[(\d+)]]`, 'g'), `[&$1]`);
+        // properly format rolls that would normally fail in the API (but work in chat)
+        preserved.content = preserved.content.replace(/\[\[\s+/g, '[[');
 
         // send new command line through chat
         sendChat('', preserved.content);
@@ -939,3 +939,4 @@ const APILogic = (() => {
         logsig();
     });
 })();
+{ try { throw new Error(''); } catch (e) { API_Meta.APILogic.lineCount = (parseInt(e.stack.split(/\n/)[1].replace(/^.*:(\d+):.*$/, '$1'), 10) - API_Meta.APILogic.offset); } }
