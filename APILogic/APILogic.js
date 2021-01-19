@@ -9,6 +9,12 @@ Last Update		:	1/18/2020
 
 !somehandle [&if|condition]positive case command text[&else]negative case command text[&end]
 */
+var API_Meta = API_Meta || {};
+API_Meta.APILogic = { offset: Number.MAX_SAFE_INTEGER, lineCount: -1 };
+{
+    try { throw new Error(''); } catch (e) { API_Meta.APILogic.offset = (parseInt(e.stack.split(/\n/)[1].replace(/^.*:(\d+):.*$/, '$1'), 10) - (15)); }
+    sendChat('API', `APILOGIC offset is ${API_Meta.APILogic.offset}`);
+}
 
 const APILogic = (() => {
     // ==================================================
@@ -642,8 +648,6 @@ const APILogic = (() => {
             // WELL-FORMED CHECK
             let wf = checkWellFormed(defcmd.cmd);
             if (wf.wellformed) {
-                // unescape command line
-                defcmd.cmd = defcmd.cmd.replace(/\\(.)/gm, "$1");
                 retObj = val({ cmd: defcmd.cmd, indent: 0, type: 'main', overallindex: 0 });
             } else {
                 retObj = { tokens: [], error: wf.error };
@@ -796,8 +800,60 @@ const APILogic = (() => {
         return processContents({ tokens: o.tokens, indent: 0 }).join('');
     };  
 
+    const nestedInline = (cmd) => {
+        let ores,
+            ires,
+            c = '',
+            index = 0,
+            nestedindexarray = [],
+            nestedlvl = 0,
+            outeropenrx = /(?<!\$)\[\[/,
+            inneropenrx = /\$\[\[/,
+            inlinecloserx = /]]/,
+            nestedrx = /^\$\[\[(\d+)]]/,
+            outertm = { rx: outeropenrx, type: 'outer' },
+            innertm = { rx: inneropenrx, type: 'inner' },
+            inlineclosetm = { rx: inlinecloserx, type: 'close' },
+            eostm = { rx: /$/, type: 'eos' };
+
+        while (index < cmd.length) {
+            c = cmd.slice(index);
+            ores = getfirst(c, outertm, innertm, inlineclosetm, eostm);
+            switch (ores.type) {
+                case 'eos':
+                    console.log(`DETECTED EOS`);
+                    index = cmd.length;
+                    break;
+                case 'inner':
+                    index += ores.index;
+                    ires = nestedrx.exec(cmd.slice(index));
+                    if (ires) {
+                        // using unshift orders them in descending order
+                        if (nestedlvl > 0) nestedindexarray.unshift({ index: index, value: preserved.inlinerolls[ires[1]].results.total, replacestring: ires[0] });
+                        index += ires[0].length;
+                    } else {
+                        // this would probably indicate an error -- something like $[[NaN]]
+                        index += ores[0].length;
+                    }
+                    break;
+                case 'outer':
+                    nestedlvl++;
+                    index += ores.index + ores[0].length;
+                    break;
+                case 'close':
+                    nestedlvl--;
+                    index += ores.index + ores[0].length;
+                    break;
+            }
+        }
+        nestedindexarray.forEach(r => {
+            cmd = `${cmd.slice(0, r.index)}${r.value}${cmd.slice(r.index + r.replacestring.length, cmd.length)}`;
+        });
+        return cmd;
+    };
+
     const handleInput = (msg) => {
-        const testConstructs = (c) => (ifrx.test(c.content) || defblockrx.test(c.content));
+        const testConstructs = (c) => (ifrx.test(c) || defblockrx.test(c));
         if (!msg.type === 'api') return;
         if (new RegExp(`^!${apitrigger}`).test(msg.content)) {
             if (msg.inlinerolls) {
@@ -809,9 +865,9 @@ const APILogic = (() => {
                 });
                 preserved.content = msg.content;
             } else {    // no inlineroll array
-                if (!testConstructs(msg.content)) {
+                if (!testConstructs(msg.content)) { // we're on our way out of the script, format everything and release message
                     // replace all APIL formatted inline roll shorthand markers with roll20 formatted shorthand markers
-                    msg.content = msg.content.replace(new RegExp(`\\[&(${i})]`, 'g'), `$[[${i}]]`);
+                    msg.content = msg.content.replace(new RegExp(`\\[&(\\d+)]`, 'g'), `$[[$1]]`);
                     // copy over new message command line to preserved message after removing the apitrigger
                     preserved.content = msg.content.replace(apitrigger,'');
                     // check for STOP tag
@@ -854,23 +910,26 @@ const APILogic = (() => {
                 log(o.error);
                 return;
             }
-            let nestedrx = /(?<!\$)(\[\[.*?)\$\[\[(\d+)]]/;
             if (o.tokens) {
-                // replace inline rolls tagged with .value
-                preserved.content = reconstructCommandLine(o)
-                    .replace(valuerx, ((r, g1) => msg.inlinerolls[g1].results.total || 0));
-                // convert nested inline rolls to value
-                while (nestedrx.test(preserved.content)) {
-                    preserved.content = preserved.content.replace(nestedrx, ((r, g1, g2) => `${g1}${preserved.inlinerolls[g2].results.total}`));
-                }
-                // replace other inline roll markers with [&#] formation
-                preserved.content = preserved.content.replace(new RegExp(`\\$\\[\\[(${i})]]`, 'g'), `[&${preserved.inlinerolls.length - 1}]`);
-
-                // send new command line through chat
-                sendChat('', preserved.content);
+                // reconstruct command line
+                preserved.content = reconstructCommandLine(o);
+            } else {
+                log('Unexpected error encountered. Unable to reconstruct command line.');
                 return;
             }
         }
+        // replace inline rolls tagged with .value
+        preserved.content = preserved.content.replace(valuerx, ((r, g1) => msg.inlinerolls[g1].results.total || 0));
+        // un-escape characters
+        preserved.content = preserved.content.replace(/\\(.)/gm, "$1");
+        // convert nested inline rolls to value
+        preserved.content = nestedInline(preserved.content);
+        // replace other inline roll markers with [&#] formation
+        preserved.content = preserved.content.replace(new RegExp(`\\$\\[\\[(\d+)]]`, 'g'), `[&$1]`);
+
+        // send new command line through chat
+        sendChat('', preserved.content);
+        return;
     };
     on('chat:message', handleInput);
 
