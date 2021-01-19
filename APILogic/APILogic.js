@@ -1,10 +1,10 @@
-﻿/*
+/*
 =========================================================
 Name			:	APILogic
-GitHub			:	
+GitHub			:	https://github.com/TimRohr22/Cauldron/tree/master/APILogic
 Roll20 Contact	:	timmaugh
-Version			:	0.1.0
-Last Update		:	12/10/2020
+Version			:	0.2.0
+Last Update		:	1/18/2020
 =========================================================
 
 !somehandle [&if|condition]positive case command text[&else]negative case command text[&end]
@@ -14,8 +14,8 @@ const APILogic = (() => {
     // ==================================================
     //		VERSION
     // ==================================================
-    const vrs = '0.1.0';
-    const vd = new Date(1610513443852);
+    const vrs = '0.2.0';
+    const vd = new Date(1610977048710);
     const apiproject = 'APILogic';
     const versionInfo = () => {
         log(`\u0166\u0166 ${apiproject} v${vrs}, ${vd.getFullYear()}/${vd.getMonth() + 1}/${vd.getDate()} \u0166\u0166`);
@@ -89,7 +89,8 @@ const APILogic = (() => {
         ifrx = /\[&\s*if(?=\(|\s+|!)\s*/i,
         elseifrx = /\[&\s*elseif(?=\(|\s+|!)\s*/i,
         elserx = /\[&\s*else\s*(?=])/i,
-        endrx = /\[&\s*end\s*]/i;
+        endrx = /\[&\s*end\s*]/i,
+        valuerx = /\$\[\[(?<rollnumber>\d+)]]\.value/gi;
 
     const nestlog = (stmt, ilvl = 0, logcolor = '') => {
         if (state[apiproject] && state[apiproject].logging === true) {
@@ -635,8 +636,10 @@ const APILogic = (() => {
             if (['on', ''].includes(loclog)) state[apiproject].logging = true;
             if (loclog === 'off') state[apiproject].logging = false;
 
+            // DEFINITION BLOCK DETECTION
             let defcmd = defval({ cmd: cmd, indent: 0, type: 'main', overallindex: 0 });
             if (!defcmd.cmd) return { tokens: [], error: defcmd.error };
+            // WELL-FORMED CHECK
             let wf = checkWellFormed(defcmd.cmd);
             if (wf.wellformed) {
                 // unescape command line
@@ -793,59 +796,79 @@ const APILogic = (() => {
         return processContents({ tokens: o.tokens, indent: 0 }).join('');
     };  
 
-
     const handleInput = (msg) => {
+        const testConstructs = (c) => (ifrx.test(c.content) || defblockrx.test(c.content));
         if (!msg.type === 'api') return;
-        if (new RegExp(`!${apitrigger}`).test(msg.content)) {
-            if (preserved.content.match(stoprx)) preserved.content = '!';
-            if (preserved.content.match(simplerx)) {
-                preserved.content = preserved.content.replace(/^!\s*/, '').replace(simplerx, '');
-                let speakas = '';
-                if (preserved.who.toLowerCase() === 'api') {
-                    speakas = '';
-                } else {
-                    speakas = (findObjs({ type: 'character' }).filter(c => c.get('name') === preserved.who)[0] || { id: '' }).id;
-                    if (speakas) speakas = `character|${speakas}`;
-                    else speakas = `player|${preserved.playerid}`
+        if (new RegExp(`^!${apitrigger}`).test(msg.content)) {
+            if (msg.inlinerolls) {
+                preserved.inlinerolls = preserved.inlinerolls || [];
+                // insert inline rolls to preserved message, correct the placeholder shorthand index
+                msg.inlinerolls.forEach((r, i) => {
+                    preserved.inlinerolls.push(r);
+                    msg.content = msg.content.replace(new RegExp(`\\$\\[\\[(${i})]]`, 'g'), `$[[${preserved.inlinerolls.length - 1}]]`);
+                });
+                preserved.content = msg.content;
+            } else {    // no inlineroll array
+                if (!testConstructs(msg.content)) {
+                    // replace all APIL formatted inline roll shorthand markers with roll20 formatted shorthand markers
+                    msg.content = msg.content.replace(new RegExp(`\\[&(${i})]`, 'g'), `$[[${i}]]`);
+                    // copy over new message command line to preserved message after removing the apitrigger
+                    preserved.content = msg.content.replace(apitrigger,'');
+                    // check for STOP tag
+                    if (preserved.content.match(stoprx)) {
+                        preserved.content = '';
+                        return;
+                    }
+                    // check for SIMPLE tag
+                    if (preserved.content.match(simplerx)) {
+                        preserved.content = preserved.content.replace(/^!\s*/, '').replace(simplerx, '');
+                        let speakas = '';
+                        if (preserved.who.toLowerCase() === 'api') {
+                            speakas = '';
+                        } else {
+                            speakas = (findObjs({ type: 'character' }).filter(c => c.get('name') === preserved.who)[0] || { id: '' }).id;
+                            if (speakas) speakas = `character|${speakas}`;
+                            else speakas = `player|${preserved.playerid}`
+                        }
+                        sendChat(speakas, preserved.content);
+                        return;
+                    }
+                    // release the message to other scripts (FINAL OUTPUT)
+                    Object.keys(preserved).forEach(k => msg[k] = preserved[k]);
+                    return;
                 }
-                sendChat(speakas,preserved.content);
             }
-            Object.keys(preserved).forEach(k => msg[k] = preserved[k]);
-            return;
-        }
-        if (ifrx.test(msg.content) || defblockrx.test(msg.content)) {
+        } else {    // not prepended with apitrigger
+            if (!testConstructs(msg.content)) return;
             preserved = _.clone(msg);
             apitrigger = `${apiproject}${generateUUID()}`;
-            msg.content = `!`;
+            preserved.content = `!${apitrigger}${preserved.content.slice(1)}`;
+            msg.content = ``;
+        }
 
-            // ...stuff happens here to process the logic and build or drop part of the command line...
+
+        if (testConstructs(preserved.content)) {
+
             let o = ifTreeParser(preserved.content);
             if (o.error) {
                 log(o.error);
                 return;
             }
+            let nestedrx = /(?<!\$)(\[\[.*?)\$\[\[(\d+)]]/;
             if (o.tokens) {
-                preserved.content = reconstructCommandLine(o);
-
-                let inlinerx = /(?<!\\$)(\\[\\[.+?]])/gm;
-                if (!inlinerx.test(preserved.content)) {
-                    sendChat('', `!${apitrigger}`);
-                    return;
+                // replace inline rolls tagged with .value
+                preserved.content = reconstructCommandLine(o)
+                    .replace(valuerx, ((r, g1) => msg.inlinerolls[g1].results.total || 0));
+                // convert nested inline rolls to value
+                while (nestedrx.test(preserved.content)) {
+                    preserved.content = preserved.content.replace(nestedrx, ((r, g1, g2) => `${g1}${preserved.inlinerolls[g2].results.total}`));
                 }
-                preserved.inlinerolls = preserved.inlinerolls || [];
+                // replace other inline roll markers with [&#] formation
+                preserved.content = preserved.content.replace(new RegExp(`\\$\\[\\[(${i})]]`, 'g'), `[&${preserved.inlinerolls.length - 1}]`);
 
-                // the reconstructed command line may have new inline rolls because of un-escaping
-                // catch those and insert them into the preserved message
-                let newcontent = preserved.content.replace(/\$\[\[\d+]]/gm, ' ');
-                sendChat('', newcontent, m => {
-                    m[0].inlinerolls.forEach(r => {
-                        preserved.inlinerolls.push(r);
-                        // log(`Preserved Content: ${preserved.content}`);
-                        preserved.content = preserved.content.replace(/(?<!\$)(\[\[.+?]])/, `$[[${preserved.inlinerolls.length - 1}]]`);
-                    });
-                    sendChat('', `!${apitrigger}`);
-                    return;
-                });
+                // send new command line through chat
+                sendChat('', preserved.content);
+                return;
             }
         }
     };
@@ -857,4 +880,3 @@ const APILogic = (() => {
         logsig();
     });
 })();
-
