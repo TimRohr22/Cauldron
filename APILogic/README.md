@@ -6,11 +6,15 @@ APILogic introduces logical structures to Roll20 command lines: things like IF, 
 
     !somescript true stuff
 
-APILogic exploits a peculiarity of the way many of the scripts reach the chat interface (a peculiarity first discovered by -- who else? -- The Aaron) to give it the ability to intercept the chat message ***before*** it reaches other scripts, no matter if it is installed before or after them in the script library. (The method APILogic utilizes has been tested and shown to work with a large number of scripts. If you find that it doesn't, you should be reminded that the most foolproof way to ensure proper timing of script execution is to load APILogic in your script library before the other script. But hopefully you'll find that you don't need to do that!)
-## Triggering and Usage
-You won't invoke APILogic directly by using a particular handle and a line dedicated for the APILogic to detect. Instead, any API call (beginning with an exclamation point: '!')  with either an IF or DEFINE tag will trigger APILogic to examine and parse the message before handing it off to other scripts.
+APILogic exploits a peculiarity of the way many of the scripts reach the chat interface (a peculiarity first discovered by -- who else? -- The Aaron) to give it the ability to intercept the chat message ***before*** it reaches other scripts, no matter if it is installed before or after them in the script library. It also uses a separate bit of script magic to let it retain ownership of the message even when otherwise asynchronous chat calls would be going.
 
-You are not limited to using APILogic only for calls that are intended for other scripts. There are mechanisms built into the logic that let you output a simple chat message (no API) once you've processed all of the logic structures. That means you can use the logic structures in a simple message that was never intended to be picked up by a script, and also in a message that, depending on the conditions provided, might need to be picked up by another script, or might need to be flattened to a simple message to hit the chat log.
+(The method APILogic utilizes has been tested and shown to work with a large number of scripts. If you find that it doesn't, you should be reminded that the most foolproof way to ensure proper timing of script execution is to load APILogic in your script library before the other script. But hopefully you'll find that you don't need to do that!)
+
+Although it requires the API, it is not only for API messages. You can use these logic structures with basic chat messages, too. This document will show you how.
+## Triggering and Usage
+You won't invoke APILogic directly by using a particular handle and a line dedicated for the APILogic to detect. Instead, any API call (beginning with an exclamation point: '!')  that also includes either an IF or DEFINE tag somewhere in the line will trigger APILogic to examine and parse the message before handing it off to other scripts.
+
+As mentioned, you are not limited to using APILogic only for calls that are intended for other scripts. There are mechanisms built into the logic that let you output a simple chat message (no API) once you've processed all of the logic structures. That means you can use the logic structures in a simple message that was never intended to be picked up by a script, and also in a message that, depending on the conditions provided, might need to be picked up by another script, or alternatively flattened to a simple message to hit the chat log.
 
 ## The Basic Structures: IF, ELSEIF, ELSE, and END
 An IF begins a logical test, providing conditions that are evaluated. It can be followed by any number of ELSEIF tags, followed by zero or 1 ELSE tag. Finally, an IF block must be terminated with an END tag. Each of these are identified by the `{& ... }` formation. A properly structured IF block might look like this:
@@ -210,12 +214,12 @@ This command line will work:
 
     !somescript {& if [[1d10]] > 3 } $[[0]].value {& end}
 
-...because the `$[[0]]` roll is available when the value is extracted from it. This command, on the other hand, will not work properly:
+...because the `$[[0]]` roll is available when the value is extracted from it. This command (below), on the other hand, will not work properly:
 
     !somescript {& if @|Bob the Slayer|basket_weaving} \[\[ @\{Bob the Slayer|basket_weaving}d10\]\] {& end} $[[0]].value
-APILogic will try to extract the value from the `0` roll in the roll array on the first pass of the parser. At that time, the inline roll hasn't resolved or occurred, yet. It is only after the command line is unescaped that the inline roll is detected and caught by the Roll20 parsers. In this case, the roll marker should be deferred, too (`$\[\[0\]\].value` or `$[[0]]\.value`).
+APILogic will try to extract the value from the `0` roll in the roll array on the first pass of the parser. At that time, the inline roll hasn't resolved or occurred, yet. It is only after the command line is unescaped and reexamined by the Roll20 parser that the inline roll is detected. In this case, the roll marker should be deferred, too (`$\[\[0\]\].value` or `$[[0]]\.value`).
 
-Also note that any/all inline rolls are executed and caught by the Roll20 parser if they are recognized with the Roll20 parsing is invoked (as many times as necessary). These all exists, whether or not they are a part of text that will ultimately be included in the final command line or not. However, if you defer an inline roll in a section of command line that will never be parsed (for instance, it is in a `false` branch of the IF block, that text will never be unescaped, so that roll will never exist.
+Also note that any/all inline rolls are executed and caught by the Roll20 parser if they are recognized with the Roll20 parsing is invoked (as many times as necessary). These all exists, whether or not they are a part of text that will ultimately be included in the final command line. However, if you defer an inline roll in a section of command line that will never be parsed (for instance, it is in a `false` branch of the IF block), that text will never be unescaped, so that roll will never exist.
 
 Remember that APILogic is helping you construct the command line based on conditional checks, and if you would normally feed the resulting roll structure in the command line to an API call to another script, the chances are good that the receiving script already knows how to handle the inline rolls and roll markers. Most of the time, then, you shouldn't have to extract the result value for roll that is part of a command line that will ultimately be picked up by another script.
 ## Advanced Usage and Tricks
