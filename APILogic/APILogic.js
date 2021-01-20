@@ -3,7 +3,7 @@
 Name			:	APILogic
 GitHub			:	https://github.com/TimRohr22/Cauldron/tree/master/APILogic
 Roll20 Contact	:	timmaugh
-Version			:	0.3.0
+Version			:	0.4.0
 Last Update		:	1/19/2021
 =========================================================
 */
@@ -18,11 +18,11 @@ const APILogic = (() => {
     // ==================================================
     //		VERSION
     // ==================================================
-    const vrs = '0.3.0';
-    const vd = new Date(1611071835238);
+    const vrs = '0.4.0';
+    const vd = new Date(1611090377101);
     const apiproject = 'APILogic';
     const versionInfo = () => {
-        log(`\u0166\u0166 ${apiproject} v${vrs}, ${vd.getFullYear()}/${vd.getMonth() + 1}/${vd.getDate()} \u0166\u0166`);
+        log(`\u0166\u0166 ${apiproject} v${vrs}, ${vd.getFullYear()}/${vd.getMonth() + 1}/${vd.getDate()} \u0166\u0166 -- offset ${API_Meta.APILogic.offset}`);
         return;
     };
     const logsig = () => {
@@ -86,14 +86,14 @@ const APILogic = (() => {
     let preserved;
     let apitrigger;
 
-    const stoprx = /\[&\s*stop\s*]/i,
-        simplerx = /\[&\s*simple\s*]/i,
-        defblockrx = /\[&\s*define\s*/i,
+    const stoprx = /{&\s*stop\s*}/i,
+        simplerx = /{&\s*simple\s*}/i,
+        defblockrx = /{&\s*define\s*/i,
         definitionrx = /\(\s*\[\s*(?<term>.+?)\s*]\s*('|"|`?)(?<definition>.*?)\2\)\s*/i,
-        ifrx = /\[&\s*if(?=\(|\s+|!)\s*/i,
-        elseifrx = /\[&\s*elseif(?=\(|\s+|!)\s*/i,
-        elserx = /\[&\s*else\s*(?=])/i,
-        endrx = /\[&\s*end\s*]/i,
+        ifrx = /{&\s*if(?=\(|\s+|!)\s*/i,
+        elseifrx = /{&\s*elseif(?=\(|\s+|!)\s*/i,
+        elserx = /{&\s*else\s*(?=})/i,
+        endrx = /{&\s*end\s*}/i,
         valuerx = /\$\[\[(?<rollnumber>\d+)]]\.value/gi;
 
     const nestlog = (stmt, ilvl = 0, logcolor = '') => {
@@ -230,13 +230,13 @@ const APILogic = (() => {
 
         const groupopenrx = /^\s*(?<negation>!?)\s*\(\s*/,
             namerx = /^\[(?<groupname>[^\s]+?)]\s*/i,
-            sheetitemrx = /^(?<negation>!?)\s*(?<type>(?:@|%))(?<operation>[^\s@%|]*)\|(?<character>[^|]+?)\|(?<item>[^)\]\s=~<>!&\|]+)\s*(?=!=|!~|>=|<=|[=~><]|&&|\|\||\)|])/i,
-            rptgitemrx = /^(?<negation>!?)\s*(?<type>(?:\*))(?<operation>[^\s*|]*)\|(?<character>[^|]+?)\|(?<section>[^\s|]+)\|\[\s*(?<pattern>.+?)\s*]\s*\|(?<valuesuffix>[^)\]\s=~<>!&\|]+)\s*(?=!=|!~|>=|<=|[=~><]|&&|\|\||\)|])/i,
+            sheetitemrx = /^(?<negation>!?)\s*(?<type>(?:@|%))(?<operation>[^\s@%|]*)\|(?<character>[^|]+?)\|(?<item>[^)\]\s=~<>!&\|]+)\s*(?=!=|!~|>=|<=|[=~><]|&&|\|\||\)|})/i,
+            rptgitemrx = /^(?<negation>!?)\s*(?<type>(?:\*))(?<operation>[^\s*|]*)\|(?<character>[^|]+?)\|(?<section>[^\s|]+)\|\[\s*(?<pattern>.+?)\s*]\s*\|(?<valuesuffix>[^)\]\s=~<>!&\|]+)\s*(?=!=|!~|>=|<=|[=~><]|&&|\|\||\)|})/i,
             comprx = /^(?<operator>(?:>=|<=|~|!~|=|!=|<|>))\s*/,
             operatorrx = /^(?<operator>(?:&&|\|\|))\s*/,
             groupendrx = /^\)\s*/,
-            ifendrx = /^\s*]/,
-            textrx = /^(?<negation>!?)\s*(`|'|"?)(?<argtext>.+?)\2\s*(?=!=|!~|>=|<=|[=~><]|&&|\|\||\)|])/;
+            ifendrx = /^\s*}/,
+            textrx = /^(?<negation>!?)\s*(`|'|"?)(?<argtext>.+?)\2\s*(?=!=|!~|>=|<=|[=~><]|&&|\|\||\)|})/;
 
         // TOKEN MARKERS ==========================
         const iftm = { rx: ifrx, type: 'if' },
@@ -630,7 +630,7 @@ const APILogic = (() => {
 
         const main = (cmd) => {
             let retObj = {};
-            let logrx = /\[\s*&\s*log\s*(?<setting>(?:on|off)?)\s*]/ig;
+            let logrx = /{\s*&\s*log\s*(?<setting>(?:on|off)?)\s*}/ig;
             let statelog = state[apiproject].logging;
             let loclog = 'none';
             cmd = cmd.replace(logrx, ((r, g1) => {
@@ -691,6 +691,7 @@ const APILogic = (() => {
                 item.metavalue = true;
                 switch (item.type) {
                     case 'text':
+                        item.groups.argtext = item.groups.argtext.replace(/\$\[\[(\d+)]]/g, ((r, g1) => preserved.inlinerolls[g1].results.total || 0));
                         if (grouplib.hasOwnProperty(item.groups.argtext)) {
                             if (grouplib[item.groups.argtext]) item.value = true;
                             else {
@@ -865,7 +866,7 @@ const APILogic = (() => {
             } else {    // no inlineroll array
                 if (!testConstructs(msg.content)) { // we're on our way out of the script, format everything and release message
                     // replace all APIL formatted inline roll shorthand markers with roll20 formatted shorthand markers
-                    msg.content = msg.content.replace(new RegExp(`\\[&(\\d+)]`, 'g'), `$[[$1]]`);
+                    msg.content = msg.content.replace(/{&(\d+)}/g, `$[[$1]]`);
                     // copy over new message command line to preserved message after removing the apitrigger
                     preserved.content = msg.content.replace(apitrigger,'');
                     // check for STOP tag
@@ -873,6 +874,15 @@ const APILogic = (() => {
                         preserved.content = '';
                         return;
                     }
+                    // replace inline rolls tagged with .value
+                    preserved.content = preserved.content.replace(valuerx, ((r, g1) => {
+                        preserved.inlinerolls = preserved.inlinerolls || [];
+                        if (preserved.inlinerolls.length > g1) {
+                            return preserved.inlinerolls[g1].results.total;
+                        } else {
+                            return '0';
+                        }
+                    }));
                     // check for SIMPLE tag
                     if (preserved.content.match(simplerx)) {
                         preserved.content = preserved.content.replace(/^!\s*/, '').replace(simplerx, '');
@@ -902,6 +912,15 @@ const APILogic = (() => {
 
 
         if (testConstructs(preserved.content)) {
+            // replace inline rolls tagged with .value
+            preserved.content = preserved.content.replace(valuerx, ((r, g1) => {
+                preserved.inlinerolls = preserved.inlinerolls || [];
+                if (preserved.inlinerolls.length > g1) {
+                    return preserved.inlinerolls[g1].results.total;
+                } else {
+                    return '0';
+                }
+            }));
 
             let o = ifTreeParser(preserved.content);
             if (o.error) {
@@ -917,13 +936,20 @@ const APILogic = (() => {
             }
         }
         // replace inline rolls tagged with .value
-        preserved.content = preserved.content.replace(valuerx, ((r, g1) => preserved.inlinerolls[g1].results.total || 0));
+        preserved.content = preserved.content.replace(valuerx, ((r, g1) => {
+            preserved.inlinerolls = preserved.inlinerolls || [];
+            if (preserved.inlinerolls.length > g1) {
+                return preserved.inlinerolls[g1].results.total;
+            } else {
+                return '0';
+            }
+        }));
         // un-escape characters
         preserved.content = preserved.content.replace(/\\(.)/gm, "$1");
         // convert nested inline rolls to value
         preserved.content = nestedInline(preserved.content);
         // replace other inline roll markers with [&#] formation
-        preserved.content = preserved.content.replace(new RegExp(`\\$\\[\\[(\d+)]]`, 'g'), `[&$1]`);
+        preserved.content = preserved.content.replace(/\$\[\[(\d+)]]/g, `{&$1}`);
         // properly format rolls that would normally fail in the API (but work in chat)
         preserved.content = preserved.content.replace(/\[\[\s+/g, '[[');
 
