@@ -3,7 +3,7 @@
 Name			:	libInline
 GitHub			:	https://github.com/TimRohr22/Cauldron/tree/master/libInline
 Roll20 Contact	:	timmaugh & The Aaron
-Version			:	0.1.5
+Version			:	0.1.6
 Last Update		:	2/1/2021
 =========================================================
 */
@@ -17,8 +17,8 @@ const libInline = (() => {
     // ==================================================
     //		VERSION
     // ==================================================
-    const vrs = '0.1.5';
-    const vd = new Date(1612198799777);
+    const vrs = '0.1.6';
+    const vd = new Date(1612204892657);
     const apiproject = 'libInline';
     const versionInfo = () => {
         log(`\u0166\u0166 ${apiproject} v${vrs}, ${vd.getFullYear()}/${vd.getMonth() + 1}/${vd.getDate()} \u0166\u0166 -- offset ${API_Meta[apiproject].offset}`);
@@ -105,11 +105,11 @@ const libInline = (() => {
             nullstyle: 'darkred;',
             keystyle: 'darkgreen;'
         };
-        if (typeof str != 'string') {
+        if (typeof str !== 'string') {
             str = JSON.stringify(str, replacer, '   ');
         }
         str = str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        return str.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+        return str.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+-]?\d+)?)/g, function (match) {
             let cls = 'numberstyle';
             if (/^"/.test(match)) {
                 if (/:$/.test(match)) {
@@ -162,16 +162,27 @@ const libInline = (() => {
         [0]: '0',
         [1]: '+'
     };
+    const typeLib = {
+        all: {},
+        included: { type: (k, o) => { return o[k] !== 'drop'; } },
+        success: { type: (k, o) => { return o[k] === 'success'; } },
+        crit: { type: (k, o) => { return o[k] === 'success'; } },
+        fail: { type: (k, o) => { return o[k] === 'fail'; } },
+        fumble: { type: (k, o) => { return o[k] === 'fail'; } },
+        allcrit: { type: (k, o) => { return ['fail', 'success'].includes(o[k]); } },
+        dropped: { type: (k, o) => { return o[k] === 'drop'; } }
+    };
 
     const collectRollData = (r) => {
         const rollspancss1 = `<span class="basicdiceroll`;
-        const rollspancss2 = `">`;
+        const rollspancss2 = `>`;
         const rollspanend = `</span>`;
         const cssClassLib = {
             dropped: 'drop',
             critfail: 'fail',
             critsuccess: 'success'
         };
+        let matchFormatObj = {};
         let rollData = {
             parsed: '',
             tableReturns: [],
@@ -212,7 +223,19 @@ const libInline = (() => {
                         }
                         
                         type = cssClassLib[cssclass];
-                        return { v: nr.v, type: type, display: `${rollspancss1}${cssclass ? ' ' : ''}${cssclass}${/^crit/g.test(cssclass) ? ' ' : ''}${rollspancss2}${r.fate ? fatedie[nr.v] : nr.v}${rollspanend}` };
+
+                        // match dice formatting
+                        if (r.mods && r.mods.match) {
+                            matchFormatObj = {};
+                            if (Array.isArray(r.mods.match.matches)) {
+                                r.mods.match.matches.forEach((m, i) => {
+                                    if (m) matchFormatObj[i] = ` style=\"color: ${m}\"`;
+                                });
+                            } else {
+                                Object.keys(r.mods.match.matches).forEach(k => matchFormatObj[k] = ` style=\"color: ${r.mods.match.matches[k]}\"`);
+                            }
+                        }
+                        return { v: nr.v, type: type, display: `${rollspancss1}${cssclass ? ' ' : ''}${cssclass}${/^crit/g.test(cssclass) ? ' ' : ''}\"${(matchFormatObj[nr.v] && type!=='drop') ? matchFormatObj[nr.v] : '' }>${r.fate ? fatedie[nr.v] : nr.v}${rollspanend}` };
                     });
                     rollData.display = '(' + conditionalPluck(rollData.dice, 'display').join('+') + ')';
                 }
@@ -297,12 +320,12 @@ const libInline = (() => {
                     3: ' importantroll'
                 };
                 let parts = [];
-                parts.push(`<span class="inlinerollresult showtip tipsy-n-right`);
-                parts.push(`${rolltypeclasses[(/basicdiceroll\scritfail/.test(roll.display) ? 1 : 0) + (/basicdiceroll\scritsuccess/.test(roll.display) ? 2 : 0)]}" `);
-                parts.push(`original-title="${getQuantum(roll) ? '<img src=&quot;/images/quantumrollwhite.png&quot; class=&quot;inlineqroll&quot;> "> ' : ''}`);
-                parts.push(`Rolling ${HE(roll.expression)} = ${HE(roll.display)}">${roll.value}</span>`);
-                log(`Parts Log`);
-                parts.forEach(p => log(p));
+                parts.push(`<span class=\"inlinerollresult showtip tipsy-n-right`);
+                parts.push(`${rolltypeclasses[(/basicdiceroll\scritfail/.test(roll.display) ? 1 : 0) + (/basicdiceroll\scritsuccess/.test(roll.display) ? 2 : 0)]}\" `);
+                parts.push(`original-title=\"`);
+                parts.push(`${ HE(getQuantum(roll) ? '<img src=\"/images/quantumrollwhite.png\" class=\"inlineqroll\"> \"> ' : '' )}`);
+                parts.push('Rolling' + HE(`${roll.expression} = ${roll.display}`) + `\">${roll.value}</span>`);
+                log(parts.join(''));
                 return parts.join('');
             };
 
@@ -320,16 +343,6 @@ const libInline = (() => {
     // ==================================================
     //		EXPOSED INTERFACE FUNCTIONS
     // ==================================================
-    const typeLib = {
-        all: {},
-        included: { type: (k, o) => { return o[k] !== 'drop'; } },
-        success: { type: (k, o) => { return o[k] === 'success'; } },
-        crit: { type: (k, o) => { return o[k] === 'success'; } },
-        fail: { type: (k, o) => { return o[k] === 'fail'; } },
-        fumble: { type: (k, o) => { return o[k] === 'fail'; } },
-        allcrit: { type: (k, o) => { return ['fail', 'success'].includes(o[k]); } },
-        dropped: { type: (k, o) => { return o[k] === 'drop'; } }
-    }
     const getRollData = (ira) => {
         let pir;
         if (typeof ira === 'object' && ira.hasOwnProperty('inlinerolls')) {
@@ -389,8 +402,8 @@ const libInline = (() => {
             msgbox({ t: 'INLINE ROLL ORIGINAL', c: `<div><pre style="background: transparent; border: none;white-space: pre-wrap;font-family: Inconsolata, Consolas, monospace;">${syntaxHighlight(msg.inlinerolls || '', replacer).replace(/\n/g, '<br>')}</pre></div>`, send: true });
             msgbox({ t: 'INLINE ROLL PARSED', c: `<div><pre style="background: transparent; border: none;white-space: pre-wrap;font-family: Inconsolata, Consolas, monospace;">${syntaxHighlight(ird || '').replace(/\n/g, '<br>')}</pre></div>`, send: true });
 
-            // sendChat('API', `<div>${msg.content.replace(/\$\[\[(\d+)]]/g, ((m, g1) => ird[g1].getRollTip()))}</div>`);
-            sendChat('API', `<div>${msg.content.replace(/\$\[\[(\d+)]]/g, ((m, g1) => libInline.getRollTip(msg.inlinerolls[g1])))}</div>`);
+             sendChat('API', `<div>${msg.content.replace(/\$\[\[(\d+)]]/g, ((m, g1) => ird[g1].getRollTip()))}</div>`);
+            // sendChat('API', `<div>${msg.content.replace(/\$\[\[(\d+)]]/g, ((m, g1) => libInline.getRollTip(msg.inlinerolls[g1])))}</div>`);
         }
     });
     on('ready', () => {
