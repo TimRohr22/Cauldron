@@ -126,7 +126,8 @@ const libInline = (() => {
         const cssClassLib = {
             dropped: 'drop',
             critfail: 'fail',
-            critsuccess: 'success'
+            critsuccess: 'success',
+            'critsuccess critfail': 'fail'
         };
         let matchFormatObj = {};
         let rollData = {
@@ -151,25 +152,24 @@ const libInline = (() => {
                         cssclass = '';
                         if (nr.d) cssclass = 'dropped'; //dropped die
                         if (!cssclass) {
-                            if (r.mods && r.mods.hasOwnProperty('customFumble')) {
-                                if (r.mods.customFumble.reduce((m, o) => ops[o.comp](nr.v, o.point) || m, false)) cssclass = 'critfail';
-                            } else if (!r.fate && nr.v === 1) { // standard fail
-                                cssclass = 'critfail';
-                            } // fate has no default fail threshold
-                        }
-                        if (!cssclass) {
                             if (r.mods && r.mods.hasOwnProperty('customCrit')) {
                                 if (r.mods.customCrit.reduce((m, o) => ops[o.comp](nr.v, o.point) || m, false)) cssclass = 'critsuccess';
                             } else if (!r.fate && nr.v === r.sides) { // standard success
                                 cssclass = 'critsuccess';
                             } // fate has no default success threshold
+                            if (r.mods && r.mods.hasOwnProperty('customFumble')) {
+                                if (r.mods.customFumble.reduce((m, o) => ops[o.comp](nr.v, o.point) || m, false)) cssclass = cssclass ? cssclass + ' ': 'critfail';
+                            } else if (!r.fate && nr.v === 1) { // standard fail
+                                cssclass = cssclass ? cssclass + ' critfail' : 'critfail';
+                            } // fate has no default fail threshold
                         }
 
                         type = cssClassLib[cssclass] || '';
 
-                        // match dice formatting
+                        // match (and drop) dice formatting
+                        matchFormatObj = { drop: ` style="color: #888;"` }; // initialize with dropped-die coloration
                         if (r.mods && r.mods.match && r.mods.match.matches) {
-                            matchFormatObj = {};
+                            matchFormatObj = { drop: ` style="color: #888;"` }; // initialize with dropped-die coloration
                             if (Array.isArray(r.mods.match.matches)) {
                                 r.mods.match.matches.forEach((m, i) => {
                                     if (m) matchFormatObj[i] = ` style="color: ${m}"`;
@@ -178,7 +178,7 @@ const libInline = (() => {
                                 Object.keys(r.mods.match.matches).forEach(k => matchFormatObj[k] = ` style="color: ${r.mods.match.matches[k]}"`);
                             }
                         }
-                        return { v: nr.v, type: type, display: `${rollspancss1}${cssclass ? ' ' : ''}${cssclass}${/^crit/g.test(cssclass) ? ' ' : ''}"${(matchFormatObj[nr.v] && type !== 'drop') ? matchFormatObj[nr.v] : ''}>${r.fate ? fatedie[nr.v] : nr.v}${rollspanend}` };
+                        return { v: nr.v, type: type, display: `${rollspancss1}${cssclass ? ' ' : ''}${cssclass}${/^crit/g.test(cssclass) ? ' ' : ''}"${matchFormatObj[type] || matchFormatObj[nr.v] || ''}>${r.fate ? fatedie[nr.v] : nr.v}${rollspanend}` };
                     });
                     // fate dice should be joined on empty string (no operator); normal rolls on +
                     rollData.display = '(' + conditionalPluck(rollData.dice, 'display').join(r.fate ? '' : '+') + ')';
@@ -264,7 +264,7 @@ const libInline = (() => {
             roll.getRollTip = () => {
                 let parts = [];
                 parts.push(`<span class="inlinerollresult showtip tipsy-n-right" ${baseInlineCSS}`);
-                parts.push(`${bordercolors[(/basicdiceroll\scritfail/.test(roll.display) ? 1 : 0) + (/basicdiceroll\scritsuccess/.test(roll.display) ? 2 : 0)]}" `);
+                parts.push(`${bordercolors[(/basicdiceroll(?:\scritsuccess)?\scritfail/.test(roll.display) ? 1 : 0) + (/basicdiceroll\scritsuccess/.test(roll.display) ? 2 : 0)]}" `);
                 parts.push(`title="${HE(HE(`Rolling ${roll.expression} = ${roll.display}`))}">${roll.value}</span>`);
                 return parts.join('');
             };
