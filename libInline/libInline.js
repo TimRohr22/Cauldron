@@ -3,8 +3,8 @@
 Name			:	libInline
 GitHub			:	https://github.com/TimRohr22/Cauldron/tree/master/libInline
 Roll20 Contact	:	timmaugh & The Aaron
-Version			:	0.1.6
-Last Update		:	2/1/2021
+Version			:	1.0.0
+Last Update		:	2/3/2021
 =========================================================
 */
 var API_Meta = API_Meta || {};
@@ -17,8 +17,8 @@ const libInline = (() => {
     // ==================================================
     //		VERSION
     // ==================================================
-    const vrs = '0.1.6';
-    const vd = new Date(1612204892657);
+    const vrs = '1.0.0';
+    const vd = new Date(1612366188798);
     const apiproject = 'libInline';
     const versionInfo = () => {
         log(`\u0166\u0166 ${apiproject} v${vrs}, ${vd.getFullYear()}/${vd.getMonth() + 1}/${vd.getDate()} \u0166\u0166 -- offset ${API_Meta[apiproject].offset}`);
@@ -72,59 +72,6 @@ const libInline = (() => {
         const re = new RegExp(`(${Object.keys(entities).map(esRE).join('|')})`, 'g');
         return (s) => s.replace(re, (c) => (entities[c] || c));
     })();
-    const rowbg = ["#ffffff", "#dedede"];
-    const msgtable = '<div style="width:100%;"><div style="border-radius:10px;border:2px solid #000000;background-color:__bg__; margin-right:16px; overflow:hidden;"><table style="width:100%; margin: 0 auto; border-collapse:collapse;font-size:12px;">__TABLE-ROWS__</table></div></div>';
-    const msg1header = '<tr style="border-bottom:1px solid #000000;font-weight:bold;text-align:center; background-color:__bg__; line-height: 22px;"><td colspan = "__colspan__">__cell1__</td></tr>';
-    const msg1row = '<tr style="background-color:__bg__;"><td style="padding:4px;"><div style="__row-css__">__cell1__</div></td></tr>';
-    const msgbox = ({ c: c = "chat message", t: t = "title", btn: b = "buttons", send: send = false, sendas: sas = "API", wto: wto = "" }) => {
-        let tbl = msgtable.replace("__bg__", rowbg[0]);
-        let hdr = msg1header.replace("__bg__", rowbg[1]).replace("__cell1__", t);
-        let row = msg1row.replace("__bg__", rowbg[0]).replace("__cell1__", c);
-        let btn = b !== "buttons" ? msg1row.replace("__bg__", rowbg[0]).replace("__cell1__", b).replace("__row-css__", "text-align:right;margin:4px 4px 8px;") : "";
-        let msg = tbl.replace("__TABLE-ROWS__", hdr + row + btn);
-        if (wto) msg = `/w "${wto}" ${msg}`;
-        if (["t", "true", "y", "yes", true].includes(send)) {
-            sendChat(sas, msg);
-        } else {
-            return msg;
-        }
-    };
-    const replacer = (key, value) => {
-        // Filtering out properties
-        if (key === 'signature') {
-            return undefined;
-        }
-        return value;
-    };
-
-    const syntaxHighlight = (str, replacer = undefined) => {
-        const css = {
-            stringstyle: 'mediumblue;',
-            numberstyle: 'magenta;',
-            booleanstyle: 'darkorange;',
-            nullstyle: 'darkred;',
-            keystyle: 'darkgreen;'
-        };
-        if (typeof str !== 'string') {
-            str = JSON.stringify(str, replacer, '   ');
-        }
-        str = str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        return str.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+-]?\d+)?)/g, function (match) {
-            let cls = 'numberstyle';
-            if (/^"/.test(match)) {
-                if (/:$/.test(match)) {
-                    cls = 'keystyle';
-                } else {
-                    cls = 'stringstyle';
-                }
-            } else if (/true|false/.test(match)) {
-                cls = 'booleanstyle';
-            } else if (/null/.test(match)) {
-                cls = 'nullstyle';
-            }
-            return '<span style=" color: ' + css[cls] + '">' + HE(match.replace(/^"(.*)"(:?)$/g, ((m, g1, g2) => `${g1}${g2}`)).replace(/\\(.)/g, `$1`)) + '</span>';
-        });
-    };
 
     // ==================================================
     //		PARSING OPERATIONS
@@ -175,7 +122,6 @@ const libInline = (() => {
 
     const collectRollData = (r) => {
         const rollspancss1 = `<span class="basicdiceroll`;
-        const rollspancss2 = `>`;
         const rollspanend = `</span>`;
         const cssClassLib = {
             dropped: 'drop',
@@ -186,7 +132,7 @@ const libInline = (() => {
         let rollData = {
             parsed: '',
             tableReturns: [],
-            display: {},
+            display: '',
             dice: [],
         };
         let gRoll,
@@ -199,7 +145,8 @@ const libInline = (() => {
                     rollData.display = rollData.parsed;
                     rollData.tableReturns.push({ table: r.table, returns: r.results.map(nr => nr.tableItem ? nr.tableItem.name : nr.v) });
                 } else { // standard roll (might include fate or matched dice)
-                    rollData.parsed = '(' + r.results.map(nr => r.fate ? fatedie[nr.v] : nr.v).join('+') + ')';
+                    // fate dice should be joined on empty string (no operator); normal rolls on +
+                    rollData.parsed = '(' + r.results.map(nr => r.fate ? fatedie[nr.v] : nr.v).join(r.fate ? '' : '+') + ')';
                     rollData.dice = r.results.map(nr => {
                         cssclass = '';
                         if (nr.d) cssclass = 'dropped'; //dropped die
@@ -208,36 +155,33 @@ const libInline = (() => {
                                 if (r.mods.customFumble.reduce((m, o) => ops[o.comp](nr.v, o.point) || m, false)) cssclass = 'critfail';
                             } else if (!r.fate && nr.v === 1) { // standard fail
                                 cssclass = 'critfail';
-                            } else if (r.fate && nr.v >= -1) { // fate fail
-                                cssclass = 'critfail';
-                            }
+                            } // fate has no default fail threshold
                         }
                         if (!cssclass) {
                             if (r.mods && r.mods.hasOwnProperty('customCrit')) {
                                 if (r.mods.customCrit.reduce((m, o) => ops[o.comp](nr.v, o.point) || m, false)) cssclass = 'critsuccess';
                             } else if (!r.fate && nr.v === r.sides) { // standard success
                                 cssclass = 'critsuccess';
-                            } else if (r.fate && nr.v === 1) { // fate success
-                                cssclass = 'critsuccess';
-                            }
+                            } // fate has no default success threshold
                         }
-                        
-                        type = cssClassLib[cssclass];
+
+                        type = cssClassLib[cssclass] || '';
 
                         // match dice formatting
-                        if (r.mods && r.mods.match) {
+                        if (r.mods && r.mods.match && r.mods.match.matches) {
                             matchFormatObj = {};
                             if (Array.isArray(r.mods.match.matches)) {
                                 r.mods.match.matches.forEach((m, i) => {
-                                    if (m) matchFormatObj[i] = ` style=\"color: ${m}\"`;
+                                    if (m) matchFormatObj[i] = ` style="color: ${m}"`;
                                 });
                             } else {
-                                Object.keys(r.mods.match.matches).forEach(k => matchFormatObj[k] = ` style=\"color: ${r.mods.match.matches[k]}\"`);
+                                Object.keys(r.mods.match.matches).forEach(k => matchFormatObj[k] = ` style="color: ${r.mods.match.matches[k]}"`);
                             }
                         }
-                        return { v: nr.v, type: type, display: `${rollspancss1}${cssclass ? ' ' : ''}${cssclass}${/^crit/g.test(cssclass) ? ' ' : ''}\"${(matchFormatObj[nr.v] && type!=='drop') ? matchFormatObj[nr.v] : '' }>${r.fate ? fatedie[nr.v] : nr.v}${rollspanend}` };
+                        return { v: nr.v, type: type, display: `${rollspancss1}${cssclass ? ' ' : ''}${cssclass}${/^crit/g.test(cssclass) ? ' ' : ''}"${(matchFormatObj[nr.v] && type !== 'drop') ? matchFormatObj[nr.v] : ''}>${r.fate ? fatedie[nr.v] : nr.v}${rollspanend}` };
                     });
-                    rollData.display = '(' + conditionalPluck(rollData.dice, 'display').join('+') + ')';
+                    // fate dice should be joined on empty string (no operator); normal rolls on +
+                    rollData.display = '(' + conditionalPluck(rollData.dice, 'display').join(r.fate ? '' : '+') + ')';
                 }
                 break;
             case 'G': // ROLL
@@ -266,9 +210,16 @@ const libInline = (() => {
         return rollData;
     };
 
-
     const parseInlineRolls = (inlinerolls) => {
         let labelrx = /(?:\s*(\+|-|\\|\*)\s*)?(?<value>[^\]{}]+)(?<!\d+t)\[(?<key>.*?)]/g;
+        const baseInlineCSS = `style="-webkit-tap-highlight-color: rgba(0,0,0,0);font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif;color: #404040;line-height: 1.25em;` +
+            `box-sizing: content-box; background-color: #FEF68E; padding: 0 3px 0 3px; font-weight: bold; cursor: help; font-size: 1.1em;border: 2px solid `;
+        const bordercolors = {
+            0: '#FEF68E;',
+            1: '#B31515;',
+            2: '#3FB315;',
+            3: '#4A57ED;'
+        };
         return inlinerolls.map(r => {
             let roll = {
                 expression: r.expression,
@@ -276,10 +227,9 @@ const libInline = (() => {
                 resultType: r.results.resultType,
                 total: r.results.total,
                 value: r.results.total, // changed later, if necessary
-                labels: {},
-                labelArray: [],
+                labels: [],
                 tableReturns: [],
-                display: {},
+                display: '',
                 dice: [],
             };
             // LABELS
@@ -289,8 +239,7 @@ const libInline = (() => {
                 if (m.index === labelrx.lastIndex) {
                     labelrx.lastIndex++;
                 }
-                roll.labelArray.push({ label: m.groups.key, value: m.groups.value });
-                roll.labels[m.groups.key] = m.groups.value;
+                roll.labels.push({ label: m.groups.key, value: m.groups.value });
             };
             let rollData = r.results.rolls.map(collectRollData);
             // PARSED
@@ -313,22 +262,12 @@ const libInline = (() => {
                 }, []);
             };
             roll.getRollTip = () => {
-                const rolltypeclasses = {
-                    0: '',
-                    1: ' fullfail',
-                    2: ' fullcrit',
-                    3: ' importantroll'
-                };
                 let parts = [];
-                parts.push(`<span class=\"inlinerollresult showtip tipsy-n-right`);
-                parts.push(`${rolltypeclasses[(/basicdiceroll\scritfail/.test(roll.display) ? 1 : 0) + (/basicdiceroll\scritsuccess/.test(roll.display) ? 2 : 0)]}\" `);
-                parts.push(`original-title=\"`);
-                parts.push(`${ HE(getQuantum(roll) ? '<img src=\"/images/quantumrollwhite.png\" class=\"inlineqroll\"> \"> ' : '' )}`);
-                parts.push('Rolling' + HE(`${roll.expression} = ${roll.display}`) + `\">${roll.value}</span>`);
-                log(parts.join(''));
+                parts.push(`<span class="inlinerollresult showtip tipsy-n-right" ${baseInlineCSS}`);
+                parts.push(`${bordercolors[(/basicdiceroll\scritfail/.test(roll.display) ? 1 : 0) + (/basicdiceroll\scritsuccess/.test(roll.display) ? 2 : 0)]}" `);
+                parts.push(`title="${HE(HE(`Rolling ${roll.expression} = ${roll.display}`))}">${roll.value}</span>`);
                 return parts.join('');
             };
-
             return roll;
         });
     };
@@ -338,7 +277,7 @@ const libInline = (() => {
         } else if (typeof ira === 'object') {
             return parseInlineRolls([ira])[0];
         } else return;
-    }
+    };
 
     // ==================================================
     //		EXPOSED INTERFACE FUNCTIONS
@@ -372,40 +311,9 @@ const libInline = (() => {
         return (getRollFromInline(inlinerolls) || { display: '' }).getRollTip();
     };
 
-    on('chat:message', (msg) => {
-
-        //        if (msg.type !== "api") {
-        //            return;
-        //        }
-
-        if (_.has(msg, 'inlinerolls')) {
-            // let ird = parseInlineRolls(msg.inlinerolls);
-            let ird = libInline.getRollData(msg);
-            //ird.forEach(r => r.all = r.getDice('all'));
-            //ird.forEach(r => r.included = r.getDice('included'));
-            //ird.forEach(r => r.success = r.getDice('success'));
-            //ird.forEach(r => r.fail = r.getDice('fail'));
-            //ird.forEach(r => r.allcrit = r.getDice('allcrit'));
-            //ird.forEach(r => r.dropped = r.getDice('dropped'));
-            //ird.forEach(r => r.displayCompare = r.getRollTip());
-
-            //let ird = {
-            //    all: libInline.getDice(msg.inlinerolls[0], 'all'),
-            //    included: libInline.getDice(msg.inlinerolls[0], 'included'),
-            //    success: libInline.getDice(msg.inlinerolls[0], 'success'),
-            //    fail: libInline.getDice(msg.inlinerolls[0], 'fail'),
-            //    allcrit: libInline.getDice(msg.inlinerolls[0], 'allcrit'),
-            //    dropped: libInline.getDice(msg.inlinerolls[0], 'dropped'),
-            //    tables: libInline.getTables(msg.inlinerolls[0],false),
-            //    tableArray: libInline.getTables(msg.inlinerolls[0],true)
-            //};
-            msgbox({ t: 'INLINE ROLL ORIGINAL', c: `<div><pre style="background: transparent; border: none;white-space: pre-wrap;font-family: Inconsolata, Consolas, monospace;">${syntaxHighlight(msg.inlinerolls || '', replacer).replace(/\n/g, '<br>')}</pre></div>`, send: true });
-            msgbox({ t: 'INLINE ROLL PARSED', c: `<div><pre style="background: transparent; border: none;white-space: pre-wrap;font-family: Inconsolata, Consolas, monospace;">${syntaxHighlight(ird || '').replace(/\n/g, '<br>')}</pre></div>`, send: true });
-
-             sendChat('API', `<div>${msg.content.replace(/\$\[\[(\d+)]]/g, ((m, g1) => ird[g1].getRollTip()))}</div>`);
-            // sendChat('API', `<div>${msg.content.replace(/\$\[\[(\d+)]]/g, ((m, g1) => libInline.getRollTip(msg.inlinerolls[g1])))}</div>`);
-        }
-    });
+    // ==================================================
+    //		ON READY
+    // ==================================================
     on('ready', () => {
         versionInfo();
         logsig();
@@ -418,6 +326,7 @@ const libInline = (() => {
         getTables: getTables,
         getParsed: getParsed,
         getRollTip: getRollTip
-    }
+    };
 
 })();
+{ try { throw new Error(''); } catch (e) { API_Meta.libInline.lineCount = (parseInt(e.stack.split(/\n/)[1].replace(/^.*:(\d+):.*$/, '$1'), 10) - API_Meta.libInline.offset); } }

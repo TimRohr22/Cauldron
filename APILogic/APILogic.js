@@ -3,8 +3,8 @@
 Name			:	APILogic
 GitHub			:	https://github.com/TimRohr22/Cauldron/tree/master/APILogic
 Roll20 Contact	:	timmaugh
-Version			:	0.4.0
-Last Update		:	1/19/2021
+Version			:	1.0.0
+Last Update		:	2/3/2021
 =========================================================
 */
 var API_Meta = API_Meta || {};
@@ -18,8 +18,8 @@ const APILogic = (() => {
     // ==================================================
     //		VERSION
     // ==================================================
-    const vrs = '0.4.0';
-    const vd = new Date(1611090377101);
+    const vrs = '1.0.0';
+    const vd = new Date(1612366265068);
     const apiproject = 'APILogic';
     const versionInfo = () => {
         log(`\u0166\u0166 ${apiproject} v${vrs}, ${vd.getFullYear()}/${vd.getMonth() + 1}/${vd.getDate()} \u0166\u0166 -- offset ${API_Meta.APILogic.offset}`);
@@ -94,7 +94,8 @@ const APILogic = (() => {
         elseifrx = /{&\s*elseif(?=\(|\s+|!)\s*/i,
         elserx = /{&\s*else\s*(?=})/i,
         endrx = /{&\s*end\s*}/i,
-        valuerx = /\$\[\[(?<rollnumber>\d+)]]\.value/gi;
+        valuerx = /\$\[\[(?<rollnumber>\d+)]]\.value/gi,
+        tablerx = /\$\[\[(?<rollnumber>\d+)]]\.table/gi;
 
     const nestlog = (stmt, ilvl = 0, logcolor = '') => {
         if (state[apiproject] && state[apiproject].logging === true) {
@@ -224,7 +225,7 @@ const APILogic = (() => {
     };
 
     // ==================================================
-    //		IF TREE PARSER
+    //		PARSER PROCESSING
     // ==================================================
     const ifTreeParser = (cmd) => {
 
@@ -820,7 +821,6 @@ const APILogic = (() => {
             ores = getfirst(c, outertm, innertm, inlineclosetm, eostm);
             switch (ores.type) {
                 case 'eos':
-                    console.log(`DETECTED EOS`);
                     index = cmd.length;
                     break;
                 case 'inner':
@@ -828,7 +828,7 @@ const APILogic = (() => {
                     ires = nestedrx.exec(cmd.slice(index));
                     if (ires) {
                         // using unshift orders them in descending order
-                        if (nestedlvl > 0) nestedindexarray.unshift({ index: index, value: preserved.inlinerolls[ires[1]].results.total, replacestring: ires[0] });
+                        if (nestedlvl > 0) nestedindexarray.unshift({ index: index, value: preserved.parsedinline[ires[1]].value, replacestring: ires[0] });
                         index += ires[0].length;
                     } else {
                         // this would probably indicate an error -- something like $[[NaN]]
@@ -845,12 +845,28 @@ const APILogic = (() => {
                     break;
             }
         }
+        //since we are working in descending order, all of our indices will survive the replacement operation
         nestedindexarray.forEach(r => {
             cmd = `${cmd.slice(0, r.index)}${r.value}${cmd.slice(r.index + r.replacestring.length, cmd.length)}`;
         });
         return cmd;
     };
 
+    const getValues = (preserved) => {
+        // replace inline rolls tagged with .value
+        preserved.content = preserved.content.replace(valuerx, ((r, g1) => {
+            preserved.inlinerolls = preserved.inlinerolls || [];
+            if (preserved.inlinerolls.length > g1) {
+                return preserved.parsedinline[g1].value;
+            } else {
+                return '0';
+            }
+        }));
+    }
+
+    // ==================================================
+    //		HANDLE INPUT
+    // ==================================================
     const handleInput = (msg) => {
         const testConstructs = (c) => (ifrx.test(c) || defblockrx.test(c));
         if (!msg.type === 'api') return;
@@ -862,6 +878,7 @@ const APILogic = (() => {
                     preserved.inlinerolls.push(r);
                     msg.content = msg.content.replace(new RegExp(`\\$\\[\\[(${i})]]`, 'g'), `$[[${preserved.inlinerolls.length - 1}]]`);
                 });
+                preserved.parsedinline = [...(preserved.parsedinline || []), ...libInline.getRollData(msg)];
                 preserved.content = msg.content;
             } else {    // no inlineroll array
                 if (!testConstructs(msg.content)) { // we're on our way out of the script, format everything and release message
@@ -875,24 +892,18 @@ const APILogic = (() => {
                         return;
                     }
                     // replace inline rolls tagged with .value
-                    preserved.content = preserved.content.replace(valuerx, ((r, g1) => {
-                        preserved.inlinerolls = preserved.inlinerolls || [];
-                        if (preserved.inlinerolls.length > g1) {
-                            return preserved.inlinerolls[g1].results.total;
-                        } else {
-                            return '0';
-                        }
-                    }));
+                    getValues(preserved);
                     // check for SIMPLE tag
                     if (preserved.content.match(simplerx)) {
                         preserved.content = preserved.content.replace(/^!\s*/, '').replace(simplerx, '');
+                        preserved.content = preserved.content.replace(/\$\[\[(\d+)]]/g, ((m, g1) => preserved.parsedinline[g1].getRollTip()));
                         let speakas = '';
                         if (preserved.who.toLowerCase() === 'api') {
                             speakas = '';
                         } else {
                             speakas = (findObjs({ type: 'character' }).filter(c => c.get('name') === preserved.who)[0] || { id: '' }).id;
                             if (speakas) speakas = `character|${speakas}`;
-                            else speakas = `player|${preserved.playerid}`
+                            else speakas = `player|${preserved.playerid}`;
                         }
                         sendChat(speakas, preserved.content);
                         return;
@@ -907,24 +918,19 @@ const APILogic = (() => {
             preserved = _.clone(msg);
             apitrigger = `${apiproject}${generateUUID()}`;
             preserved.content = `!${apitrigger}${preserved.content.slice(1)}`;
+            preserved.parsedinline = msg.inlinerolls ? libInline.getRollData(msg) : [];
             msg.content = ``;
         }
 
 
         if (testConstructs(preserved.content)) {
-            // replace inline rolls tagged with .value
-            preserved.content = preserved.content.replace(valuerx, ((r, g1) => {
-                preserved.inlinerolls = preserved.inlinerolls || [];
-                if (preserved.inlinerolls.length > g1) {
-                    return preserved.inlinerolls[g1].results.total;
-                } else {
-                    return '0';
-                }
-            }));
+            // replace inline rolls tagged with .value or .table
+            getValues(preserved);
 
             let o = ifTreeParser(preserved.content);
             if (o.error) {
                 log(o.error);
+                log(preserved.content);
                 return;
             }
             if (o.tokens) {
@@ -936,14 +942,7 @@ const APILogic = (() => {
             }
         }
         // replace inline rolls tagged with .value
-        preserved.content = preserved.content.replace(valuerx, ((r, g1) => {
-            preserved.inlinerolls = preserved.inlinerolls || [];
-            if (preserved.inlinerolls.length > g1) {
-                return preserved.inlinerolls[g1].results.total;
-            } else {
-                return '0';
-            }
-        }));
+        getValues(preserved);
         // un-escape characters
         preserved.content = preserved.content.replace(/\\(.)/gm, "$1");
         // convert nested inline rolls to value
@@ -952,7 +951,6 @@ const APILogic = (() => {
         preserved.content = preserved.content.replace(/\$\[\[(\d+)]]/g, `{&$1}`);
         // properly format rolls that would normally fail in the API (but work in chat)
         preserved.content = preserved.content.replace(/\[\[\s+/g, '[[');
-
         // send new command line through chat
         sendChat('', preserved.content);
         return;

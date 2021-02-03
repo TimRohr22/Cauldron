@@ -81,7 +81,7 @@ To return the max value, utilize an `m` in the same position, with or without ot
 
 The above tests the existence of the `weaponsmith` attribute for Bob the Slayer, whether the `max` value is an integer, and whether that `max` value is over 10.
 #### Text as Condition
-If you need to include space in a bit of text to include as one side of a comparison operation, you should enclose the entire text string in either single quotes, double quotes, or tick marks. With three options available, you should have an option available even if the text you need to include might, itself have an instance of one of those characters. For instance, the following would not evaluation properly, because of the presence of the apostrophe in the word "don't":
+If you need to include space in a bit of text to include as one side of a comparison operation, you should enclose the entire text string in either single quotes, double quotes, or tick marks. With three options available, you should have an option available even if the text you need to include might, itself have an instance of one of those characters. For instance, the following would not evaluate properly, because of the presence of the apostrophe in the word "don't":
 
     @|Bob the Slayer|slogan ~ 'don't go'
 
@@ -123,7 +123,7 @@ In that case, the first condition `a = !a` does not pass validation, so the subs
 If you find yourself in this position, you can either investigate a definition (see **Using DEFINE Tag**, below), or using a root-level IF tag with a single space of dependent text (that is, providing little alteration to your command line, regardless of if it passes).
 
     !somescript {& if ([sanitycheck] @|Bob the Slayer|sanity > 10 ) } {& end} ...
-Because the END tag follows nearly immediately on the IF tag, no important text is included or excluded from the command line, no matter the result of the test. The IF tag is there simply to force the group to be evaluated and the result stored. This would be a better solution than using a definition if the group was particularly complex since the definition is a simple text replacement operation. Defining and naming a group ensures that the group is only being retrieved and evaluated once (read more in **Using DEFINE Tag**).
+Because the END tag follows nearly immediately on the IF tag, no important text is included or excluded from the command line, no matter the result of the test. The IF tag is there simply to force the group to be evaluated and the result stored. This would be a better solution than using a definition if the group was particularly complex since the definition is a simple text replacement operation. Using a named group ensures that the group is only being retrieved and evaluated once (read more in **Using DEFINE Tag**).
 ### Negation
 Negation can be applied to any element of a condition or to any group by use of the `!` character. This can be handy to test for the non-existence of a sheet item:
 
@@ -214,7 +214,7 @@ This command line will work:
 
     !somescript {& if [[1d10]] > 3 } $[[0]].value {& end}
 
-...because the `$[[0]]` roll is available when the value is extracted from it. This command (below), on the other hand, will not work properly:
+...because the `$[[0]]` roll is available when the value is extracted from it. This command (below), on the other hand, will not work:
 
     !somescript {& if @|Bob the Slayer|basket_weaving} \[\[ @\{Bob the Slayer|basket_weaving}d10\]\] {& end} $[[0]].value
 APILogic will try to extract the value from the `0` roll in the roll array on the first pass of the parser. At that time, the inline roll hasn't resolved or occurred, yet. It is only after the command line is unescaped and reexamined by the Roll20 parser that the inline roll is detected. In this case, the roll marker should be deferred, too (`$\[\[0\]\].value` or `$[[0]]\.value`).
@@ -237,8 +237,25 @@ You can shortcut having to parse all of that by using an inline roll in a DEFINE
     {& define ([chaosdice] $[[0]] ) }
 
 ...and uses that `definition` anywhere it sees the `chaosdice` `term` else where in the command line.
+### Table Result Recursion
+The normal process of replacing a roll with its value (for instance with the `.value` command or by nesting it in a deferred inline roll) will return the table entry for a rollable table. Obviously, you may need to verify through straight input into the chat that the roll you enter will return a table entry instead of a number. For instance, `[[ 1t[Armor] ]]` will return the item from the table, while `[[ 2t[Armor] ]]` will return the result of only the first roll against the table, and `[[ 1t[Armor] + 2 ]]` will return `2`.
 
-### Conditional non-API Calls
+This, paired with the fact that APILogic searches for newly-formed inline roll formations during each pass of the parsing, means you can leverage this behavior to handle recursive rolls based on table entries. If the `Armor` table has entries of:
+
+    [[1d10]]
+    [[1d10+3]]
+    [[2d10r<2-3]]
+    [[2d10r<2]]
+
+...and the following text is encountered in your command line:
+
+    [[ 1t[Armor] ]].value
+
+Then whatever result is obtained from rolling against that table will insert another inline roll into the command line, which will be detected and rolled by the Roll20 quantum roller.
+
+Be aware that the resulting roll will, itself be wrapped in an inline roll marker (`$[[0]]`), so if you need to obtain the value from it (and it is not nested in another deferred inline roll) you will need another `.value`. Obviously, if that value is another table entry, and the table entry points to another inline roll, the process will continue.
+
+### Conditional non-API Calls (Basic Chat Messages)
 If you want to just want to leverage logical structures for your simple chat message, so you don't want to end up with an API call at all, put a SIMPLE tag outside of any logical structure (in text that will always be included in the final, reconstructed command line). In that case, simply begin your message (or your first IF or DEFINE tag) after the `!`.
 
     ![& if @|Bob the Slayer|slogan]@\{Bob the Slayer|slogan}[& end] For tomorrow we dine in hell.[& simple]
@@ -255,7 +272,8 @@ If `smooth_jazz` exists for Bob the Slayer, the above example will run the `some
  - MAX/MIN tag
  - SWITCH/CASE tag
  - Levenshtein Distance for approximate names
- - Other special tests for
-   sheet items
+ - Other special tests for sheet items
 
+## Change Log:
 
+**Version 1.0.0** - Initial Release
