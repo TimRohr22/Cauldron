@@ -1,7 +1,7 @@
 /*
 =========================================================
 Name			:	DiscreteWhisper
-GitHub			:	
+GitHub			:	https://github.com/TimRohr22/Cauldron/tree/master/DiscreteWhisper
 Roll20 Contact	:	timmaugh
 Version			:	1.1.0
 Last Update		:	11/12/2020
