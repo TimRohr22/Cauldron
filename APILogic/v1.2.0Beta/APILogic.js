@@ -3,15 +3,14 @@
 Name			:	APILogic
 GitHub			:	https://github.com/TimRohr22/Cauldron/tree/master/APILogic
 Roll20 Contact	:	timmaugh
-Version			:	1.2.0
-Last Update		:	2/10/2021
+Version			:	1.2.1
+Last Update		:	2/11/2021
 =========================================================
 */
 var API_Meta = API_Meta || {};
 API_Meta.APILogic = { offset: Number.MAX_SAFE_INTEGER, lineCount: -1 };
 {
     try { throw new Error(''); } catch (e) { API_Meta.APILogic.offset = (parseInt(e.stack.split(/\n/)[1].replace(/^.*:(\d+):.*$/, '$1'), 10) - (13)); }
-    // sendChat('API', `APILOGIC offset is ${API_Meta.APILogic.offset}`);
 }
 
 const APILogic = (() => {
@@ -19,8 +18,8 @@ const APILogic = (() => {
     //		VERSION
     // ==================================================
     const apiproject = 'APILogic';
-    API_Meta[apiproject].version = '1.2.0';
-    const vd = new Date(1612980455412);
+    API_Meta[apiproject].version = '1.2.1';
+    const vd = new Date(1613065269512);
     const versionInfo = () => {
         log(`\u0166\u0166 ${apiproject} v${API_Meta[apiproject].version}, ${vd.getFullYear()}/${vd.getMonth() + 1}/${vd.getDate()} \u0166\u0166 -- offset ${API_Meta[apiproject].offset}`);
         return;
@@ -108,7 +107,9 @@ const APILogic = (() => {
         operatorrx = /^(?<operator>(?:&&|\|\|))\s*/,
         groupendrx = /^\)\s*/,
         ifendrx = /^\s*}/,
-        textrx = /^(?<negation>!?)\s*(`|'|"?)(?<argtext>.+?)\2\s*(?=!=|!~|>=|<=|[=~><]|&&|\|\||\)|})/;
+        textrx = /^(?<negation>!?)\s*(`|'|"?)(?<argtext>.+?)\2\s*(?=!=|!~|>=|<=|[=~><]|&&|\|\||\)|})/,
+        text_standalonerx = /^(?<negation>!?)\s*(`|'|"?)(?<argtext>.+?)\2\s*/;
+
 
     // TOKEN MARKERS ========================================
     const iftm = { rx: ifrx, type: 'if' },
@@ -124,6 +125,7 @@ const APILogic = (() => {
         rptgitemtm = { rx: rptgitemrx, type: 'rptgitem' },
         sheetitem_standalonetm = { rx: sheetitem_standalonerx, type: 'sheetitem' },
         rptgitem_standalonetm = { rx: rptgitem_standalonerx, type: 'rptgitem' },
+        text_standalonetm = {rx: text_standalonerx, type: 'text'}
         defblocktm = { rx: defblockrx, type: 'defblock' },
         evaltm = { rx: evalrx, type: 'eval' },
         evalendtm = { rx: evalendrx, type: 'evalend' };
@@ -298,7 +300,7 @@ const APILogic = (() => {
     const getSheetItemVal = (s, calledFrom = 'def') => {
         let res;
         if (calledFrom === 'def') {
-            res = getfirst(s, sheetitem_standalonetm, rptgitem_standalonetm, texttm);
+            res = getfirst(s, sheetitem_standalonetm, rptgitem_standalonetm, text_standalonetm);
         } else {
             res = s;
         }
@@ -931,15 +933,6 @@ const APILogic = (() => {
             // internalTestLib moved to outer scope
 
             t.contents.forEach(item => {
-                //if (item.type !== 'text') {
-                //    if (item.groups.operation.includes('name')) {
-                //        retrieve = 'name';
-                //    } else {
-                //        if (['@', '*'].includes(item.groups.type) && !item.groups.operation.includes('max')) retrieve = 'current';
-                //        else if (['@', '*'].includes(item.groups.type)) retrieve = 'max';
-                //        else retrieve = 'action';
-                //    }
-                //}
                 item.metavalue = true;
                 switch (item.type) {
                     case 'text':
@@ -956,19 +949,6 @@ const APILogic = (() => {
                         break;
                     case 'sheetitem':
                     case 'rptgitem':	// intended fall-through
-                        //o = getSheetItem(item);
-                        //if (!o) {
-                        //    item.metavalue = false;
-                        //    item.value = undefined;
-                        //} else {
-                        //    item.value = o.get(retrieve);
-                        //    for (const test in internalTestLib) {
-                        //        if (item.groups.operation.includes(test)) {
-                        //            item.metavalue = item.metavalue && internalTestLib[test](item.value);
-                        //        }
-                        //        if (!item.metavalue) break;
-                        //    }
-                        //}
                         [item.value, item.metavalue] = getSheetItemVal(item, 'condition');
                         break;
                 }
