@@ -3,8 +3,8 @@
 Name			:	APILogic
 GitHub			:	https://github.com/TimRohr22/Cauldron/tree/master/APILogic
 Roll20 Contact	:	timmaugh
-Version			:	1.2.1
-Last Update		:	2/11/2021
+Version			:	1.2.0b3
+Last Update		:	2/17/2021
 =========================================================
 */
 var API_Meta = API_Meta || {};
@@ -18,8 +18,8 @@ const APILogic = (() => {
     //		VERSION
     // ==================================================
     const apiproject = 'APILogic';
-    API_Meta[apiproject].version = '1.2.1';
-    const vd = new Date(1613065269512);
+    API_Meta[apiproject].version = '1.2.0b3';
+    const vd = new Date(1613614319068);
     const versionInfo = () => {
         log(`\u0166\u0166 ${apiproject} v${API_Meta[apiproject].version}, ${vd.getFullYear()}/${vd.getMonth() + 1}/${vd.getDate()} \u0166\u0166 -- offset ${API_Meta[apiproject].offset}`);
         return;
@@ -256,10 +256,10 @@ const APILogic = (() => {
             '!=': (a) => a.contents[0] != a.contents[1],
             '~': (a) => a.contents[0].includes(a.contents[1]),
             '!~': (a) => !a.contents[0].includes(a.contents[1]),
-            '>': (a) => a.contents[0] > a.contents[1],
-            '>=': (a) => a.contents[0] >= a.contents[1],
-            '<': (a) => a.contents[0] < a.contents[1],
-            '<=': (a) => a.contents[0] <= a.contents[1]
+            '>': (a) => (internalTestLib.num(a.contents[0]) ? Number(a.contents[0]) : a.contents[0]) > (internalTestLib.num(a.contents[1]) ? Number(a.contents[1]) : a.contents[1]),
+            '>=': (a) => (internalTestLib.num(a.contents[0]) ? Number(a.contents[0]) : a.contents[0]) >= (internalTestLib.num(a.contents[1]) ? Number(a.contents[1]) : a.contents[1]),
+            '<': (a) => (internalTestLib.num(a.contents[0]) ? Number(a.contents[0]) : a.contents[0]) < (internalTestLib.num(a.contents[1]) ? Number(a.contents[1]) : a.contents[1]),
+            '<=': (a) => (internalTestLib.num(a.contents[0]) ? Number(a.contents[0]) : a.contents[0]) <= (internalTestLib.num(a.contents[1]) ? Number(a.contents[1]) : a.contents[1])
         }
 
         p.tests = [];
@@ -916,10 +916,10 @@ const APILogic = (() => {
             '!=': (t) => t.contents[0].value != t.contents[1].value,
             '~': (t) => t.contents[0].value.includes(t.contents[1].value),
             '!~': (t) => !t.contents[0].value.includes(t.contents[1].value),
-            '>': (t) => t.contents[0].value > t.contents[1].value,
-            '>=': (t) => t.contents[0].value >= t.contents[1].value,
-            '<': (t) => t.contents[0].value < t.contents[1].value,
-            '<=': (t) => t.contents[0].value <= t.contents[1].value
+            '>': (t) => (internalTestLib.num(t.contents[0].value) ? Number(t.contents[0].value) : t.contents[0].value) > (internalTestLib.num(t.contents[1].value) ? Number(t.contents[1].value) : t.contents[1].value),
+            '>=': (t) => (internalTestLib.num(t.contents[0].value) ? Number(t.contents[0].value) : t.contents[0].value) >= (internalTestLib.num(t.contents[1].value) ? Number(t.contents[1].value) : t.contents[1].value),
+            '<': (t) => (internalTestLib.num(t.contents[0].value) ? Number(t.contents[0].value) : t.contents[0].value) < (internalTestLib.num(t.contents[1].value) ? Number(t.contents[1].value) : t.contents[1].value),
+            '<=': (t) => (internalTestLib.num(t.contents[0].value) ? Number(t.contents[0].value) : t.contents[0].value) <= (internalTestLib.num(t.contents[1].value) ? Number(t.contents[1].value) : t.contents[1].value)
         }
 
         const resolveCondition = (t) => {
@@ -1122,7 +1122,7 @@ const APILogic = (() => {
     //		HANDLE INPUT
     // ==================================================
     const handleInput = (msg) => {
-        const testConstructs = (c) => (ifrx.test(c) || defblockrx.test(c) || evalrx.test(c));
+        const testConstructs = (c) => (ifrx.test(c) || defblockrx.test(c) || evalrx.test(c) || simplerx.test(c));
         const trigrx = new RegExp(`^!(${Object.keys(preservedMsgObj).join('|')})`);
         let preserved,
             apitrigger; // the apitrigger used by the message
