@@ -3,8 +3,8 @@
 Name			:	APILogic
 GitHub			:	https://github.com/TimRohr22/Cauldron/tree/master/APILogic
 Roll20 Contact	:	timmaugh
-Version			:	1.2.0b5
-Last Update		:	2/22/2021
+Version			:	1.2.0
+Last Update		:	3/8/2021
 =========================================================
 */
 var API_Meta = API_Meta || {};
@@ -18,8 +18,8 @@ const APILogic = (() => {
     //		VERSION
     // ==================================================
     const apiproject = 'APILogic';
-    API_Meta[apiproject].version = '1.2.0b5';
-    const vd = new Date(1614045045452);
+    API_Meta[apiproject].version = '1.2.0';
+    const vd = new Date(1615216126292);
     const versionInfo = () => {
         log(`\u0166\u0166 ${apiproject} v${API_Meta[apiproject].version}, ${vd.getFullYear()}/${vd.getMonth() + 1}/${vd.getDate()} \u0166\u0166 -- offset ${API_Meta[apiproject].offset}`);
         return;
@@ -95,7 +95,9 @@ const APILogic = (() => {
         endrx = /{&\s*end\s*}/i,
         valuerx = /\$\[\[(?<rollnumber>\d+)]]\.value/gi,
         evalrx = /{&\s*eval\s*}\s*/i,
-        evalendrx = /{&\s*\/\s*eval\s*}/i;
+        evalendrx = /{&\s*\/\s*eval\s*}/i,
+        eval1rx = /{&\s*eval-\s*}/i,
+        eval1endrx = /{&\s*\/\s*eval-\s*}/i;
     // FORMERLY in IFTREEPARSER =============================
     const groupopenrx = /^\s*(?<negation>!?)\s*\(\s*/,
         namerx = /^\[(?<groupname>[^\s]+?)]\s*/i,
@@ -109,7 +111,14 @@ const APILogic = (() => {
         ifendrx = /^\s*}/,
         textrx = /^(?<negation>!?)\s*(`|'|"?)(?<argtext>.+?)\2\s*(?=!=|!~|>=|<=|[=~><]|&&|\|\||\)|})/,
         text_standalonerx = /^(?<negation>!?)\s*(`|'|"?)(?<argtext>.+?)\2\s*/;
-
+    // MULE REGEXES =========================================
+    const varrx = /^([^\s.=]+)\s*=\s*(.+)/,
+        getrx = /get\.([^.]+\.[^\s.]+?\.[^\s\W.]+|[^\s\W]+)\b/gmi,
+        setrx = /set\.((?:[^\s]+?|.+\.[^\s]+?\.[^\s]+)\s*=\s*.+?)\s*\/set/gmi,
+        mulerx = /{&\s*mule\s*(.*?)\s*}/gi,
+        muleabilrx = /\s*\((.*?)\)\s*/g;
+    // MATH REGEXES =========================================
+    const mathrx = /{&\s*math\s*([^}]+)\s*}/g;
 
     // TOKEN MARKERS ========================================
     const iftm = { rx: ifrx, type: 'if' },
@@ -125,10 +134,12 @@ const APILogic = (() => {
         rptgitemtm = { rx: rptgitemrx, type: 'rptgitem' },
         sheetitem_standalonetm = { rx: sheetitem_standalonerx, type: 'sheetitem' },
         rptgitem_standalonetm = { rx: rptgitem_standalonerx, type: 'rptgitem' },
-        text_standalonetm = {rx: text_standalonerx, type: 'text'}
+        text_standalonetm = { rx: text_standalonerx, type: 'text' },
         defblocktm = { rx: defblockrx, type: 'defblock' },
         evaltm = { rx: evalrx, type: 'eval' },
-        evalendtm = { rx: evalendrx, type: 'evalend' };
+        evalendtm = { rx: evalendrx, type: 'evalend' },
+        eval1tm = { rx: eval1rx, type: 'eval' },
+        eval1endtm = { rx: eval1endrx, type: 'evalend' };
 
     // END TOKEN REGISTRY ===================================
     const endtokenregistry = {
@@ -138,9 +149,15 @@ const APILogic = (() => {
         else: [endtm],
         mainconditions: [ifendtm],
         group: [groupendtm],
-        eval: [evalendtm]
+        eval: [evalendtm],
+        eval1: [eval1endtm]
     };
 
+    // TAG RX SETS REGISTRY ===================================
+    const tagrxset = {
+        'eval': { opentag: evalrx, endtag: evalendrx },
+        'eval1': { opentag: eval1rx, endtag: eval1endrx }
+    };
 
     const nestlog = (stmt, ilvl = 0, logcolor = '') => {
         if (isNaN(ilvl)) {
@@ -179,12 +196,52 @@ const APILogic = (() => {
         'tru': (v) => v == true
     };
 
-    const charFromAmbig = (info) => {                                       // find a character where info is an identifying piece of information (id, name, or token id)
+    const charFromAmbig = (query,pid) => { // find a character where info is an identifying piece of information (id, name, or token id)
         let character;
-        character = findObjs({ type: 'character', id: info })[0] ||
-            findObjs({ type: 'character' }).filter(c => c.get('name') === info)[0] ||
-            findObjs({ type: 'character', id: (getObj("graphic", info) || { get: () => { return "" } }).get("represents") })[0];
+        let qrx = new RegExp(escapeRegExp(query), 'i');
+        let charsIControl = findObjs({ type: 'character' })
+            .filter(c => c.get('controlledby').split(',').includes(pid));
+        character = charsIControl.filter(c => c.id === query)[0] ||
+            charsIControl.filter(c => c.id === (getObj('graphic', query) || { get: () => { return '' } }).get('represents'))[0] ||
+            charsIControl.filter(c => c.get('name') === query)[0] ||
+            charsIControl.filter(c => qrx.test(c)).reduce((m, v) => {
+                let d = getEditDistance(query, v);
+                return !m.length || d < m[1] ? [v, d] : m;
+            }, [])[0];
         return character;
+    };
+    const getEditDistance = (a, b) => {
+        if (a.length === 0) return b.length;
+        if (b.length === 0) return a.length;
+
+        var matrix = [];
+
+        // increment along the first column of each row
+        var i;
+        for (i = 0; i <= b.length; i++) {
+            matrix[i] = [i];
+        }
+
+        // increment each column in the first row
+        var j;
+        for (j = 0; j <= a.length; j++) {
+            matrix[0][j] = j;
+        }
+
+        // Fill in the rest of the matrix
+        for (i = 1; i <= b.length; i++) {
+            for (j = 1; j <= a.length; j++) {
+                if (b.charAt(i - 1) === a.charAt(j - 1)) {
+                    matrix[i][j] = matrix[i - 1][j - 1];
+                } else {
+                    matrix[i][j] = Math.min(matrix[i - 1][j - 1] + 1, // substitution
+                        Math.min(matrix[i][j - 1] + 1, // insertion
+                            matrix[i - 1][j] + 1)); // deletion
+                }
+            }
+        }
+
+        return matrix[b.length][a.length];
     };
     const repeatingOrdinal = (character_id, section = '', attr_name = '') => {
         if (!section && !attr_name) return;
@@ -227,7 +284,7 @@ const APILogic = (() => {
         return { tokens: tokens };
     };
 
-    const getSheetItem = (t) => {
+    const getSheetItem = (t, pid) => {
         // expects result of the getFirst() function, a rx result with a type property
         // r.type === 'sheetitem'
         // negation is at r.groups.negation, but handled in calling procedure
@@ -236,7 +293,7 @@ const APILogic = (() => {
             '*': 'attribute',
             '%': 'ability'
         }
-        let c = charFromAmbig(t.groups.character);
+        let c = charFromAmbig(t.groups.character, pid);
         if (!c) return;
         // standard sheet items
         if (['@', '%'].includes(t.groups.type)) {
@@ -297,7 +354,7 @@ const APILogic = (() => {
             return retObj;
         }
     };
-    const getSheetItemVal = (s, calledFrom = 'def') => {
+    const getSheetItemVal = (s, calledFrom, pid) => {
         let res;
         if (calledFrom === 'def') {
             res = getfirst(s, sheetitem_standalonetm, rptgitem_standalonetm, text_standalonetm);
@@ -333,7 +390,7 @@ const APILogic = (() => {
                 retrieve = 'name';
             }
             // go get the value
-            o = getSheetItem(res);
+            o = getSheetItem(res,pid);
             if (!o) {
                 val = undefined;
                 metavalue = false;
@@ -375,10 +432,328 @@ const APILogic = (() => {
         }
     }
     // ==================================================
+    //      MATH OPERATIONS
+    // ==================================================
+    const mathops = (() => {
+        const tokenize = code => {
+            let results = [];
+            let tokenRegExp = /\s*([A-Za-z\s'"`]+|-?[0-9]+(\.[0-9]+)?|\S)\s*/g;
+
+            let m;
+            while ((m = tokenRegExp.exec(code)) !== null)
+                results.push(m[1]);
+            return results;
+        };
+
+        const isNumber = token => {
+            return token !== undefined && token.match(/^-?[0-9]*.?[0-9]+$/) !== null;
+        };
+
+        const isName = token => {
+            return token !== undefined && token.match(/^[A-Za-z\s'"`]+$/) !== null;
+        };
+
+        const parse = o => {
+            let tokens = tokenize(o.code);
+            let position = 0;
+            const peek = () => {
+                return tokens[position];
+            };
+            const peek1 = () => {
+                if (position < tokens.length - 1) {
+                    return tokens[position + 1];
+                }
+            };
+
+            const consume = token => {
+                position++;
+            };
+
+            const parsePrimaryExpr = () => {
+                let t = peek();
+
+                if (isNumber(t)) {
+                    consume(t);
+                    return { type: "number", value: t };
+                } else if (isName(t)) {
+                    if (funcbank.hasOwnProperty(t.toLowerCase()) && peek1() === '(') {
+                        let f = t.toLowerCase();
+                        let p = [];
+                        consume(t);
+                        consume('(');
+                        while (peek() !== ')') {
+                            if (peek() === ',') {
+                                consume(',');
+                            } else {
+                                p.push(parseExpr());
+                            }
+                        }
+                        if (peek() !== ")") throw new SyntaxError("expected )");
+                        consume(')');
+                        return { type: 'func', func: f, params: p };
+                    } else {
+                        consume(t);
+                        return { type: "name", id: t };
+                    }
+                } else if (t === "(") {
+                    consume(t);
+                    let expr = parseExpr();
+                    if (peek() !== ")") throw new SyntaxError("expected )");
+                    consume(")");
+                    return expr;
+                } else {
+                    throw new SyntaxError("expected a number, a variable, or parentheses");
+                }
+            };
+
+            const parseMulExpr = () => {
+                let expr = parsePrimaryExpr();
+                let t = peek();
+                while (t === "*" || t === "/" || t === "%") {
+                    consume(t);
+                    let rhs = parsePrimaryExpr();
+                    expr = { type: t, left: expr, right: rhs };
+                    t = peek();
+                }
+                return expr;
+            };
+            const parseExpr = () => {
+                let expr = parseMulExpr();
+                let t = peek();
+                while (t === "+" || t === "-") {
+                    consume(t);
+                    let rhs = parseMulExpr();
+                    expr = { type: t, left: expr, right: rhs };
+                    t = peek();
+                }
+                return expr;
+            };
+            let result = parseExpr();
+            if (position !== tokens.length) throw new SyntaxError("unexpected '" + peek() + "'");
+            return result;
+        };
+        const funcbank = {
+            abs: Math.abs,
+            min: Math.min,
+            max: Math.max,
+            acos: Math.acos,
+            acosh: Math.acosh,
+            asin: Math.asin,
+            asinh: Math.asinh,
+            atan: Math.atan,
+            atanh: Math.atanh,
+            atantwo: Math.atan2,
+            cbrt: Math.cbrt,
+            ceiling: Math.ceil,
+            cos: Math.cos,
+            cosh: Math.cosh,
+            exp: Math.exp,
+            expmone: Math.expm1,
+            floor: Math.floor,
+            hypot: Math.hypot,
+            log: Math.log,
+            logonep: Math.log1p,
+            logten: Math.log10,
+            logtwo: Math.log2,
+            pow: (v, e = 1) => Math.pow(v, e),
+            rand: Math.random,
+            randb: (v1, v2) => { return Math.random() * (Math.max(v1, v2) - Math.min(v1, v2) + 1) + Math.min(v1, v2) },
+            randib: (v1, v2) => {
+                let min = Math.ceil(Math.min(v1, v2));
+                let max = Math.floor(Math.max(v1, v2));
+                return Math.floor(Math.random() * (max - min) + min);
+            },
+            randa: (...v) => v[Math.floor(Math.random() * v.length)],
+            round: (v, d = 0) => Math.round(v * 10 ** d) / 10 ** d,
+            sin: Math.sin,
+            sinh: Math.sinh,
+            sqrt: Math.sqrt,
+            tan: Math.tan,
+            tanh: Math.tanh,
+            trunc: Math.trunc
+        };
+        const knownbank = {
+            e: Math.E,
+            pi: Math.PI,
+            lntwo: Math.LN2,
+            lnten: Math.LN10,
+            logtwoe: Math.LOG2E,
+            logtene: Math.LOG10E
+        }
+        const isNum = (v) => +v === +v;
+        const typeprocessor = {
+            '-': (a, b) => { return isNum(a) && isNum(b) ? Number(a) - Number(b) : `${a}-${b}`; },
+            '+': (a, b) => { return isNum(a) && isNum(b) ? Number(a) + Number(b) : `${a}+${b}`; },
+            '/': (a, b) => { return isNum(a) && isNum(b) ? Number(a) / Number(b) : `${a}/${b}`; },
+            '*': (a, b) => { return isNum(a) && isNum(b) ? Number(a) * Number(b) : `${a}*${b}`; },
+            '%': (a, b) => { return isNum(a) && isNum(b) ? Number(a) % Number(b) : `${a}%${b}`; }
+        };
+        const isString = (s) => 'string' === typeof s || s instanceof String;
+        const evalops = o => {
+            if (!o.code || !isString(o.code)) return;
+            o.known = o.known || {};
+            Object.assign(o.known, knownbank);
+            try {
+                const getVal = t => {
+                    switch (t.type) {
+                        case 'number':
+                            return t.value;
+                        case 'name':
+                            return o.known[t.id] || t.id;
+                        case 'func':
+                            return funcbank[t.func](...t.params.map(p => getVal(p)));
+                        default:
+                            return typeprocessor[t.type](getVal(t.left), getVal(t.right));
+                    }
+                };
+                return getVal(parse(o));
+            } catch (error) {
+                return error;
+            }
+        };
+        return evalops;
+    })();
+    const runMathOps = (preserved) => {
+        preserved.content = preserved.content.replace(mathrx, (m, g1) => {
+            g1 = g1.replace(/\$\[\[(\d+)]]/g, ((m1, g1_1) => preserved.parsedinline[g1_1].value));
+            let result = mathops({ code: g1, known: preserved.variables });
+            if (result.message) { // error
+                sendChat('', `/w "${preserved.who}" MATH OPS ERROR: ${result.message}`);
+                return '';
+            } else {
+                return result
+            }
+        });
+    };
+    // ==================================================
+    //      MULE PROCESSING
+    // ==================================================
+    const mulegetter = (preserved) => {
+
+        let variables = preserved.variables;
+        mulerx.lastIndex = 0;
+        if (mulerx.test(preserved.content)) {
+            mulerx.lastIndex = 0;
+            let characters = findObjs({ type: 'character' })
+                .filter(c => c.get('controlledby').split(',').includes(preserved.playerid));
+
+            let mulearray = [];
+            preserved.content = preserved.content.replace(mulerx, (m, g1) => {
+                g1 = g1.replace(muleabilrx, (m1, m1g1) => {
+                    mulearray.push(m1g1);
+                    return '';
+                });
+                g1.split(/\s+/).forEach(a => mulearray.push(a));
+                return '';
+            });
+            let charids = characters.map(c => c.id);
+            let vararray = [];
+            let mules = []; // new mules in this pass
+            mulearray.forEach(m => {
+                let mchar;
+                if (/\./.test(m)) {
+                    mchar = charFromAmbig(m.slice(0, m.indexOf('.')), preserved.playerid);
+                    mchar = charids.includes(mchar.id) ? mchar : undefined;
+                }
+                if (mchar) {
+                    mules.push(findObjs({ type: 'ability', name: m.slice(m.indexOf('.') + 1), characterid: mchar.id })[0]);
+                } else {
+                    mules.push(findObjs({ type: 'ability', name: m }).filter(a => charids.includes(a.get('characterid')))[0]);
+                }
+            });
+
+            mules = mules.filter(a => a);
+            mules.forEach(a => {
+                preserved.mules.push(a);
+                let achar = characters.filter(c => c.id === a.get('characterid'))[0];
+                a.localaction = a.get('action');
+                a.localaction
+                    .split('\n')
+                    .filter(v => varrx.test(v))
+                    .forEach(v => {
+                        let k = varrx.exec(v);
+                        vararray.push([k[1], k[2]]);
+                        vararray.push([`${a.get('name')}.${k[1]}`, k[2]]);
+                        vararray.push([`${achar.get('name')}.${a.get('name')}.${k[1]}`, k[2]]);
+                    });
+                Object.assign(variables, Object.fromEntries(vararray));
+            });
+            console.log(JSON.stringify(variables, undefined, 2));
+        }
+        preserved.content = preserved.content.replace(getrx, (m, gvar) => {
+            let gchar, gmule;
+            let dotcount = gvar.split('').filter(l => l === '.').length;
+            if (dotcount > 1) {
+                [gchar, gmule, ...gvar] = gvar.split('.');
+                if (dotcount > 2) gvar = gvar.join('.');
+                gchar = (charFromAmbig(gchar, preserved.playerid) || {
+                    get: () => { return gchar }
+                }).get('name');
+                gvar = `${gchar}.${gmule}.${gvar}`;
+            }
+            return variables[gvar] || `${gvar}`; // remove the `get.` so we don't trigger infinite loops of processing
+        });
+    };
+    const mulesetter = (preserved) => {
+        let characters = findObjs({ type: 'character' })
+            .filter(c => c.get('controlledby').split(',').includes(preserved.playerid));
+        let charids = characters.map(c => c.id);
+
+        preserved.content = preserved.content.replace(setrx, (m, g1) => {
+            let setres = /\s*=\s*/.exec(g1);
+            let [svar, sval] = [g1.slice(0, setres.index), g1.slice(setres.index + setres[0].length)];
+            let schar, smule;
+            let dotcount = svar.split('').filter(l => l === '.').length;
+            switch (dotcount) {
+                case 0:
+                    break;
+                case 1:
+                    [smule, svar] = svar.split('.');
+                    break;
+                default:
+                    [schar, smule, ...svar] = svar.split('.');
+                    svar = svar.join('.');
+                    break;
+            }
+
+            //schar = charFromAmbig(schar || charids[0], preserved.playerid);
+
+            // write new value back to mule ability
+            let svarrx = new RegExp(`^${escapeRegExp(svar)}\\s*=.+$`, 'm');
+            if (smule) { // mule declared, create if doesn't exist
+                if (!schar) {
+                    schar = charFromAmbig(charids[0], preserved.playerid);
+                    smule = preserved.mules.filter(m => m.get('name') === smule) || [createObj('ability', { characterid: schar.id, name: smule })];
+                } else {
+                    schar = charFromAmbig(schar, preserved.playerid);
+                    smule = preserved.mules.filter(m => m.get('name') === smule && m.get('characterid') === schar.id) || [createObj('ability', { characterid: schar.id, name: smule })];
+                }
+            } else { // no mule declared, so we have to find if the variable exists
+                smule = preserved.mules.filter(m => svarrx.test(m.localaction));
+                smule = smule.length ? smule : preserved.mules;
+            }
+            let vararray = [];
+            smule.forEach(m => {
+                if (svarrx.test(m.localaction)) {    // existing variable in known mule
+                    m.localaction = m.localaction.replace(svarrx, `${svar}=${sval}`);
+                } else { // no text in the action, or it's missing this variable
+                    m.localaction = `${m.localaction}\n${svar}=${sval}`;
+                }
+                m.set({ action: m.localaction });
+                vararray.push([svar, sval]);
+                vararray.push([`${m.get('name')}.${svar}`, sval]);
+                vararray.push([`${charFromAmbig(m.get('characterid'), preserved.playerid).get('name')}.${m.get('name')}.${svar}`, sval]);
+            });
+            Object.assign(preserved.variables, Object.fromEntries(vararray));
+
+            return '';
+        });
+    };
+
+    // ==================================================
     //		PARSER PROCESSING
     // ==================================================
     const ifTreeParser = (preserved) => {
-        let cmd = preserved.content;
 
         class TextToken {
             constructor() {
@@ -459,6 +834,9 @@ const APILogic = (() => {
                     break;
                 case 'eval':
                     markers = [evaltm, evalendtm, eostm];
+                    break;
+                case 'eval1':
+                    markers = [eval1tm, eval1endtm, eostm];
                     break;
                 default:
                     markers = [iftm, elseiftm, elsetm, endtm, eostm];
@@ -647,6 +1025,7 @@ const APILogic = (() => {
             }
         };
 
+
         const getTermToken = (c) => {
             // receives object in the form of:
             // {cmd: command line slice, indent: #}
@@ -663,7 +1042,7 @@ const APILogic = (() => {
                 let tokens = [];
                 let loopstop = false;
                 while (!loopstop) {
-                    definition = getSheetItemVal(res.groups.definition);
+                    definition = getSheetItemVal(res.groups.definition,'def', preserved.playerid);
                     tokens.push({ term: res.groups.term, definition: definition });
                     nestlog(`==TERM DEFINED: ${res.groups.term} = ${res.groups.definition}`);
                     index += res[0].length;
@@ -728,54 +1107,53 @@ const APILogic = (() => {
         };
         const getEvalToken = (c) => {
             // receives object in the form of:
-            // {cmd: command line slice, indent: #, overallindex: #}
+            // {cmd: command line slice, indent: #, overallindex: #, looptype: text}
             let logcolor = 'yellow';
             let index = 0;
-            let evalopenres = evalrx.exec(c.cmd);
+            let evalopenres = tagrxset[c.looptype].opentag.exec(c.cmd);
             if (evalopenres) {
-                nestlog(`EVAL INPUT: ${c.cmd}`, c.indent, logcolor);
+                nestlog(`${c.looptype.toUpperCase()} TOKEN INPUT: ${c.cmd}`, c.indent, logcolor);
                 let token = new EvalToken();
                 let index = evalopenres[0].length;
 
                 // content and nested evals
                 nestlog(`BUILDING CONTENT: ${c.cmd.slice(index)}`, c.indent + 1, 'lightseagreen');
-                let contentres = evalval({ cmd: c.cmd.slice(index), indent: c.indent + 1, type: 'eval', overallindex: c.overallindex + index });
+                let contentres = evalval({ cmd: c.cmd.slice(index), indent: c.indent + 1, type: c.looptype, overallindex: c.overallindex + index, looptype: c.looptype });
                 if (contentres.error) return contentres;
                 token.contents = contentres.tokens;
                 index += contentres.index;
                 nestlog(`ENDING CONTENT: ${c.cmd.slice(index)}`, c.indent + 1, 'lightseagreen');
 
                 // closing bracket of eval tag
-                let evalendres = evalendrx.exec(c.cmd.slice(index));
+                let evalendres = tagrxset[c.looptype].endtag.exec(c.cmd.slice(index));
                 if (!evalendres) {
-                    return { error: `Unexpected token at ${c.overallindex + index}. Expected end of eval structure ('}'), but saw: ${c.cmd.slice(index, index + 10)}` };
+                    return { error: `Unexpected token at ${c.overallindex + index}. Expected end of ${c.looptype.toUpperCase()} structure ('{& eval}'), but saw: ${c.cmd.slice(index, index + 10)}` };
                 }
                 index += evalendres[0].length;
-                nestlog(`EVAL OUTPUT: ${JSON.stringify(token)}`, c.indent, logcolor);
+                nestlog(`${c.looptype.toUpperCase()} TOKEN OUTPUT: ${JSON.stringify(token)}`, c.indent, logcolor);
                 //log(`<pre>${syntaxHighlight(token)}</pre>`);
                 return { token: token, index: index };
             } else {
-                return { error: `Unexpected token at ${c.overallindex + index}. Expected an EVAL structure, but saw: ${c.cmd.slice(index, index + 10)}` };
+                return { error: `Unexpected token at ${c.overallindex + index}. Expected an ${c.looptype.toUpperCase()} structure, but saw: ${c.cmd.slice(index, index + 10)}` };
             }
 
         };
-
         const evalval = c => {
             // expects an object in the form of:
-            // { cmd: text, indent: #, overallindex: #, type: text, overallindex: # }
+            // { cmd: text, indent: #, overallindex: #, type: text, overallindex: #, looptype: text }
             let tokens = [];				// main output array
             let logcolor = 'aqua';
             let loopstop = false;
             let tokenres = {};
             let index = 0;
             let loopindex = 0;
-            nestlog(`EVAL BEGINS`, c.indent, logcolor);
+            nestlog(`${c.looptype.toUpperCase()} BEGINS`, c.indent, logcolor);
             while (!loopstop) {
                 loopindex = index;
-                if (assertstart(evalrx).test(c.cmd.slice(index))) {
-                    tokenres = getEvalToken({ cmd: c.cmd.slice(index), indent: c.indent + 1, overallindex: c.overallindex + index });
+                if (assertstart(tagrxset[c.looptype].opentag).test(c.cmd.slice(index))) {
+                    tokenres = getEvalToken({ cmd: c.cmd.slice(index), indent: c.indent + 1, overallindex: c.overallindex + index, looptype: c.looptype });
                 } else {
-                    tokenres = getTextToken({ cmd: c.cmd.slice(index), indent: c.indent + 1, overallindex: c.overallindex + index, looptype: 'eval' });
+                    tokenres = getTextToken({ cmd: c.cmd.slice(index), indent: c.indent + 1, overallindex: c.overallindex + index, looptype: c.looptype });
                 }
                 if (tokenres) {
                     if (tokenres.error) { return tokenres; }
@@ -787,7 +1165,7 @@ const APILogic = (() => {
                 }
                 loopstop = (getfirst(c.cmd.slice(index), ...endtokenregistry[c.type]).index === 0);
             }
-            nestlog(`EVAL ENDS`, c.indent, logcolor);
+            nestlog(`${c.looptype.toUpperCase()} ENDS`, c.indent, logcolor);
             return { tokens: tokens, index: index };
         };
         const runPlugin = c => {
@@ -808,6 +1186,7 @@ const APILogic = (() => {
                     return ['string', 'number', 'boolean', 'bigint'].includes(typeof ret) ? ret : '';
                 }));
             } else {
+                sendChat('', `!${c.replace(/^!/,'')}`);
                 return '';
             }
         };
@@ -877,12 +1256,12 @@ const APILogic = (() => {
             return retObj;
         };
 
-        const main = (cmd) => {
+        const main = (preserved) => {
             let retObj = {};
             let logrx = /{\s*&\s*log\s*(?<setting>(?:on|off)?)\s*}/ig;
             let statelog = state[apiproject].logging;
             let loclog = 'none';
-            cmd = cmd.replace(logrx, ((r, g1) => {
+            preserved.content = preserved.content.replace(logrx, ((r, g1) => {
                 loclog = g1;
                 return '';
             }));
@@ -890,23 +1269,26 @@ const APILogic = (() => {
             if (loclog === 'off') state[apiproject].logging = false;
 
             // EVAL BLOCK DETECTION
-            let evalcmd = evalval({ cmd: cmd, indent: 0, type: 'main', overallindex: 0 });
+            let evalcmd = evalval({ cmd: preserved.content, indent: 0, type: 'main', overallindex: 0, looptype: 'eval' });
             if (evalcmd.error) return { tokens: [], error: evalcmd.error };
             evalcmd.cmd = processEvals({ tokens: evalcmd.tokens, indent: 0 }).join('');
             // DEFINITION BLOCK DETECTION
             let defcmd = defval({ cmd: evalcmd.cmd, indent: 0, type: 'main', overallindex: 0 });
             if (!defcmd.cmd) return { tokens: [], error: defcmd.error };
+            // EVAL- BLOCK DETECTION
+            evalcmd = evalval({ cmd: defcmd.cmd, indent: 0, type: 'main', overallindex: 0, looptype: 'eval1' });
+            if (evalcmd.error) return { tokens: [], error: evalcmd.error };
+            evalcmd.cmd = processEvals({ tokens: evalcmd.tokens, indent: 0 }).join('');
             // WELL-FORMED CHECK
-            let wf = checkWellFormed(defcmd.cmd);
-            if (wf.wellformed) {
-                retObj = val({ cmd: defcmd.cmd, indent: 0, type: 'main', overallindex: 0 });
-            } else {
-                retObj = { tokens: [], error: wf.error };
-            }
+            let wf = checkWellFormed(evalcmd.cmd);
+            if (!wf.wellformed) return { tokens: [], error: wf.error };
+            // LOGIC PARSING
+            retObj = val({ cmd: evalcmd.cmd, indent: 0, type: 'main', overallindex: 0 });
+
             if (loclog === '') state[apiproject].logging = statelog;
             return retObj;
         }
-        return main(cmd);
+        return main(preserved);
     };
 
     const reconstructCommandLine = (o) => {
@@ -947,7 +1329,7 @@ const APILogic = (() => {
                         break;
                     case 'sheetitem':
                     case 'rptgitem':	// intended fall-through
-                        [item.value, item.metavalue] = getSheetItemVal(item, 'condition');
+                        [item.value, item.metavalue] = getSheetItemVal(item, 'condition', o.playerid);
                         break;
                 }
                 if (item.groups.negation === '!') {
@@ -1097,13 +1479,7 @@ const APILogic = (() => {
     // ==================================================
     //		SCRIPT PLUGINS
     // ==================================================
-    const availFuncs = {
-        getme: (m) => { return m.who; },
-        getsheetitem: (m) => {
-            let item = m.content.slice(m.content.indexOf(' ') + 1);
-            return (sheetitem_standalonerx.test(item) || rptgitem_standalonerx.test(item)) ? getSheetItemVal(item) : '';
-        }
-    };
+    const availFuncs = {};
     const registerRule = (...r) => { // pass in a list of functions to get them registered to the availFuncs library
         r.forEach(f => {
             if (f.name) {
@@ -1117,10 +1493,30 @@ const APILogic = (() => {
     };
 
     // ==================================================
+    //      TEST CONSTRUCTS
+    // ==================================================
+    const testConstructs = (c) => {
+        let result = ifrx.test(c) || defblockrx.test(c) || evalrx.test(c) || eval1rx.test(c) || mulerx.test(c) || mathrx.test(c);
+        ifrx.lastIndex = 0;
+        defblockrx.lastIndex = 0;
+        evalrx.lastIndex = 0;
+        eval1rx.lastIndex = 0;
+        mulerx.lastIndex = 0;
+        mathrx.lastIndex = 0;
+
+        return result;
+    };
+    const testSecondaryPass = (p, m) => {
+        let result = (Object.keys(p.variables).length && (setrx.test(m.content) || getrx.test(m.content)));
+        setrx.lastIndex = 0;
+        getrx.lastIndex = 0;
+        return result;
+    };
+
+    // ==================================================
     //		HANDLE INPUT
     // ==================================================
     const handleInput = (msg) => {
-        const testConstructs = (c) => (ifrx.test(c) || defblockrx.test(c) || evalrx.test(c));
         const trigrx = new RegExp(`^!(${Object.keys(preservedMsgObj).join('|')})`);
         let preserved,
             apitrigger; // the apitrigger used by the message
@@ -1137,7 +1533,7 @@ const APILogic = (() => {
                 });
                 preserved.parsedinline = [...(preserved.parsedinline || []), ...libInline.getRollData(msg)];
             } else {    // no inlineroll array
-                if (!testConstructs(msg.content)) { // we're on our way out of the script, format everything and release message
+                if (!testConstructs(msg.content) && !testSecondaryPass(preserved, msg)) { // we're on our way out of the script, format everything and release message
                     // replace all APIL formatted inline roll shorthand markers with roll20 formatted shorthand markers
                     msg.content = msg.content.replace(/{&(\d+)}/g, `$[[$1]]`);
                     // copy over new message command line to preserved message after removing the apitrigger
@@ -1177,15 +1573,22 @@ const APILogic = (() => {
             apitrigger = `${apiproject}${generateUUID()}`;
             preservedMsgObj[apitrigger] = _.clone(msg);
             preserved = preservedMsgObj[apitrigger];
+            preserved.content = preserved.content.replace(/<br\/>\n/g, ' ').replace(/^!(\{\{(.*)\}\})/, '!$2');
             preserved.logicgroups = {};
+            preserved.variables = {};
+            preserved.mules = [];
             preserved.content = `!${apitrigger}${preserved.content.slice(1)}`;
             preserved.parsedinline = msg.inlinerolls ? libInline.getRollData(msg) : [];
             msg.content = ``;
         }
 
-        if (testConstructs(preserved.content)) {
+        if (testConstructs(preserved.content) || testSecondaryPass(preserved, preserved)) {
             // replace inline rolls tagged with .value
             getValues(preserved);
+            // mule detection and get resolution
+            mulegetter(preserved);
+            // math detection
+            runMathOps(preserved);
 
             let o = ifTreeParser(preserved);
             if (o.error) {
@@ -1195,11 +1598,14 @@ const APILogic = (() => {
             }
             if (o.tokens) {
                 // reconstruct command line
+                o.playerid = preserved.playerid;
                 o.logicgroups = preserved.logicgroups;
                 o.parsedinline = preserved.parsedinline || [];
                 let reconstruct = reconstructCommandLine(o);
                 preserved.content = reconstruct.content;
                 preserved.logicgroups = reconstruct.logicgroups;
+                // variable setting
+                mulesetter(preserved);
             } else {
                 log('Unexpected error encountered. Unable to reconstruct command line.');
                 return;
@@ -1230,5 +1636,157 @@ const APILogic = (() => {
     return {
         RegisterRule: registerRule
     }
+})();
+const APILPlugins01 = (() => {
+    // ==================================================
+    //		VERSION
+    // ==================================================
+    const apiproject = 'APILPlugins01';
+    API_Meta[apiproject].version = '0.0.1';
+    const vd = new Date(1615216020193);
+    const versionInfo = () => {
+        log(`\u0166\u0166 ${apiproject} v${API_Meta[apiproject].version}, ${vd.getFullYear()}/${vd.getMonth() + 1}/${vd.getDate()} \u0166\u0166 -- offset ${API_Meta[apiproject].offset}`);
+        return;
+    };
+    const logsig = () => {
+        // initialize shared namespace for all signed projects, if needed
+        state.torii = state.torii || {};
+        // initialize siglogged check, if needed
+        state.torii.siglogged = state.torii.siglogged || false;
+        state.torii.sigtime = state.torii.sigtime || Date.now() - 3001;
+        if (!state.torii.siglogged || Date.now() - state.torii.sigtime > 3000) {
+            const logsig = '\n' +
+                '   ‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗    ' + '\n' +
+                '    ∖_______________________________________∕     ' + '\n' +
+                '      ∖___________________________________∕       ' + '\n' +
+                '           ___┃ ┃_______________┃ ┃___            ' + '\n' +
+                '          ┃___   _______________   ___┃           ' + '\n' +
+                '              ┃ ┃               ┃ ┃               ' + '\n' +
+                '              ┃ ┃               ┃ ┃               ' + '\n' +
+                '              ┃ ┃               ┃ ┃               ' + '\n' +
+                '              ┃ ┃               ┃ ┃               ' + '\n' +
+                '              ┃ ┃               ┃ ┃               ' + '\n' +
+                '______________┃ ┃_______________┃ ┃_______________' + '\n' +
+                '             ⎞⎞⎛⎛            ⎞⎞⎛⎛      ' + '\n';
+            log(`${logsig}`);
+            state.torii.siglogged = true;
+            state.torii.sigtime = Date.now();
+        }
+        return;
+    };
+
+    const getDiceByVal = (m) => {
+        // expected syntax: !getDiceByVal $[[0]] <=2|6-7|>10 count/total/list|delim
+        let [rollmarker, valparams, op = 'count'] = m.content.split(/\s+/g).slice(1);
+        if (!rollmarker || !valparams) { log(`getDiceByVal: wrong number of arguments, expected 3`); return; }
+        const typeProcessor = {
+            '!=': (r, t) => r != t,
+            '>': (r, t) => r > t,
+            '>=': (r, t) => r >= t,
+            '<': (r, t) => r < t,
+            '<=': (r, t) => r <= t,
+            '-': (r, l, h) => r >= l && r <= h,
+            '=': (r, t) => r == t
+        };
+        let delim;
+        [op, ...delim] = op.split(/\|/);
+        delim = delim.join('|');
+        delim = /^('|"|`){0,1}(.*)?\1$/.exec(delim)[2] || '';
+
+        let roll = (/\$\[\[(\d+)]]/.exec(rollmarker) || ['', ''])[1];
+        if (roll === '') return '0';
+        let searchdicerx = /^((?<low>\d+)-(?<high>\d+))|((?<range>!=|>=|<=|>|<*)(?<singleval>\d+))$/;
+        let res;
+        let tests = valparams.split('|').map(p => {
+            res = searchdicerx.exec(p);
+            return res.groups.low ?
+                {
+                    test: '-',
+                    params: [res.groups.low, res.groups.high]
+                } :
+                {
+                    test: res.groups.range || '=',
+                    params: [res.groups.singleval]
+                };
+        });
+        let dice = (m.parsedinline[roll] || { getDice: () => [] }).getDice('included')
+            .filter(d => {
+                return tests.reduce((m, t) => {
+                    return m || typeProcessor[t.test](d, ...t.params)
+                }, false);
+            });
+        switch (op) {
+            case 'list':
+                return dice.join(delim || '');
+            case 'total':
+                return dice.reduce((a, b) => (isNaN(a) ? 0 : a) + (isNaN(b) ? 0 : b));
+            case 'count':
+            default:
+                return dice.length;
+        }
+    };
+
+    const getDiceByPos = (m) => {
+        // expected syntax: !getDiceByPos $[[0]] <=2|6-7|>10 total/count/list|delim
+        let [rollmarker, valparams, op = 'count'] = m.content.split(/\s+/g).slice(1);
+        if (!rollmarker || !valparams) { log(`getDiceByPos: wrong number of arguments, expected 3`); return; }
+        const typeProcessor = {
+            '!=': (r, t) => r != t,
+            '>': (r, t) => r > t,
+            '>=': (r, t) => r >= t,
+            '<': (r, t) => r < t,
+            '<=': (r, t) => r <= t,
+            '-': (r, l, h) => r >= l && r <= h,
+            '=': (r, t) => r == t
+        };
+        let delim;
+        [op, ...delim] = op.split(/\|/);
+        delim = delim.join('|');
+        delim = /^('|"|`){0,1}(.*)?\1$/.exec(delim)[2] || '';
+
+        let roll = (/\$\[\[(\d+)]]/.exec(rollmarker) || ['', ''])[1];
+        if (roll === '') return '0';
+        let searchdicerx = /^((?<low>\d+)-(?<high>\d+))|((?<range>!=|>=|<=|>|<*)(?<singleval>\d+))$/;
+        let res;
+        let tests = valparams.split('|').map(p => {
+            res = searchdicerx.exec(p);
+            return res.groups.low ?
+                {
+                    test: '-',
+                    params: [res.groups.low, res.groups.high]
+                } :
+                {
+                    test: res.groups.range || '=',
+                    params: [res.groups.singleval]
+                };
+        });
+        let dice = (m.parsedinline[roll] || { getDice: () => [] }).getDice('included')
+            .filter((d, i) => {
+                return tests.reduce((m, t) => {
+                    return m || typeProcessor[t.test](i, ...t.params)
+                }, false);
+            });
+        switch (op) {
+            case 'list':
+                return dice.join(delim || '');
+            case 'count':
+                return dice.length;
+            case 'total':
+            default:
+                return dice.reduce((a, b) => (isNaN(a) ? 0 : a) + (isNaN(b) ? 0 : b));
+        }
+    };
+
+    on('ready', () => {
+        versionInfo();
+        logsig();
+        try {
+            APILogic.RegisterRule(getDiceByVal, getDiceByPos);
+        } catch (error) {
+            log(`ERROR Registering to APILOGIC: ${error.message}`);
+        }
+    })
+
+    return;
 })();
 { try { throw new Error(''); } catch (e) { API_Meta.APILogic.lineCount = (parseInt(e.stack.split(/\n/)[1].replace(/^.*:(\d+):.*$/, '$1'), 10) - API_Meta.APILogic.offset); } }
