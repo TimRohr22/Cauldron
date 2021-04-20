@@ -140,7 +140,7 @@ const SelectManager = (() => {
 
     const getTheSpeaker = msg => {
         let speaking;
-        if (msg.who === 'API') {
+        if (['API', ''].includes(msg.who)) {
             speaking = { id: undefined, type: 'API', localName: 'API', speakerType: 'API', chatSpeaker: 'API', get: (p) => { return 'API'; } };
         } else {
             let characters = findObjs({ type: 'character' });
@@ -230,13 +230,13 @@ const SelectManager = (() => {
     const msg1row = '<tr style="background-color:__bg__;"><td style="padding:4px;"><div style="__row-css__">__cell1__</div></td></tr>';
     const msg2row = '<tr style="background-color:__bg__;font-weight:bold;"><td style="padding:1px 4px;">__cell1__</td><td style="border-left:1px solid #000000;text-align:center;padding:1px 4px;font-weight:normal;">__cell2__</td></tr>';
     const msg3row = '<tr style="background-color:__bg__;font-weight:bold;"><td style="padding:1px 4px;">__cell1__</td><td style="border-left:1px solid #000000;text-align:center;padding:1px 4px;font-weight:normal;">__cell2__</td><td style="border-left:1px solid #000000;text-align:center;padding:1px 4px;font-weight:normal;">__cell3__</td></tr>';
-    const msgbox = ({ c: c = "chat message", t: t = "title", btn: b = "buttons", send: send = false, sendas: sas = "API", wto: wto = "", type: type = "normal" }) => {
+    const msgbox = ({ c: c = "chat message", t: t = "title", btn: b = "buttons", send: send = true, sendas: sas = "API", wto: wto = "", type: type = "normal" }) => {
         let tbl = msgtable.replace("__bg__", rowbg[0]);
         let hdr = msg1header.replace("__bg__", headerbg[type]).replace("__cell1__", t);
         let row = msg1row.replace("__bg__", rowbg[0]).replace("__cell1__", c);
         let btn = b !== "buttons" ? msg1row.replace("__bg__", rowbg[0]).replace("__cell1__", b).replace("__row-css__", "text-align:right;margin:4px 4px 8px;") : "";
         let msg = tbl.replace("__TABLE-ROWS__", hdr + row + btn);
-        if (wto) msg = `/w "${wto}" ${msg}`;
+        if (!['API', ''].includes(wto)) msg = `/w "${wto.replace(' (GM)', '')}" ${msg}`;
         if (["t", "true", "y", "yes", true].includes(send)) {
             sendChat(sas, msg);
         } else {
@@ -282,6 +282,7 @@ const SelectManager = (() => {
         let cfgrx = /^(\+|-)(selected|who|playerid)$/i;
         let res;
         let cfgTrack = {};
+        if (msg.type !== 'api' || !/^!smconfig/.test(msg.content)) return;
         if (/^!smconfig\s+[^\s]/.test(msg.content)) {
             msg.content.split(/\s+/).slice(1).forEach(a => {
                 res = cfgrx.exec(a);
@@ -329,33 +330,76 @@ const SelectManager = (() => {
         return funcret;
     };
 
-    const injectrx = /{&\s*(?:inject|select)\s+([^}]+)}/gi;
+    const injectrx = /{&\s*inject\s+([^}]+)}/gi;
+    const selectrx = /{&\s*select\s+([^}]+)}/gi;
     const inject = (msg, status, notes) => {
-        if (injectrx.test(msg.content)) {
-            injectrx.lastIndex = 0;
-            let list;
-            msg.selected = msg.selected || [];
-            let selected = msg.selected.map(s => s._id);
-            msg.content = msg.content.replace(injectrx, (m, group) => {
-                list = group.split(',')
+        let list = [];
+        let selected = [];
+        let retResult = false;
+        msg.selected = msg.selected || [];
+        // handle selections
+        if (selectrx.test(msg.content)) {
+            retResult = true;
+            msg.selected = [];
+            selectrx.lastIndex = 0;
+            msg.content = msg.content.replace(selectrx, (m, group) => {
+                selected = msg.selected.map(s => s._id);
+
+                list = group.split(/,\s*/)
                     .map(l => getToken(l, msg.playerid))
                     .filter(t => typeof t !== 'undefined' && !selected.includes(t.id))
-                    .map(t => { return { '_id': t.id, '_type': 'graphic' }; } );
-                    
+                    .map(t => { return { '_id': t.id, '_type': 'graphic' }; });
+
+
+                selected = list.map(s => s._id);
+                list = list.filter(t => !selected.includes(t.id));
+                msg.selected = [...msg.selected, ...list];
                 status.push('changed');
                 return '';
             });
-            msg.selected = [...msg.selected, ...list];
-            if (!msg.selected.length) delete msg.selected;
         }
-    }
+        // handle injections
+        if (injectrx.test(msg.content)) {
+            retResult = true;
+            injectrx.lastIndex = 0;
+            list = [];
+            msg.content = msg.content.replace(injectrx, (m, group) => {
+                selected = msg.selected.map(s => s._id);
+                list = group.split(/,\s*/)
+                    .map(l => getToken(l, msg.playerid))
+                    .filter(t => typeof t !== 'undefined' && !selected.includes(t.id))
+                    .map(t => { return { '_id': t.id, '_type': 'graphic' }; });
 
-    const fsrx = /^!forselected(--|\+\+|\+-|-\+|\+|-|)\s+.+/i;
+                selected = list.map(s => s._id);
+                list = list.filter(t => !selected.includes(t.id));
+                msg.selected = [...msg.selected, ...list];
+                status.push('changed');
+                return '';
+            });
+        }
+        if (!msg.selected.length) delete msg.selected;
+        return retResult;
+    };
+
+    const fsrx = /(^!forselected(--|\+\+|\+-|-\+|\+|-|)(?:\((.)\)){0,1}\s+!?).+/i;
     const forselected = (msg, apitrigger) => {
         apitrigger = `${apiproject}${generateUUID()}`;
-        preservedMsgObj[apitrigger] = { selected: [...msg.selected], who: msg.who, playerid: msg.playerid };
+        // preservedMsgObj[apitrigger] = { selected: [...msg.selected], who: msg.who, playerid: msg.playerid };
+        preservedMsgObj[apitrigger] = {
+            selected: [...(preservedMsgObj[maintrigger].selected || [])],
+            who: preservedMsgObj[maintrigger].who,
+            playerid: preservedMsgObj[maintrigger].playerid
+        };
+        if (msg.selected && msg.selected.length) {
+            let selected = msg.selected.map(t => t._id);
+            preservedMsgObj[apitrigger].selected = [...preservedMsgObj[maintrigger].selected.filter(t => !selected.includes(t.id)), ...msg.selected]
+        }
+        if (!preservedMsgObj[apitrigger].selected) {
+            msgbox({ c: `No selected tokens to use for that command. Please select some tokens then try again.`, t: `NO TOKENS`, wto: preservedMsgObj[apitrigger].who });
+            return;
+        }
         let fsres = fsrx.exec(msg.content);
-        switch (fsres[1] || '++') {
+        switch (fsres[2] || '++') {
             case '+-':
                 preservedMsgObj[apitrigger].replaceid = true;
                 preservedMsgObj[apitrigger].replacename = false;
@@ -364,7 +408,7 @@ const SelectManager = (() => {
             case '-+':
                 preservedMsgObj[apitrigger].replaceid = false;
                 preservedMsgObj[apitrigger].replacename = true;
-                preservedMsgObj[apitrigger].nametoreplace = findObjs({ type: 'graphic', subtype: 'token', id: msg.selected[0]._id })[0].get('name');
+                preservedMsgObj[apitrigger].nametoreplace = findObjs({ type: 'graphic', subtype: 'token', id: preservedMsgObj[apitrigger].selected[0]._id })[0].get('name');
                 break;
             case '--':
                 preservedMsgObj[apitrigger].replaceid = false;
@@ -375,56 +419,38 @@ const SelectManager = (() => {
             default:
                 preservedMsgObj[apitrigger].replaceid = true;
                 preservedMsgObj[apitrigger].replacename = true;
-                preservedMsgObj[apitrigger].nametoreplace = findObjs({ type: 'graphic', subtype: 'token', id: msg.selected[0]._id })[0].get('name');
+                preservedMsgObj[apitrigger].nametoreplace = findObjs({ type: 'graphic', subtype: 'token', id: preservedMsgObj[apitrigger].selected[0]._id })[0].get('name');
                 break;
         }
-        let chatspeaker = getTheSpeaker(msg).chatSpeaker;
+        let chatspeaker = getTheSpeaker(preservedMsgObj[apitrigger]).chatSpeaker;
         msg.content = msg.content.replace(/<br\/>\n/g, ' ');
-        msg.selected.forEach((t, i) => {
-            sendChat(chatspeaker, `!${apitrigger}${i} ${msg.content.replace(/^!forselected(--|\+\+|\+-|-\+|\+|-|)\s+!?/, '')}`);
+        let dsmsg = msg.content.slice(fsres[1].length);
+        if (fsres[3]) {
+            dsmsg = dsmsg.replace(fsres[3], '');
+        }
+        preservedMsgObj[apitrigger].selected.forEach((t, i) => {
+            sendChat(chatspeaker, `!${apitrigger}${i} ${dsmsg}`);
         });
-        setTimeout(() => { delete preservedMsgObj[apitrigger] }, 1000);
+        setTimeout(() => { delete preservedMsgObj[apitrigger] }, 10000);
     };
-
+    const trackprops = (msg) => {
+        [preservedMsgObj[maintrigger].who, preservedMsgObj[maintrigger].selected, preservedMsgObj[maintrigger].playerid] = [msg.who, msg.selected, msg.playerid];
+    };
     const handleInput = (msg, msgstate) => {
         let funcret = { runloop: false, status: 'unchanged', notes: '' };
         const trigrx = new RegExp(`^!(${Object.keys(preservedMsgObj).join('|')})`);
         let apitrigger; // the apitrigger used by the message
-        if (!msgstate && scriptisplugin && !/^!forselected\s/.test(msg.content) && !(new RegExp(`^!${apiproject}`).test(msg.content))) return funcret;
+        if (!msgstate && scriptisplugin) return funcret;
         let status = [];
         let notes = [];
+        let injection = inject(msg, status, notes);
         if ('API' !== msg.playerid) { // user generated message
-            inject(msg, status, notes);
-            [preservedMsgObj[maintrigger].who, preservedMsgObj[maintrigger].selected, preservedMsgObj[maintrigger].playerid] = [msg.who, msg.selected, msg.playerid];
-            if (fsrx.test(msg.content)) { // user wants to iterate the command over the selected tokens
-                if (!msg.selected) {
-                    sendChat('API', `/w "${msg.who.replace(' (GM)', '')}" No selected tokens to use for that command. Please select some tokens then try again.`);
-                    status.push('unresolved');
-                    notes.push('No selected tokens for forselected iteration.');
-                    return condensereturn(funcret, status, notes);
-                }
-                forselected(msg, apitrigger);
-            } else if (/^!smconfig/.test(msg.content)) { // user wants to process config options for SelectManager
-                handleConfig(msg);
-            }
+            trackprops(msg);
         } else { // API generated message
-            if (fsrx.test(msg.content)) { // user had api generate call to iterate the command over the selected tokens
-                msg.selected = [];
-                if (preservedMsgObj[maintrigger].selected && preservedMsgObj[maintrigger].selected.length) {
-                    msg.selected.push(...preservedMsgObj[maintrigger].selected);
-                }
-                inject(msg, status, notes);
-                if (!msg.selected || (msg.selected && !msg.selected.length)) {
-                    delete msg.selected;
-                    sendChat('API', `/w "${preservedMsgObj[maintrigger].who.replace(' (GM)', '')}" No selected tokens to use for that command. Please select some tokens then try again.`);
-                    status.push('unresolved');
-                    notes.push('No selected tokens for forselected iteration.');
-                    return condensereturn(funcret, status, notes);
-                }
-                msg.who = preservedMsgObj[maintrigger].who;
-                msg.playerid = preservedMsgObj[maintrigger].playerid;
-                forselected(msg, apitrigger);
-            } else if (trigrx.test(msg.content)) { // message has apitrigger (iterative call of forselected) so cycle-in next selected
+            if (injection) trackprops(msg);
+            // peel off ZeroFrame trigger, if it's there
+            if (msg.apitrigger) msg.content = msg.content.replace(msg.apitrigger, '');
+            if (trigrx.test(msg.content)) { // message has apitrigger (iterative call of forselected) so cycle-in next selected
                 apitrigger = trigrx.exec(msg.content)[1];
                 msg.content = msg.content.replace(apitrigger, '');
                 status.push('changed');
@@ -481,11 +507,9 @@ const SelectManager = (() => {
                 }
             } else { // api generated call to another script, copy in the appropriate data
                 if (state[apiproject].autoinsert.includes('selected')) {
-                    msg.selected = msg.selected || [];
                     if (preservedMsgObj[maintrigger].selected && preservedMsgObj[maintrigger].selected.length) {
-                        msg.selected.push(...preservedMsgObj[maintrigger].selected);
+                        msg.selected = preservedMsgObj[maintrigger].selected;
                     }
-                    inject(msg, status, notes);
                     if (!msg.selected || (msg.selected && !msg.selected.length)) {
                         delete msg.selected;
                     }
@@ -497,8 +521,14 @@ const SelectManager = (() => {
                     msg.playerid = preservedMsgObj[maintrigger].playerid;
                 }
             }
+            // replace ZeroFrame trigger, if it's there
+            if (msg.apitrigger) msg.content = `!${msg.apitrigger}${msg.content.slice(1)}`;
         }
         return condensereturn(funcret, status, notes);
+    };
+    const handleForSelected = (msg) => {
+        if (msg.type !== 'api' || !fsrx.test(msg.content)) return;
+        forselected(msg);
     };
     const getProp = (prop) => {
         return preservedMsgObj[maintrigger][prop] || undefined;
@@ -510,6 +540,7 @@ const SelectManager = (() => {
     let scriptisplugin = false;
     const selectmanager = (m, s) => handleInput(m, s);
     on('chat:message', handleInput);
+    setTimeout(() => { on('chat:message', handleForSelected) }, 0);
     on('ready', () => {
         versionInfo();
         logsig();
@@ -517,6 +548,7 @@ const SelectManager = (() => {
         if (typeof ZeroFrame !== 'undefined') {
             ZeroFrame.RegisterMetaOp(selectmanager, { priority: 20, handles: ['sm'] });
         }
+        on('chat:message', handleConfig);
     });
 
     return { // public interface

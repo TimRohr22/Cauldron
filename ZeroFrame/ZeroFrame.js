@@ -210,7 +210,7 @@ const ZeroFrame = (() => {
 
     const msgboxfull = ({ c: c = 'chat message', sendas: sas = 'API', wto: wto = '', simple: simple = false }) => {
         let msg = (simple ? msgsimpleframe : msgframe).replace("__BODYCONTENT__", c);
-        if (wto) msg = `/w "${wto.replace(' (GM)', '')}" ${msg}`;
+        if (!['API', ''].includes(wto)) msg = `/w "${wto.replace(' (GM)', '')}" ${msg}`;
         sendChat(sas, msg);
     };
     const msgbox = ({ c: c = 'chat message', sendas: sas = 'API', wto: wto = '' }) => {
@@ -515,6 +515,8 @@ const ZeroFrame = (() => {
                 preservedstate = preservedMsgObj[apitrigger].state;
             } else {    // not prepended with apitrigger, original message
                 apitrigger = `${apiproject}${generateUUID()}`;
+                msg.apitrigger = apitrigger;
+                msg.origcontent = msg.content;
                 msg.content = msg.content.replace(/<br\/>\n/g, ' ').replace(/^!(\{\{(.*)\}\})/, '!$2');
                 msg.content = `!${apitrigger}${msg.content.slice(1)}`;
                 preservedMsgObj[apitrigger] = { message: _.clone(msg), state: initState() };
