@@ -460,10 +460,14 @@ const Fetch = (() => {
         character_name: { refersto: 'name', permissionsreq: 'any', dataval: (d) => d },
         archived: { refersto: 'archived', permissionsreq: 'any', dataval: (d) => d },
         inplayerjournals: { refersto: 'inplayerjournals', permissionsreq: 'any', dataval: (d) => d },
-        character_controlledby: { refersto: 'controlledby', permissionsreq: 'any', dataval: (d) => getObjName(d, 'playerlist') },
-        character_cby: { refersto: 'controlledby', permissionsreq: 'any', dataval: (d) => getObjName(d, 'playerlist') },
-        char_cby: { refersto: 'controlledby', permissionsreq: 'any', dataval: (d) => getObjName(d, 'playerlist') },
-        char_controlledby: { refersto: 'controlledby', permissionsreq: 'any', dataval: (d) => getObjName(d,'playerlist') },
+        character_controlledby: { refersto: 'controlledby', permissionsreq: 'any', dataval: (d) => d},
+        character_cby: { refersto: 'controlledby', permissionsreq: 'any', dataval: (d) => d },
+        char_cby: { refersto: 'controlledby', permissionsreq: 'any', dataval: (d) => d },
+        char_controlledby: { refersto: 'controlledby', permissionsreq: 'any', dataval: (d) => d },
+        character_controlledby_name: { refersto: 'controlledby', permissionsreq: 'any', dataval: (d) => getObjName(d, 'playerlist') },
+        character_cby_name: { refersto: 'controlledby', permissionsreq: 'any', dataval: (d) => getObjName(d, 'playerlist') },
+        char_cby_name: { refersto: 'controlledby', permissionsreq: 'any', dataval: (d) => getObjName(d, 'playerlist') },
+        char_controlledby_name: { refersto: 'controlledby', permissionsreq: 'any', dataval: (d) => getObjName(d, 'playerlist') },
         defaulttoken: { refersto: '_defaulttoken', permissionsreq: 'any', dataval: (d) => d }
     };
 
@@ -609,7 +613,7 @@ const Fetch = (() => {
                     retval = def;
                 } else {
                     if (Object.keys(charProps).includes(item.toLowerCase())) {
-                        retval = source[charProps[item.toLowerCase()]];
+                        retval = charProps[item.toLowerCase()].dataval(source[charProps[item.toLowerCase()].refersto]);
                         if (typeof retval === 'undefined') {
                             notes.push(`Unable to find character property for ${m}. Using default value.`);
                             retval = def;
