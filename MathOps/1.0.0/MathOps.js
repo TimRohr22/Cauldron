@@ -1,7 +1,7 @@
 /*
 =========================================================
 Name			:	MathOps
-GitHub			:	
+GitHub			:	https://github.com/TimRohr22/Cauldron/tree/master/MathOps
 Roll20 Contact	:	timmaugh
 Version			:	1.0.0
 Last Update		:	4/14/2021
