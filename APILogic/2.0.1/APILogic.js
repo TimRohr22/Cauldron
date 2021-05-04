@@ -3,8 +3,8 @@
 Name			:	APILogic
 GitHub			:	https://github.com/TimRohr22/Cauldron/tree/master/APILogic
 Roll20 Contact	:	timmaugh
-Version			:	2.0.2
-Last Update		:	5/4/2021
+Version			:	2.0.1
+Last Update		:	4/29/2021
 =========================================================
 */
 var API_Meta = API_Meta || {};
@@ -18,9 +18,9 @@ const APILogic = (() => {
     //		VERSION
     // ==================================================
     const apiproject = 'APILogic';
-    API_Meta[apiproject].version = '2.0.2';
+    API_Meta[apiproject].version = '2.0.1';
     const schemaVersion = 0.1;
-    const vd = new Date(1620151934615);
+    const vd = new Date(1619755209354);
     const versionInfo = () => {
         log(`\u0166\u0166 ${apiproject} v${API_Meta[apiproject].version}, ${vd.getFullYear()}/${vd.getMonth() + 1}/${vd.getDate()} \u0166\u0166 -- offset ${API_Meta[apiproject].offset}`);
         if (!state.hasOwnProperty(apiproject) || state[apiproject].version !== schemaVersion) {
@@ -102,19 +102,19 @@ const APILogic = (() => {
     let preservedMsgObj = {};
 
     // REGEXES ==============================================
-    const defblockrx = /\(?{&\s*define\s*/i,
+    const defblockrx = /{&\s*define\s*/i,
         definitionrx = /\(\s*\[\s*(?<term>.+?)\s*]\s*('|"|`?)(?<definition>.*?)\2\)\s*/i,
-        ifrx = /\(?{&\s*if(?=\(|\s+|!)\s*/i,
-        elseifrx = /\(?{&\s*elseif(?=\(|\s+|!)\s*/i,
-        elserx = /\(?{&\s*else\s*(?=})/i,
-        endrx = /\(?{&\s*end\s*}/i;
+        ifrx = /{&\s*if(?=\(|\s+|!)\s*/i,
+        elseifrx = /{&\s*elseif(?=\(|\s+|!)\s*/i,
+        elserx = /{&\s*else\s*(?=})/i,
+        endrx = /{&\s*end\s*}/i;
     // FORMERLY in IFTREEPARSER =============================
     const groupopenrx = /^\s*(?<negation>!?)\s*\(\s*/,
         namerx = /^\[(?<groupname>[^\s]+?)]\s*/i,
         comprx = /^(?<operator>(?:>=|<=|~|!~|=|!=|<|>))\s*/,
         operatorrx = /^(?<operator>(?:&&|\|\|))\s*/,
         groupendrx = /^\)\s*/,
-        ifendrx = /^\s*}\)?/,
+        ifendrx = /^\s*}/,
         textrx = /^(?<negation>!?)\s*(`|'|"?)(?<argtext>.+?)\2\s*(?=!=|!~|>=|<=|[=~><]|&&|\|\||\)|})/;
     // TOKEN MARKERS ========================================
     const iftm = { rx: ifrx, type: 'if' },

@@ -3,7 +3,7 @@
 Name			:	Muler
 GitHub			:	https://github.com/TimRohr22/Cauldron/tree/master/Muler
 Roll20 Contact	:	timmaugh
-Version			:	1.0.2
+Version			:	1.0.3
 Last Update		:	5/3/2021
 =========================================================
 */
@@ -15,10 +15,10 @@ API_Meta.Muler = { offset: Number.MAX_SAFE_INTEGER, lineCount: -1 };
 
 const Muler = (() => {
     const apiproject = 'Muler';
-    const version = '1.0.1';
+    const version = '1.0.3';
     const schemaVersion = 0.1;
     API_Meta[apiproject].version = version;
-    const vd = new Date(1619621473687);
+    const vd = new Date(1620152715870);
     const versionInfo = () => {
         log(`\u0166\u0166 ${apiproject} v${API_Meta[apiproject].version}, ${vd.getFullYear()}/${vd.getMonth() + 1}/${vd.getDate()} \u0166\u0166 -- offset ${API_Meta[apiproject].offset}`);
         if (!state.hasOwnProperty(apiproject) || state[apiproject].version !== schemaVersion) {
@@ -120,7 +120,7 @@ const Muler = (() => {
     const varrx = /^((?:(?:\d+)-(?:\d+)|(?:!=|>=|<=|>|<)(?:\d+))|[^\s]+?)=(.+)$/,
         getrx = /get\.([^\s./]+(?:\.[^\s./]+?)*)(\/get|(?=\/|\s|$))/gmi,
         setrx = /set\.([^\s.=]+(?:\.[^\s=.]+)*\s*=\s*.+?)\s*\/set/gmi,
-        mulerx = /{&\s*mule\s*(.*?)\s*}/gi,
+        mulerx = /\(?{&\s*mule\s*(.*?)\s*}\)?/gi,
         muleabilrx = /\s*\((.*?)\)\s*/g;
 
     const condensereturn = (funcret, status, notes) => {
