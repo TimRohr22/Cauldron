@@ -354,17 +354,18 @@ const PluggerPlugins01 = (() => {
     //		VERSION
     // ==================================================
     const apiproject = 'PluggerPlugins01';
-    const version = '0.0.1';
-    const vd = new Date(1615216020193);
+    const version = '0.0.2';
+    const vd = new Date(1620099268834);
     const versionInfo = () => {
         log(`\u0166\u0166 ${apiproject} v${version}, ${vd.getFullYear()}/${vd.getMonth() + 1}/${vd.getDate()} \u0166\u0166 -- offset continues from Plugger`);
         return;
     };
 
     const getDiceByVal = (m) => {
-        // expected syntax: !getDiceByVal $[[0]] <=2|6-7|>10 count/total/list|delim
-        let [rollmarker, valparams, op = 'count'] = m.content.split(/\s+/g).slice(1);
+        // expected syntax: !getDiceByVal $[[0]] <=2|6-7|>10 included count/total/list|delim
+        let [rollmarker, valparams, dicetype = 'included', op = 'count'] = m.content.split(/\s+/g).slice(1);
         if (!rollmarker || !valparams) { log(`getDiceByVal: wrong number of arguments, expected 3`); return; }
+        if (!['all', 'included', 'success', 'crit', 'fail', 'fumble', 'allcrit', 'dropped'].includes(dicetype)) { log(`getDiceByVal: Invalid dice type. Permitted values: all, included, success, crit, fail, fumble, allcrit, dropped`); return; }
         const typeProcessor = {
             '!=': (r, t) => r != t,
             '>': (r, t) => r > t,
@@ -397,7 +398,7 @@ const PluggerPlugins01 = (() => {
                 };
         });
         if (!tests) return '';
-        let dice = (m.parsedinline[roll] || { getDice: () => [] }).getDice('included')
+        let dice = (m.parsedinline[roll] || { getDice: () => [] }).getDice(dicetype)
             .filter(d => {
                 return tests.reduce((m, t) => {
                     return m || typeProcessor[t.test](d, ...t.params)
@@ -416,8 +417,9 @@ const PluggerPlugins01 = (() => {
 
     const getDiceByPos = (m) => {
         // expected syntax: !getDiceByPos $[[0]] <=2|6-7|>10 total/count/list|delim
-        let [rollmarker, valparams, op = 'count'] = m.content.split(/\s+/g).slice(1);
+        let [rollmarker, valparams, dicetype = 'included', op = 'count'] = m.content.split(/\s+/g).slice(1);
         if (!rollmarker || !valparams) { log(`getDiceByPos: wrong number of arguments, expected 3`); return; }
+        if (!['all', 'included', 'success', 'crit', 'fail', 'fumble', 'allcrit', 'dropped'].includes(dicetype)) { log(`getDiceByPos: Invalid dice type. Permitted values: all, included, success, crit, fail, fumble, allcrit, dropped`); return; }
         const typeProcessor = {
             '!=': (r, t) => r != t,
             '>': (r, t) => r > t,
@@ -450,10 +452,10 @@ const PluggerPlugins01 = (() => {
                 };
         });
         if (!tests) return '';
-        let dice = (m.parsedinline[roll] || { getDice: () => [] }).getDice('included')
+        let dice = (m.parsedinline[roll] || { getDice: () => [] }).getDice(dicetype)
             .filter((d, i) => {
                 return tests.reduce((m, t) => {
-                    return m || typeProcessor[t.test](i+1, ...t.params)
+                    return m || typeProcessor[t.test](i + 1, ...t.params)
                 }, false);
             });
         switch (op) {
