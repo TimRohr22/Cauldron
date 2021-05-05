@@ -568,25 +568,25 @@ const Fetch = (() => {
                             notes.push(`No token property found for ${m}. Using default value.`);
                             retval = def;
                         } else if (Object.keys(source).length && Object.keys(tokenProps).includes(item.toLowerCase())) {  // token + token property = return token property || default
-                            retval = source[tokenProps[item.toLowerCase()]];
+                            retval = tokenProps[item.toLowerCase()].dataval(source[tokenProps[item.toLowerCase()].refersto]);
                             if (typeof retval === 'undefined') {
                                 notes.push(`No token property found for ${m}. Using default value.`);
                                 retval = def;
                             }
-                        } else if (Object.keys(source).length && !Object.keys(tokenProps).includes(item.toLowerCase())) { // token + character attribute = return character attribute info || default
+                        } else if (Object.keys(source).length && !Object.keys(tokenProps).includes(item.toLowerCase())) { // token + character attribute/property = return character attribute info || default
                             sourcechar = getChar(token, msg.playerid);
                             source = simpleObj(sourcechar || {});
                             if (!Object.keys(source).length) {
                                 notes.push(`No character found for ${m}. Using default value.`);
                                 retval = def;
                             } else {
-                                if (Object.keys(charProps).includes(item.toLowerCase())) {
+                                if (Object.keys(charProps).includes(item.toLowerCase())) { // token + character property
                                     retval = charProps[item.toLowerCase()].dataval(source[charProps[item.toLowerCase()].refersto]);
                                     if (typeof retval === 'undefined') {
                                         notes.push(`No character property found for ${m}. Using default value.`);
                                         retval = def;
                                     }
-                                } else {
+                                } else {                                                  // token + character attribute
                                     retval = getSheetItemVal({ groups: { type: '@', character: source._id, item: item, valtype: valtype } }, msg.playerid, sourcechar);
                                     if (typeof retval === 'undefined') {
                                         notes.push(`No attribute found for ${m}. Using default value.`);
