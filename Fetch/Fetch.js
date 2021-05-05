@@ -297,7 +297,8 @@ const Fetch = (() => {
     };
 
     const getToken = (info) => {
-        return findObjs({ type: 'graphic', subtype: 'token', id: info })[0];
+        return findObjs({ type: 'graphic', subtype: 'token', id: info })[0] ||
+            findObjs({ type: 'graphic', subtype: 'token', name: info })[0];
     };
     const getObjName = (key, type) => {
         let o;
@@ -344,7 +345,7 @@ const Fetch = (() => {
         square2: { refersto: 'aura2_square', permissionreq: 'any', dataval: (d) => d },
         bar1_link: { refersto: 'bar1_link', permissionreq: 'any', dataval: (d) => d },
         link1: { refersto: 'bar1_link', permissionreq: 'any', dataval: (d) => d },
-        bar1_name: { refersto: 'bar1_link', permissionreq: 'any', dataval: d => /^sheetattr_/.test(d) ? d.replace(/^sheetattr_/,'') : getObjName(d, 'attribute') },
+        bar1_name: { refersto: 'bar1_link', permissionreq: 'any', dataval: d => /^sheetattr_/.test(d) ? d.replace(/^sheetattr_/, '') : getObjName(d, 'attribute') },
         name1: { refersto: 'bar1_link', permissionreq: 'any', dataval: d => /^sheetattr_/.test(d) ? d.replace(/^sheetattr_/, '') : getObjName(d, 'attribute') },
         bar1_max: { refersto: 'bar1_max', permissionreq: 'any', dataval: (d) => d },
         max1: { refersto: 'bar1_max', permissionreq: 'any', dataval: (d) => d },
@@ -362,7 +363,7 @@ const Fetch = (() => {
         bar2_value: { refersto: 'bar2_value', permissionreq: 'any', dataval: (d) => d },
         bar3_link: { refersto: 'bar3_link', permissionreq: 'any', dataval: (d) => d },
         link3: { refersto: 'bar3_link', permissionreq: 'any', dataval: (d) => d },
-        bar3_name: { refersto: 'bar3_link', permissionreq: 'any', dataval: d=>  /^sheetattr_/.test(d) ? d.replace(/^sheetattr_/, '') : getObjName(d, 'attribute') },
+        bar3_name: { refersto: 'bar3_link', permissionreq: 'any', dataval: d => /^sheetattr_/.test(d) ? d.replace(/^sheetattr_/, '') : getObjName(d, 'attribute') },
         name3: { refersto: 'bar3_link', permissionreq: 'any', dataval: d => /^sheetattr_/.test(d) ? d.replace(/^sheetattr_/, '') : getObjName(d, 'attribute') },
         bar3_max: { refersto: 'bar3_max', permissionreq: 'any', dataval: (d) => d },
         max3: { refersto: 'bar3_max', permissionreq: 'any', dataval: (d) => d },
@@ -460,7 +461,7 @@ const Fetch = (() => {
         character_name: { refersto: 'name', permissionsreq: 'any', dataval: (d) => d },
         archived: { refersto: 'archived', permissionsreq: 'any', dataval: (d) => d },
         inplayerjournals: { refersto: 'inplayerjournals', permissionsreq: 'any', dataval: (d) => d },
-        character_controlledby: { refersto: 'controlledby', permissionsreq: 'any', dataval: (d) => d},
+        character_controlledby: { refersto: 'controlledby', permissionsreq: 'any', dataval: (d) => d },
         character_cby: { refersto: 'controlledby', permissionsreq: 'any', dataval: (d) => d },
         char_cby: { refersto: 'controlledby', permissionsreq: 'any', dataval: (d) => d },
         char_controlledby: { refersto: 'controlledby', permissionsreq: 'any', dataval: (d) => d },
@@ -492,7 +493,7 @@ const Fetch = (() => {
         return funcret;
     };
 
-    const tokenrx = /@\((?<token>selected|(?:[A-Za-z0-9\-_]{20}))[|.](?<item>[^\s[|.)]+?)(?:[|.](?<valtype>[^\s.[|]+?)){0,1}(?:\[(?<default>[^\]]*?)]){0,1}\s*\)/gi;
+    const tokenrx = /@\((?<token>selected|(?:[^|.]+?))[|.](?<item>[^\s[|.)]+?)(?:[|.](?<valtype>[^\s.[|]+?)){0,1}(?:\[(?<default>[^\]]*?)]){0,1}\s*\)/gi;
     const sheetitemrx = /(?<type>(?:@|%))\((?<character>[^|.]+?)[|.](?<item>[^\s.[|)]+?)(?:[|.](?<valtype>[^\s.[)]+?)){0,1}(?:\[(?<default>[^\]]*?)]){0,1}\s*\)/gi;
     const rptgitemrx = /(?<type>(?:\*))\((?<character>[^|.]+?)[|.](?<section>[^\s.|]+?)[|.]\[\s*(?<pattern>.+?)\s*]\s*[|.](?<valuesuffix>[^[\s).]+?)(?:[|.](?<valtype>[^\s.[)]+?)){0,1}(?:\[(?<default>[^\]]*?)]){0,1}\s*\)/gi;
     const macrorx = /#\((?<item>[^\s.[)]+?)(?:\[(?<default>[^\]]*?)]){0,1}\s*\)/gi;
