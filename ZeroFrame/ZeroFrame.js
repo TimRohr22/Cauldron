@@ -467,8 +467,10 @@ const ZeroFrame = (() => {
             return;
         }
         // check for TEMPLATE tag
+        let temptag;
         if (preserved.content.match(templaterx)) {
             preserved.content = preserved.content.replace(templaterx, (m, padding, template) => {
+                temptag = true;
                 notes.push(`TEMPLATE tag detected`);
                 return `&{template:${template}}`;
             });
@@ -480,7 +482,7 @@ const ZeroFrame = (() => {
                 .replace(simplerx, '')
                 .replace(/\$\[\[(\d+)]]/g, ((m, g1) => preserved.parsedinline[g1].getRollTip()))
                 .replace(/\({&br}\)/g, '<br/>\n');
-
+            if (preserved.rolltemplate && !temptag) preserved.content = `&{template:${preserved.rolltemplate}} ${preserved.content}`;
             let speakas = '';
             if (preserved.who.toLowerCase() === 'api') {
                 speakas = '';
