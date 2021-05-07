@@ -331,8 +331,8 @@ const SelectManager = (() => {
         return funcret;
     };
 
-    const injectrx = /(\()?{&\s*inject\s+([^}]+)}((?<=\({&\s*inject\s+([^}]+)})\)|\1)/gi;
-    const selectrx = /(\()?{&\s*select\s+([^}]+)}((?<=\({&\s*select\s+([^}]+)})\)|\1)/gi;
+    const injectrx = /(\()?{&\s*inject\s+([^}]+?)\s*}((?<=\({&\s*inject\s+([^}]+?)\s*})\)|\1)/gi;
+    const selectrx = /(\()?{&\s*select\s+([^}]+?)\s*}((?<=\({&\s*select\s+([^}]+?)\s*})\)|\1)/gi;
     const inject = (msg, status, notes) => {
         let list = [];
         let selected = [];
