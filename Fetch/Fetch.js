@@ -3,8 +3,8 @@
 Name			:	Fetch
 GitHub			:	https://github.com/TimRohr22/Cauldron/tree/master/Fetch
 Roll20 Contact	:	timmaugh
-Version			:	1.0.3
-Last Update		:	5/6/2021
+Version			:	1.0.4
+Last Update		:	5/10/2021
 =========================================================
 */
 var API_Meta = API_Meta || {};
@@ -15,10 +15,10 @@ API_Meta.Fetch = { offset: Number.MAX_SAFE_INTEGER, lineCount: -1 };
 
 const Fetch = (() => {
     const apiproject = 'Fetch';
-    const version = '1.0.3';
+    const version = '1.0.4';
     const schemaVersion = 0.1;
     API_Meta[apiproject].version = version;
-    const vd = new Date(1620275212489);
+    const vd = new Date(1620680944252);
     const versionInfo = () => {
         log(`\u0166\u0166 ${apiproject} v${API_Meta[apiproject].version}, ${vd.getFullYear()}/${vd.getMonth() + 1}/${vd.getDate()} \u0166\u0166 -- offset ${API_Meta[apiproject].offset}`);
         if (!state.hasOwnProperty(apiproject) || state[apiproject].version !== schemaVersion) {
@@ -295,10 +295,12 @@ const Fetch = (() => {
             }, [])[0];
         return character;
     };
-
-    const getToken = (info) => {
+    const getPageID = (pid) => {
+        return playerIsGM(pid) ? getObj('player', pid).get('_lastpage') : Campaign().get('playerpageid');
+    };
+    const getToken = (info, pgid = '') => {
         return findObjs({ type: 'graphic', subtype: 'token', id: info })[0] ||
-            findObjs({ type: 'graphic', subtype: 'token', name: info })[0];
+            findObjs({ type: 'graphic', subtype: 'token', name: info, pageid: pgid })[0];
     };
     const getObjName = (key, type) => {
         let o;
@@ -564,7 +566,7 @@ const Fetch = (() => {
                         }
                         break;
                     default:
-                        source = simpleObj(getToken(token) || {});
+                        source = simpleObj(getToken(token, getPageID(msg.playerid)) || {});
                         if (!Object.keys(source).length && Object.keys(tokenProps).includes(item.toLowerCase())) {        // no token found + token property = return default
                             notes.push(`No token property found for ${m}. Using default value.`);
                             retval = def;
