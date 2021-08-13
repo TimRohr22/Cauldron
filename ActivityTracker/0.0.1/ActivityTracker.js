@@ -1,7 +1,7 @@
 /*
 =========================================================
 Name			:	ActivityTracker
-GitHub			:	
+GitHub			:	https://github.com/TimRohr22/Cauldron/tree/master/ActivityTracker
 Roll20 Contact	:	timmaugh
 Version			:	0.0.1
 Last Update		:	8/10/2021
