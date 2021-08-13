@@ -605,7 +605,7 @@ const ActivityTracker = (() => {
                 undefined,
                 '',
                 `[Defaults](!&#13;!track --defaults) ` +
-                `${state[apiproject].config.armed ? '[Disarm](!&#13;!track --disarm)' : '[Arm][Disarm](!&#13;!track --arm)'} <br>` +
+                `${state[apiproject].config.armed ? '[Disarm](!&#13;!track --disarm)' : '[Arm](!&#13;!track --arm)'} <br>` +
                 `[Enable Event](!track --set ${disabledquery}=true) ` +
                 `[Disable Event](!track --set ${enabledquery}=false) <br>` +
                 `[Enable All](!track --set all=true) ` +
