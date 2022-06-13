@@ -139,7 +139,7 @@ const Ranger = (() => {
                         return undefined;
                     }
                     else {
-                        return [res[1], res[2]];
+                        return res[2] && res[2].length ? [res[1], res[2]] : ['',res[1]];
                     }
                 } else {
                     return ['', a];
