@@ -130,7 +130,7 @@ const Ranger = (() => {
                         controlArgs[res[1]] = res[2];
                         return undefined;
                     } else if (['whisper'].includes(res[1].toLowerCase())) {
-                        if (!res[2].length || ['yes', 'y', 'yup', 'true', 't', 'yep', 'sure'].includes(res[2].toLowerCase())) { // if argument is blank or a 'truthy' option, whisper to the message 'who'
+                        if (!res[2].length) { // if argument is blank, whisper to the message 'who'
                             whisper = `/w ${msg.who.indexOf(' ') > 0 ? msg.who.slice(0, msg.who.indexOf(' ')) : msg.who} `;
                         } else {
                             whisper = `/w ${res[2]} `;
