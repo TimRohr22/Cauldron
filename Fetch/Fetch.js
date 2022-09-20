@@ -4,7 +4,7 @@ Name			:	Fetch
 GitHub			:	https://github.com/TimRohr22/Cauldron/tree/master/Fetch
 Roll20 Contact	:	timmaugh
 Version			:   2.0.0
-Last Update		:	9/19/2022
+Last Update		:	9/20/2022
 =========================================================
 */
 var API_Meta = API_Meta || {};
@@ -18,7 +18,7 @@ const Fetch = (() => {
     const version = '2.0.0';
     const schemaVersion = 0.1;
     API_Meta[apiproject].version = version;
-    const vd = new Date(1663600895620);
+    const vd = new Date(1663694446807);
     const versionInfo = () => {
         log(`\u0166\u0166 ${apiproject} v${API_Meta[apiproject].version}, ${vd.getFullYear()}/${vd.getMonth() + 1}/${vd.getDate()} \u0166\u0166 -- offset ${API_Meta[apiproject].offset}`);
         if (!state.hasOwnProperty(apiproject) || state[apiproject].version !== schemaVersion) {
@@ -970,32 +970,57 @@ const Fetch = (() => {
             });
 
             // REPEATING SHEET ITEMS
-            msg.content = msg.content.replace(rptgitemrx, (m, type, character, section, pattern, valuesuffix, valtype, def = '') => {
-                let retval;
+            msg.content = msg.content.replace(rptgitemrx, (m, type, obj, section, pattern, valuesuffix, valtype, def = '') => {
                 let bsel = false;
-                let sourcechar;
-                switch (character.toLowerCase()) {
+                let offset = 0,
+                    trackres,
+                    pgfilter = 'page',
+                    presource,
+                    source,
+                    retval,
+                    reverse = false,
+                    to;
+                if (trackerrx.test(obj)) { // if it is a tracker call, it could have an offset, so we detect that first
+                    trackres = trackerrx.exec(obj);
+                    offset = parseInt(trackres.groups.offset || '0');
+                    if (trackres.groups.operator === '-') reverse = true;
+                    if (playerIsGM(msg.playerid)) pgfilter = trackres.groups.filter || 'page';
+                    obj = `tracker`;
+                    trackres.lastIndex = 0;
+                }
+                switch (obj.toLowerCase()) {
                     case 'selected':
                         if (!msg.selected) {
                             notes.push(`No token selected for ${m}. Using default value.`);
                             bsel = true;
                             retval = def;
                         } else {
-                            sourcechar = getChar(msg.selected[0]._id, msg.playerid);
+                            source = getChar(msg.selected[0]._id, msg.playerid);
                         }
                         break;
                     case 'speaker':
-                        sourcechar = getChar(msg.who, msg.playerid);
+                        source = getChar(msg.who, msg.playerid);
+                        break;
+                    case 'tracker':
+                        to = JSON.parse(Campaign().get('turnorder') || '[]').filter(filterObj[pgfilter] || filterObj['page']);
+                        if (!to.length || to[0].id === '-1') {
+                            notes.push(`No tracker token for ${m}. Using default value.`);
+                            retval = def;
+                        } else {
+                            presource = to[(reverse ? to.length - (offset % to.length) : offset % to.length) % to.length];
+                            if (presource && !presource.hasOwnProperty('id')) presource.id = presource._id;
+                            source = simpleObj(getChar(presource.id, msg.playerid));
+                        }
                         break;
                     default:
-                        sourcechar = getChar(character, msg.playerid);
+                        source = getChar(obj, msg.playerid);
                 }
 
-                if (!sourcechar) {
+                if (!source) {
                     if (!bsel) notes.push(`Unable to find character for ${m}. Using default value.`); //track note only if we haven't already tracked no selected
                     retval = def;
                 } else {
-                    retval = getSheetItemVal({ groups: { type: type, character: sourcechar.id, valtype: valtype, section: section, pattern: pattern, valuesuffix: valuesuffix } }, msg.playerid, sourcechar);
+                    retval = getSheetItemVal({ groups: { type: type, character: source.id, valtype: valtype, section: section, pattern: pattern, valuesuffix: valuesuffix } }, msg.playerid, source);
                     if (typeof retval === 'undefined') {
                         notes.push(`Unable to find repeating item for ${m}. Using default value.`);
                         retval = def;
