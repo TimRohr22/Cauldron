@@ -421,13 +421,26 @@ const Fetch = (() => {
     const getPageID = (pid) => {
         return (pid && playerIsGM(pid)) ? (getObj('player', pid).get('_lastpage') || Campaign().get('playerpageid')) : Campaign().get('playerpageid');
     };
+    const getTrackerVal = (token) => {
+        let retval = {};
+        let to = JSON.parse(Campaign().get('turnorder') || '[]');
+        let mto = to.map(t => t.id);
+        if (mto.includes(token.id)) {
+            retval.tracker = to.filter(t => t.id === token.id)[0].pr;
+            retval.tracker_offset = mto.indexOf(token.id);
+        }
+        return retval;
+    };
     const getToken = (info, pgid = '') => {
-        return findObjs({ type: 'graphic', subtype: 'token', id: info })[0] ||
+        let token = findObjs({ type: 'graphic', subtype: 'token', id: info })[0] ||
             findObjs({ type: 'graphic', subtype: 'card', id: info })[0] ||
             findObjs({ type: 'graphic', subtype: 'token', name: info, pageid: pgid })[0];
-            // TODO: get token by 'represents' property - complete & test
+        if (token && token.id) {
+            token = Object.assign(simpleObj(token), getTrackerVal(token));
+        }
+        return token;
     };
-    const getObjName = (key, type) => { // TODO: add "all" variation to get all players/characters
+    const getObjName = (key, type) => {
         let o;
         switch (type) {
             case 'playerlist':
@@ -451,8 +464,12 @@ const Fetch = (() => {
         tid: { refersto: '_id', permissionreq: 'any', dataval: (d) => d },
         token_id: { refersto: '_id', permissionreq: 'any', dataval: (d) => d },
         token_name: { refersto: 'name', permissionreq: 'any', dataval: (d) => d },
+        page_id: { refersto: '_pageid', permissionreq: 'any', dataval: (d) => d },
         pageid: { refersto: '_pageid', permissionreq: 'any', dataval: (d) => d },
         pid: { refersto: '_pageid', permissionreq: 'any', dataval: (d) => d },
+        token_page_id: { refersto: '_pageid', permissionreq: 'any', dataval: (d) => d },
+        token_pageid: { refersto: '_pageid', permissionreq: 'any', dataval: (d) => d },
+        token_pid: { refersto: '_pageid', permissionreq: 'any', dataval: (d) => d },
         page: { refersto: '_pageid', permissionreq: 'any', dataval: d => getObjName(d, 'page') },
         page_name: { refersto: '_pageid', permissionreq: 'any', dataval: d => getObjName(d, 'page') },
         sub: { refersto: '_subtype', permissionreq: 'any', dataval: (d) => d },
@@ -588,8 +605,8 @@ const Fetch = (() => {
         tint_color: { refersto: 'tint_color', permissionreq: 'any', dataval: (d) => d },
         tooltip: { refersto: 'tooltip', permissionreq: 'any', dataval: (d) => d },
         top: { refersto: 'top', permissionreq: 'any', dataval: (d) => d },
-        // TODO: give a 'tracker' value, perhaps mirrored at 'initiative', to pull this token's value in the tracker
-        // TODO: can a variable pull the value of this token in the tracker, and another variable pull the current position of the token in the tracker?
+        tracker: { refersto: 'tracker', permissionreq: 'any', dataval: (d) => d },
+        tracker_offset: { refersto: 'tracker_offset', permissionreq: 'any', dataval: (d) => d },
         width: { refersto: 'width', permissionreq: 'any', dataval: (d) => d }
     };
     const charProps = {
@@ -618,7 +635,6 @@ const Fetch = (() => {
         char_controlledby_names: { refersto: 'controlledby', permissionsreq: 'any', dataval: (d) => getObjName(d, 'playerlist') },
         defaulttoken: { refersto: '_defaulttoken', permissionsreq: 'any', dataval: (d) => d }
     };
-    // TODO: settle on syntax for these calls, then implement regex and property retrieval
     const playerProps = { // $(player.player_color)
         player_id: { refersto: '_id', permissionsreq: 'any', dataval: (d) => d },
         player_name: { refersto: '_displayname', permissionsreq: 'any', dataval: (d) => d },
@@ -756,15 +772,9 @@ const Fetch = (() => {
         return funcret;
     };
 
-    ////    const tokenrx = /@\((?<token>selected|tracker|(?:[^|.]+?))[|.](?<item>[^\s[|.)]+?)(?:[|.](?<valtype>[^\s.[|]+?)){0,1}(?:\[(?<default>[^\]]*?)]){0,1}\s*\)/gi;
-    //const tokenrx = /@\((?<token>selected\.marker|tracker(?:\[[^\]]+]){0,1}(?:(?:\+|-)\d+){0,1}(?:\.marker){0,1}|(?:[^|.]+?\.marker)|selected|tracker|(?:[^|.]+?))[|.](?<item>[^\s[|.)]+?)(?:[|.](?<valtype>[^\s.[|]+?)){0,1}(?:\[(?<default>[^\]]*?)]){0,1}\s*\)/gi;
     const trackerrx = /^tracker(\[(?<filter>[^\]]+)]){0,1}((?<operator>\+|-)(?<offset>\d+)){0,1}$/i;
-    //const sheetitemrx = /(?<type>(?:@|%))\((?<character>[^|.]+?)[|.](?<item>[^\s.[|)]+?)(?:[|.](?<valtype>[^\s.[)]+?)){0,1}(?:\[(?<default>[^\]]*?)]){0,1}\s*\)/gi;
     const rptgitemrx = /(?<type>(?:\*))\((?<character>[^|.]+?)[|.](?<section>[^\s.|]+?)[|.]\[\s*(?<pattern>.+?)\s*]\s*[|.](?<valuesuffix>[^[\s).]+?)(?:[|.](?<valtype>[^\s.[)]+?)){0,1}(?:\[(?<default>[^\]]*?)]){0,1}\s*\)/gi;
     const macrorx = /#\((?<item>[^\s.[)]+?)(?:\[(?<default>[^\]]*?)]){0,1}\s*\)/gi;
-    //const playerpagemarkerrx = /@\((?<object>player|page|marker)[|.](?<identifier>[^\s.[|]+?)[|.](?<property>[^\s.[|]+?)(?:\[(?<default>[^\]]*?)]){0,1}\s*\)/gi;
-////    const campaignrx = /@\((?<object>campaign)[|.](?<property>[^\s.[|]+?)(?:\[(?<default>[^\]]*?)]){0,1}\s*\)/gi;
-//    const campaignrx = /@\((?<object>campaign)[|.](?<property>[^@*%#\s.[|]+?)(?:[|.](?<identikey>[^@*%#.|[]+?)(?:[|.](?<subprop>[^[@*%#]+?)){0,1}){0,1}(?:\[(?<default>[^@*%#\]]*?)]){0,1}\s*\)/gi;
     const multirx = /(?<type>(?:@|%))\((?<obj>tracker(?:\[[^\]]+]){0,1}(?:(?:\+|-)\d+){0,1}|[^@*%#|.]+?)[|.](?<prop>[^@*%#\s.[|]+?)(?:[|.](?<identikey>[^@*%#.|[]+?)(?:[|.](?<subprop>[^[@*%#]+?)){0,1}){0,1}(?:\[(?<default>[^@*%#\]]*?)]){0,1}\s*\)/gi;
 
     const testConstructs = c => {
