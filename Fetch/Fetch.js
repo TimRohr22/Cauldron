@@ -3,7 +3,7 @@
 Name			:	Fetch
 GitHub			:	https://github.com/TimRohr22/Cauldron/tree/master/Fetch
 Roll20 Contact	:	timmaugh
-Version			:   2.0.b2
+Version			:   2.0.b3
 Last Update		:	9/28/2022
 =========================================================
 */
@@ -113,39 +113,6 @@ const Fetch = (() => {
             a.lastIndex = 0;
         }, ret);
         return ret;
-    };
-    const getEditDistance = (a, b) => {
-        if (a.length === 0) return b.length;
-        if (b.length === 0) return a.length;
-
-        var matrix = [];
-
-        // increment along the first column of each row
-        var i;
-        for (i = 0; i <= b.length; i++) {
-            matrix[i] = [i];
-        }
-
-        // increment each column in the first row
-        var j;
-        for (j = 0; j <= a.length; j++) {
-            matrix[0][j] = j;
-        }
-
-        // Fill in the rest of the matrix
-        for (i = 1; i <= b.length; i++) {
-            for (j = 1; j <= a.length; j++) {
-                if (b.charAt(i - 1) === a.charAt(j - 1)) {
-                    matrix[i][j] = matrix[i - 1][j - 1];
-                } else {
-                    matrix[i][j] = Math.min(matrix[i - 1][j - 1] + 1, // substitution
-                        Math.min(matrix[i][j - 1] + 1, // insertion
-                            matrix[i - 1][j] + 1)); // deletion
-                }
-            }
-        }
-
-        return matrix[b.length][a.length];
     };
     const repeatingOrdinal = (character_id, section = '', attr_name = '') => {
         if (!section && !attr_name) return;
@@ -326,10 +293,10 @@ const Fetch = (() => {
         character = charsIControl.filter(c => c.id === query)[0] ||
             charsIControl.filter(c => c.id === (getObj('graphic', query) || { get: () => { return '' } }).get('represents'))[0] ||
             charsIControl.filter(c => c.get('name') === query)[0] ||
-            charsIControl.filter(c => qrx.test(c)).reduce((m, v) => {
-                let d = getEditDistance(query, v);
-                return !m.length || d < m[1] ? [v, d] : m;
-            }, [])[0];
+            charsIControl.filter(c => {
+                qrx.lastIndex = 0;
+                return qrx.test(c.get('name'));
+            })[0];
         return character;
     };
     const getPlayer = (query) => {
