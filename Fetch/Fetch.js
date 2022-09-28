@@ -3,8 +3,8 @@
 Name			:	Fetch
 GitHub			:	https://github.com/TimRohr22/Cauldron/tree/master/Fetch
 Roll20 Contact	:	timmaugh
-Version			:   2.0.0
-Last Update		:	9/20/2022
+Version			:   2.0.b2
+Last Update		:	9/28/2022
 =========================================================
 */
 var API_Meta = API_Meta || {};
@@ -15,10 +15,10 @@ API_Meta.Fetch = { offset: Number.MAX_SAFE_INTEGER, lineCount: -1 };
 
 const Fetch = (() => {
     const apiproject = 'Fetch';
-    const version = '2.0.0';
+    const version = '2.0.b2';
     const schemaVersion = 0.1;
     API_Meta[apiproject].version = version;
-    const vd = new Date(1663694446807);
+    const vd = new Date(1664399284476);
     const versionInfo = () => {
         log(`\u0166\u0166 ${apiproject} v${API_Meta[apiproject].version}, ${vd.getFullYear()}/${vd.getMonth() + 1}/${vd.getDate()} \u0166\u0166 -- offset ${API_Meta[apiproject].offset}`);
         if (!state.hasOwnProperty(apiproject) || state[apiproject].version !== schemaVersion) {
@@ -318,7 +318,11 @@ const Fetch = (() => {
         if (typeof query !== 'string') return character;
         let qrx = new RegExp(escapeRegExp(query), 'i');
         let charsIControl = findObjs({ type: 'character' });
-        charsIControl = playerIsGM(pid) ? charsIControl : charsIControl.filter(c => c.get('controlledby').split(',').includes(pid));
+        charsIControl = playerIsGM(pid) ? charsIControl : charsIControl.filter(c => {
+            return c.get('controlledby').split(',').reduce((m, p, i) => {
+                return m || p === 'all' || p === pid;
+            }, false)
+        });
         character = charsIControl.filter(c => c.id === query)[0] ||
             charsIControl.filter(c => c.id === (getObj('graphic', query) || { get: () => { return '' } }).get('represents'))[0] ||
             charsIControl.filter(c => c.get('name') === query)[0] ||
