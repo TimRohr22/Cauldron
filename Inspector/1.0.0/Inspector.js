@@ -4,8 +4,8 @@
 Name			:	Inspector
 GitHub			:	
 Roll20 Contact	:	timmaugh
-Version			:	1.0.0.b1
-Last Update		:	10/18/2022
+Version			:	1.0.0.b2
+Last Update		:	10/26/2022
 =========================================================
 */
 var API_Meta = API_Meta || {};
@@ -25,7 +25,7 @@ const Inspector = (() => { // eslint-disable-line no-unused-vars
     const version = '1.0.0.b1';
     const schemaVersion = 0.1;
     API_Meta[apiproject].version = version;
-    const vd = new Date(1666126147698);
+    const vd = new Date(1666801784693);
     const versionInfo = () => {
         log(`\u0166\u0166 ${apiproject} v${API_Meta[apiproject].version}, ${vd.getFullYear()}/${vd.getMonth() + 1}/${vd.getDate()} \u0166\u0166 -- offset ${API_Meta[apiproject].offset}`);
     };
@@ -172,7 +172,7 @@ const Inspector = (() => { // eslint-disable-line no-unused-vars
         })
             .replace(/gmnotes:<\/span>/, () => {
                 if (obj && obj.gmnotes && obj.gmnotes.length) {
-                    return `${getTip(decodeURIComponent(obj.gmnotes), 'gmnotes', 'GM Notes')}</span>`;
+                    return `${getTip(decodeURIComponent(decodeUnicode(obj.gmnotes)), 'gmnotes', 'GM Notes')}</span>`;
                 }
             }).replace(/(>statusmarkers:<\/span>\s*<span[^>]*>)(.*?)(<\/span>)/g, (m, pretag, list, posttag) => {
                 let newlist = list.split(/\s*,\s*/).map(sm => {
@@ -443,6 +443,7 @@ const Inspector = (() => { // eslint-disable-line no-unused-vars
     })();
     const escapeRegExp = (string) => { return string.replace(/[.*+\-?^${}()|[\]\\]/g, '\\$&'); };
     const simpleObj = (o) => typeof o !== 'undefined' ? JSON.parse(JSON.stringify(o)) : o;
+    const decodeUnicode = (str) => str.replace(/%u[0-9a-fA-F]{2,4}/g, (m) => String.fromCharCode(parseInt(m.slice(2), 16)));
     const escapePreserveLineBreaks = (s) => {
         if (s && s.length) {
             let aboutuuid = generateUUID();
@@ -603,7 +604,7 @@ const Inspector = (() => { // eslint-disable-line no-unused-vars
                 ID: o._id,
                 DisplayName: o._displayname,
                 GM: playerIsGM(o._id),
-                Page: getObj('page',getPageForPlayer(o)).get('name')
+                Page: getObj('page', getPageForPlayer(o)).get('name')
             }
         },
         'campaign': (o) => {
@@ -688,9 +689,9 @@ const Inspector = (() => { // eslint-disable-line no-unused-vars
         if (!player) return;
         return findObjs({ subtype: 'token' }).filter(t => {
             return [...t.get('controlledby').split(','),
-                ...((getObj('character', t.get('represents')) || { get: () => '' }).get('controlledby')).split(',')]
+            ...((getObj('character', t.get('represents')) || { get: () => '' }).get('controlledby')).split(',')]
                 .filter(Set.prototype.has, new Set([player.id, 'all']));
-        });        
+        });
     };
     const getMacrosForPlayer = (p) => {
         let player;
@@ -714,7 +715,7 @@ const Inspector = (() => { // eslint-disable-line no-unused-vars
         if (!player) return;
         return findObjs({ type: 'handout' }).filter(m => {
             return [...m.get('inplayerjournals').split(','),
-                ...m.get('controlledby').split(',')].filter(Set.prototype.has, new Set([player.id,'all']));
+            ...m.get('controlledby').split(',')].filter(Set.prototype.has, new Set([player.id, 'all']));
         });
 
     };
@@ -744,7 +745,7 @@ const Inspector = (() => { // eslint-disable-line no-unused-vars
         if (!argObj.list) return;
         let rpt = findObjs({ type: 'attribute' })
             .filter(c => c.get('characterid') === p._id)
-            .reduce((m,c) => {
+            .reduce((m, c) => {
                 let rptres = /^repeating_([^_]*?)_([^_]*?)_(.+)$/i.exec(c.get('name'));
                 if (!rptres || rptres[1].toLowerCase() !== argObj.list.toLowerCase()) return m;
                 let rowname = (m[rptres[2]] || { _id: '' })._id;
@@ -790,17 +791,17 @@ const Inspector = (() => { // eslint-disable-line no-unused-vars
     const libButtonsForRelatedChildren = {
         page: {
             player: (p) => Messenger.Button({ type: '!', elem: `!about --typefor type=player for=${p.name}`, label: html.tip('U', 'Players'), css: localCSS.relatedLink }),
-            token: (p) => Messenger.Button({ type: '!', elem: `!about --typefor type=token for=${p.name}`, label: html.tip('g','Tokens'), css: localCSS.relatedLink }),
-            graphic: (p) => Messenger.Button({ type: '!', elem: `!about --typefor type=graphic for=${p.name}`, label: html.tip('P','Graphics'), css: localCSS.relatedLink }),
-            path: (p) => Messenger.Button({ type: '!', elem: `!about --typefor type=path for=${p.name}`, label: html.tip('Y','Paths'), css: localCSS.relatedLink }),
-            text: (p) => Messenger.Button({ type: '!', elem: `!about --typefor type=text for=${p.name}`, label: html.tip('n','Text'), css: localCSS.relatedLink })
+            token: (p) => Messenger.Button({ type: '!', elem: `!about --typefor type=token for=${p.name}`, label: html.tip('g', 'Tokens'), css: localCSS.relatedLink }),
+            graphic: (p) => Messenger.Button({ type: '!', elem: `!about --typefor type=graphic for=${p.name}`, label: html.tip('P', 'Graphics'), css: localCSS.relatedLink }),
+            path: (p) => Messenger.Button({ type: '!', elem: `!about --typefor type=path for=${p.name}`, label: html.tip('Y', 'Paths'), css: localCSS.relatedLink }),
+            text: (p) => Messenger.Button({ type: '!', elem: `!about --typefor type=text for=${p.name}`, label: html.tip('n', 'Text'), css: localCSS.relatedLink })
         },
         table: {
             tableitem: (p) => Messenger.Button({ type: '!', elem: `!about --typefor type=tableitem for=${p.name}`, label: html.tip('l', 'Items'), css: localCSS.relatedLink })
         },
         character: {
             token: (p) => Messenger.Button({ type: '!', elem: `!about --typefor type=token for=${p.name}`, label: html.tip('g', 'Tokens'), css: localCSS.relatedLink }),
-            attribute: (p) => Messenger.Button({ type: '!', elem: `!about --typefor type=attribute for=${p.name}`, label: html.tip('@', 'Attributes'), css: { ...localCSS.relatedLink, ...{ 'font-family': 'Arial', 'font-size':'13px' } } }),
+            attribute: (p) => Messenger.Button({ type: '!', elem: `!about --typefor type=attribute for=${p.name}`, label: html.tip('@', 'Attributes'), css: { ...localCSS.relatedLink, ...{ 'font-family': 'Arial', 'font-size': '13px' } } }),
             ability: (p) => Messenger.Button({ type: '!', elem: `!about --typefor type=ability for=${p.name}`, label: html.tip('%', 'Abilities'), css: { ...localCSS.relatedLink, ...{ 'font-family': 'Arial', 'font-size': '13px' } } }),
             list: (p) => Messenger.Button({ type: '!', elem: `!about --typefor type=list for=${p.name}`, label: html.tip('l', 'Repeating Lists'), css: localCSS.relatedLink }),
         },
@@ -855,7 +856,7 @@ const Inspector = (() => { // eslint-disable-line no-unused-vars
             o = simpleObj(o);
             let type = o._type;
             if (type === 'player' && playerIsGM(o._id)) type += ' (gm)';
-//            ret.bytype[o._type] = [...(ret.bytype[o._type] || []), o];
+            //            ret.bytype[o._type] = [...(ret.bytype[o._type] || []), o];
             ret.bytype[type] = [...(ret.bytype[type] || []), o];
             return o;
         });
@@ -1020,7 +1021,7 @@ const Inspector = (() => { // eslint-disable-line no-unused-vars
                 html.h4('Extended Returns', localCSS.textColor, localCSS.hspacer) +
                 `Some items are related to each other in the game even though they might not show up on the initial property panel as directly attached as a javascript property. You will see these returns ` +
                 `represented in the returns panel as buttons at the bottom. They include such relationships as attributes, abilities, repeating lists, or tokens for a character, characters for a player, tokens ` +
-                `for a page, etc. Each of the buttons has a hover-tip to tell you what it represents, if the chosen icon is not clear enough. (See ${html.span('TextFor',localCSS.inlineEmphasis)}, for more information)` +
+                `for a page, etc. Each of the buttons has a hover-tip to tell you what it represents, if the chosen icon is not clear enough. (See ${html.span('TextFor', localCSS.inlineEmphasis)}, for more information)` +
                 html.h4('Return Types', localCSS.textColor, localCSS.hspacer) +
                 `For the most part, the returned types represent object types in a Roll20 game. In an effort to present more information, Inspector deviates from this in one or two places. ` +
                 `First, there is no discrete Roll20 object for a repeating ${html.span('list', localCSS.inlineEmphasis)}, nor for ${html.span('repeating', localCSS.inlineEmphasis)} as an object type separate from ` +
@@ -1075,7 +1076,7 @@ const Inspector = (() => { // eslint-disable-line no-unused-vars
                 html.pre(`!about --typefor type=repeating list=traits for=Kraang Bringer of Bagels`, localCSS.pre) +
                 `It does not matter in which order the sub-arguments come. The ${html.span('type', localCSS.inlineEmphasis)} sub-argument should be singular, and the ${html.span('for', localCSS.inlineEmphasis)} ` +
                 `sub-argument should be a way to identify a parent object.` +
-                html.h5(`TypeFor Combinations`, localCSS.textColor, localCSS.hspacer) + 
+                html.h5(`TypeFor Combinations`, localCSS.textColor, localCSS.hspacer) +
                 `The following combinations will work in the ${html.span('typefor', localCSS.inlineEmphasis)} argument:` +
                 html.pre(`For a character:<br> -- attribute<br> -- ability<br> -- token<br> -- list<br>` +
                     `For a page:<br> -- token<br> -- graphic<br> -- path<br> -- text<br> -- player<br>` +
@@ -1102,7 +1103,7 @@ const Inspector = (() => { // eslint-disable-line no-unused-vars
                 `you can control access with the ${html.span('playersCanIDs', localCSS.inlineEmphasis)} setting:` +
                 html.pre('!aboutconfig --playerscanids=false', localCSS.pre) +
                 html.h2(`About`, localCSS.textColor, localCSS.hspacer) +
-                `${html.span(`version: ${version}`,localCSS.inlineEmphasis)}<br>This bit of scriptometry brought to you by ${html.a('timmaugh, the Metamancer', 'https://app.roll20.net/users/5962076/timmaugh')}.`
+                `${html.span(`version: ${version}`, localCSS.inlineEmphasis)}<br>This bit of scriptometry brought to you by ${html.a('timmaugh, the Metamancer', 'https://app.roll20.net/users/5962076/timmaugh')}.`
             ,
             wto: wto
         });
