@@ -4,7 +4,7 @@
 Name			:	Inspector
 GitHub			:	
 Roll20 Contact	:	timmaugh
-Version			:	1.0.0.b2
+Version			:	1.0.0.b3
 Last Update		:	10/26/2022
 =========================================================
 */
@@ -99,13 +99,14 @@ const Inspector = (() => { // eslint-disable-line no-unused-vars
         set: (p, v) => state[apiproject].settings[p] = v,
         get: (p) => { return state[apiproject].settings[p]; }
     };
+    const trueTypes = ['true', 't', 'yes', 'y', 'yep', 'yup', '+', 'keith', true];
     const propSanitation = (p, v) => {
         const propTypes = {
             'playersCanIDs': (p, v) => validateBoolean(p, v),
             'playersCanUse': (p, v) => validateBoolean(p, v)
         };
         const validateBoolean = (p, v) => {
-            return { prop: p, val: ['true', 't', 'yes', 'y', 'yep', 'yup', '+', 'keith'].includes(v) };
+            return { prop: p, val: trueTypes.includes(v) };
         };
 
         return Object.keys(propTypes).reduce((m, k) => {
@@ -460,7 +461,9 @@ const Inspector = (() => { // eslint-disable-line no-unused-vars
                 Page: (getObj('page', o._pageid) || { get: () => o._pageid || 'Unknown' }).get('name'),
                 Layer: o.layer,
                 Position: `(${Math.round(o.left)}, ${Math.round(o.top)})`,
-                Control: o.controlledby.split(/\s*,\s*/).map(p => p.toLowerCase() === 'all' ? 'All' : (getObj('player', p) || { get: () => p }).get('displayname')).join(', '),
+                Control: [...o.controlledby.split(/\s*,\s*/),
+                ...((getObj('character', o.represents) || { get: () => '' }).get('controlledby')).split(/\s*,\s*/)]
+                    .map(p => p.toLowerCase() === 'all' ? 'All' : (getObj('player', p) || { get: () => p || 'Unknown' }).get('displayname')).join(', ')
             };
         },
         'character': (o) => {
@@ -469,7 +472,7 @@ const Inspector = (() => { // eslint-disable-line no-unused-vars
                 ID: o._id,
                 Name: o.name,
                 Journals: o.inplayerjournals.split(/\s*,\s*/).map(p => p.toLowerCase() === 'all' ? 'All' : (getObj('player', p) || { get: () => p || 'Unknown' }).get('displayname')).join(', '),
-                Control: o.controlledby.split(/\s*,\s*/).map(p => p.toLowerCase() === 'all' ? 'All' : (getObj('player', p) || { get: () => p || 'Unknown' }).get('displayname')).join(', '),
+                Control: o.controlledby.split(/\s*,\s*/).map(p => p.toLowerCase() === 'all' ? 'All' : (getObj('player', p) || { get: () => p || 'Unknown' }).get('displayname')).join(', ')
             };
         },
         'attribute': (o) => {
@@ -663,7 +666,7 @@ const Inspector = (() => { // eslint-disable-line no-unused-vars
 
         return Campaign().get('playerpageid');
     };
-    const getCharactersForPlayer = (p) => {
+    const getCharactersForPlayer = (p, argObj) => {
         let player;
         if (typeof p === 'string') player = getObj('player', p);
         else {
@@ -671,15 +674,18 @@ const Inspector = (() => { // eslint-disable-line no-unused-vars
             else if (p.id) player = getObj('player', p.id);
         }
         if (!player) return;
+        let limit = trueTypes.includes((argObj || { limit: false }).limit);
+        let testcases = [player.id];
         let characters = findObjs({ type: 'character' });
-        return playerIsGM(player.id) ? characters : characters.filter(c => {
-            return c.get('controlledby').split(',').reduce((m, v) => {
-                return m || v === 'all' || v === player.id;
-            }, false);
+        if (!limit && playerIsGM(player.id)) {
+            return characters;
+        }
+        if (!limit) testcases.push('all');
+        return characters.filter(c => {
+            return c.get('controlledby').split(',').filter(Set.prototype.has, new Set(testcases)).length;
         });
-
     };
-    const getTokensForPlayer = (p) => {
+    const getTokensForPlayer = (p, argObj) => {
         let player;
         if (typeof p === 'string') player = getObj('player', p);
         else {
@@ -687,10 +693,17 @@ const Inspector = (() => { // eslint-disable-line no-unused-vars
             else if (p.id) player = getObj('player', p.id);
         }
         if (!player) return;
-        return findObjs({ subtype: 'token' }).filter(t => {
+        let limit = trueTypes.includes((argObj || { limit: false }).limit);
+        let testcases = [player.id];
+        let tokens = findObjs({ subtype: 'token' });
+        if (!limit && playerIsGM(player.id)) {
+            return tokens;
+        }
+        if (!limit) testcases.push('all');
+        return tokens.filter(t => {
             return [...t.get('controlledby').split(','),
             ...((getObj('character', t.get('represents')) || { get: () => '' }).get('controlledby')).split(',')]
-                .filter(Set.prototype.has, new Set([player.id, 'all']));
+                .filter(Set.prototype.has, new Set(testcases)).length;
         });
     };
     const getMacrosForPlayer = (p) => {
@@ -809,7 +822,9 @@ const Inspector = (() => { // eslint-disable-line no-unused-vars
             repeating: (p) => Messenger.Button({ type: '!', elem: p.button, label: html.tip('l', 'List Items'), css: localCSS.relatedLink })
         },
         player: {
+            mycharacters: (p) => Messenger.Button({ type: '!', elem: `!about --typefor limit=true type=character for=${p._displayname}`, label: html.tip('U', 'My Characters'), css: { ...localCSS.relatedLink, ...{ 'color': theme.secondaryColor } } }),
             character: (p) => Messenger.Button({ type: '!', elem: `!about --typefor type=character for=${p._displayname}`, label: html.tip('U', 'Characters'), css: localCSS.relatedLink }),
+            mytokens: (p) => Messenger.Button({ type: '!', elem: `!about --typefor limit=true type=token for=${p._displayname}`, label: html.tip('g', 'Tokens'), css: { ...localCSS.relatedLink, ...{ 'color': theme.secondaryColor } } }),
             token: (p) => Messenger.Button({ type: '!', elem: `!about --typefor type=token for=${p._displayname}`, label: html.tip('g', 'Tokens'), css: localCSS.relatedLink }),
             macro: (p) => Messenger.Button({ type: '!', elem: `!about --typefor type=macro for=${p._displayname}`, label: html.tip('e', 'Macros'), css: localCSS.relatedLink }),
             handout: (p) => Messenger.Button({ type: '!', elem: `!about --typefor type=handout for=${p._displayname}`, label: html.tip('N', 'Handouts'), css: localCSS.relatedLink }),
