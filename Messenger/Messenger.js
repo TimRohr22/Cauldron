@@ -3,7 +3,7 @@
 Name			:	Messenger
 GitHub			:	
 Roll20 Contact	:	timmaugh
-Version			:	1.0.b1
+Version			:	1.0.0.b1
 Last Update		:	10/15/2022
 =========================================================
 */
@@ -15,7 +15,7 @@ API_Meta.Messenger = { offset: Number.MAX_SAFE_INTEGER, lineCount: -1 };
 const Messenger = (() => { // eslint-disable-line no-unused-vars
     const apiproject = 'Messenger';
     const apilogo = `https://i.imgur.com/DEkWTak.png`;
-    const version = '1.0.b1';
+    const version = '1.0.0.b2';
     const schemaVersion = 0.1;
     API_Meta[apiproject].version = version;
     const vd = new Date(1655476169424);
@@ -94,25 +94,55 @@ const Messenger = (() => { // eslint-disable-line no-unused-vars
     // ============================================
     const getTextColor = (h) => {
         h = `#${h.replace(/#/g, '')}`;
-        let hc = hexToRGB(h);
+        let hc = hexToRGBA(h);
         return (((hc[0] * 299) + (hc[1] * 587) + (hc[2] * 114)) / 1000 >= 128) ? "#000000" : "#ffffff";
     };
-    const hexToRGB = (h) => {
-        let r = 0, g = 0, b = 0;
+    const hexToRGBA = (hex, alpha, reqAlpha = 'auto') => {
 
-        // 3 digits
-        if (h.length === 4) {
-            r = "0x" + h[1] + h[1];
-            g = "0x" + h[2] + h[2];
-            b = "0x" + h[3] + h[3];
-            // 6 digits
-        } else if (h.length === 7) {
-            r = "0x" + h[1] + h[2];
-            g = "0x" + h[3] + h[4];
-            b = "0x" + h[5] + h[6];
+        const isValidHex = (hex) => /^#([A-Fa-f0-9]{3,4}){1,2}$/.test(hex);
+
+        const getChunksFromString = (st, chunkSize) => st.match(new RegExp(`.{${chunkSize}}`, "g"));
+
+        const convertHexUnitTo256 = (hexStr) => parseInt(hexStr.repeat(2 / hexStr.length), 16);
+
+        const getAlphafloat = (a, alpha) => {
+            if (typeof a !== "undefined") { return a / 255 }
+            if ((typeof alpha != "number") || alpha < 0 || alpha > 1) { // eslint-disable-line eqeqeq
+                return 1
+            }
+            return alpha
+        };
+
+        if (!isValidHex(hex)) { throw new Error("Invalid HEX") }
+        const chunkSize = Math.floor((hex.length - 1) / 3)
+        const hexArr = getChunksFromString(hex.slice(1), chunkSize)
+        const [r, g, b, a] = hexArr.map(convertHexUnitTo256)
+        switch (reqAlpha) {
+            case true:
+                return `rgba(${r}, ${g}, ${b}, ${getAlphafloat(a, alpha)})`;
+            case false:
+                return `rgb(${r}, ${g}, ${b})`;
+            default:
+                return `rgb${a || alpha ? 'a' : ''}(${r}, ${g}, ${b}${a || alpha ? `, ${getAlphafloat(a, alpha)}` : ''})`;
         }
-        return [+r, +g, +b];
     };
+
+    //const hexToRGB = (h) => {
+    //    let r = 0, g = 0, b = 0;
+
+    //    // 3 digits
+    //    if (h.length === 4) {
+    //        r = "0x" + h[1] + h[1];
+    //        g = "0x" + h[2] + h[2];
+    //        b = "0x" + h[3] + h[3];
+    //        // 6 digits
+    //    } else if (h.length === 7) {
+    //        r = "0x" + h[1] + h[2];
+    //        g = "0x" + h[3] + h[4];
+    //        b = "0x" + h[5] + h[6];
+    //    }
+    //    return [+r, +g, +b];
+    //};
     const validCSSColors = {
         AliceBlue: `#F0F8FF`,
         AntiqueWhite: `#FAEBD7`,
@@ -264,10 +294,10 @@ const Messenger = (() => { // eslint-disable-line no-unused-vars
         YellowGreen: `#9ACD32`
     };
     const validateHexColor = (s, d = defaultThemeColor1) => {
-        let colorRegX = /(^#?[0-9A-Fa-f]{6}$)|(^#?[0-9A-Fa-f]{3}$)|(^#?[0-9A-Fa-f]{6}\d{2}$)/i;
-        let cname = Object.keys(validCSSColors).map(c => [c.toLowerCase(), validCSSColors[c]]).filter(c => c[0] === s.toLowerCase())[0];
-        if (cname) return validCSSColors[cname[1]];
-        return '#' + (colorRegX.test(s) ? s.replace('#', '') : d.replace('#', ''));
+        let colorRegX = /^#?([A-Fa-f0-9]{3,4}){1,2}$/;
+        let cname = Object.keys(validCSSColors).filter(c => c.toLowerCase() === s.toLowerCase())[0];
+        if (cname) return validCSSColors[cname];
+        return `#${colorRegX.test(s) ? s.replace('#', '') : d.replace('#', '')}`;
     };
 
     // CSS ========================================
@@ -381,24 +411,24 @@ const Messenger = (() => { // eslint-disable-line no-unused-vars
 
     // HTML =======================================
     const html = {
-        div: (content, CSS) => `<div style=${assembleCSS(combineCSS(css.div, (CSS || {})))}>${content}</div>`,
-        h1: (content, CSS) => `<h1 style=${assembleCSS(combineCSS(css.h1, (CSS || {})))}>${content}</h1>`,
-        h2: (content, CSS) => `<h2 style=${assembleCSS(combineCSS(css.h2, (CSS || {})))}>${content}</h2>`,
-        h3: (content, CSS) => `<h3 style=${assembleCSS(combineCSS(css.h3, (CSS || {})))}>${content}</h3>`,
-        h4: (content, CSS) => `<h4 style=${assembleCSS(combineCSS(css.h4, (CSS || {})))}>${content}</h4>`,
-        h5: (content, CSS) => `<h5 style=${assembleCSS(combineCSS(css.h5, (CSS || {})))}>${content}</h5>`,
-        p: (content, CSS) => `<p style=${assembleCSS(combineCSS(css.p, (CSS || {})))}>${content}</p>`,
-        table: (content, CSS) => `<table style=${assembleCSS(combineCSS(css.tb, (CSS || {})))}>${content}</table>`,
-        th: (content, CSS) => `<th style=${assembleCSS(combineCSS(css.th, (CSS || {})))}>${content}</th>`,
-        tr: (content, CSS) => `<tr style=${assembleCSS(combineCSS(css.tr, (CSS || {})))}>${content}</tr>`,
-        td: (content, CSS) => `<td style=${assembleCSS(combineCSS(css.td, (CSS || {})))}>${content}</td>`,
-        td2: (content, CSS) => `<td colspan="2" style=${assembleCSS(combineCSS(css.td, (CSS || {})))}>${content}</td>`,
-        code: (content, CSS) => `<code style=${assembleCSS(combineCSS(css.code, (CSS || {})))}>${content}</code>`,
-        pre: (content, CSS) => `<pre style=${assembleCSS(combineCSS(css.pre, (CSS || {})))}>${content}</pre>`,
-        span: (content, CSS) => `<span style=${assembleCSS(combineCSS(css.span, (CSS || {})))}>${content}</span>`,
-        a: (content, CSS, link) => `<a href="${link}" style=${assembleCSS(combineCSS(css.a, (CSS || {})))}>${content}</a>`,
-        img: (content, CSS, altText) => `<img src="${content}" alt="${altText}" style=${assembleCSS(combineCSS(css.img, (CSS || {})))}>`,
-        tip: (content, CSS, tipText) => `<span class="showtip tipsy-n-right" title="${HE(HE(tipText))}"style=${assembleCSS(combineCSS(css.span, (CSS || {})))}>${content}</span>`
+        div: (content, ...CSS) => `<div style=${assembleCSS(combineCSS(css.div, ...CSS))}>${content}</div>`,
+        h1: (content, ...CSS) => `<h1 style=${assembleCSS(combineCSS(css.h1, ...CSS))}>${content}</h1>`,
+        h2: (content, ...CSS) => `<h2 style=${assembleCSS(combineCSS(css.h2, ...CSS))}>${content}</h2>`,
+        h3: (content, ...CSS) => `<h3 style=${assembleCSS(combineCSS(css.h3, ...CSS))}>${content}</h3>`,
+        h4: (content, ...CSS) => `<h4 style=${assembleCSS(combineCSS(css.h4, ...CSS))}>${content}</h4>`,
+        h5: (content, ...CSS) => `<h5 style=${assembleCSS(combineCSS(css.h5, ...CSS))}>${content}</h5>`,
+        p: (content, ...CSS) => `<p style=${assembleCSS(combineCSS(css.p, ...CSS))}>${content}</p>`,
+        table: (content, ...CSS) => `<table style=${assembleCSS(combineCSS(css.tb, ...CSS))}>${content}</table>`,
+        th: (content, ...CSS) => `<th style=${assembleCSS(combineCSS(css.th, ...CSS))}>${content}</th>`,
+        tr: (content, ...CSS) => `<tr style=${assembleCSS(combineCSS(css.tr, ...CSS))}>${content}</tr>`,
+        td: (content, ...CSS) => `<td style=${assembleCSS(combineCSS(css.td, ...CSS))}>${content}</td>`,
+        td2: (content, ...CSS) => `<td colspan="2" style=${assembleCSS(combineCSS(css.td, ...CSS))}>${content}</td>`,
+        code: (content, ...CSS) => `<code style=${assembleCSS(combineCSS(css.code, ...CSS))}>${content}</code>`,
+        pre: (content, ...CSS) => `<pre style=${assembleCSS(combineCSS(css.pre, ...CSS))}>${content}</pre>`,
+        span: (content, ...CSS) => `<span style=${assembleCSS(combineCSS(css.span, ...CSS))}>${content}</span>`,
+        a: (content, link, ...CSS) => `<a href="${link}" style=${assembleCSS(combineCSS(css.a, ...CSS))}>${content}</a>`,
+        img: (content, altText, ...CSS) => `<img src="${content}" alt="${altText}" style=${assembleCSS(combineCSS(css.img, ...CSS))}>`,
+        tip: (content, tipText, ...CSS) => `<span class="showtip tipsy-n-right" title="${HE(HE(tipText))}"style=${assembleCSS(combineCSS(css.span, ...CSS))}>${content}</span>`
     };
 
     // HTML Escaping function
@@ -415,8 +445,7 @@ const Messenger = (() => { // eslint-disable-line no-unused-vars
             '}': e('#125'),
             '[': e('#91'),
             ']': e('#93'),
-            '"': e('quot'),
-            '*': e('#42')
+            '"': e('quot')
         };
         const re = new RegExp(`(${Object.keys(entities).map(esRE).join('|')})`, 'g');
         return (s) => s.replace(re, (c) => (entities[c] || c));
@@ -449,7 +478,7 @@ const Messenger = (() => { // eslint-disable-line no-unused-vars
 
         if (!api) return;
         api = `!&#13;${api}`;
-        return html.a(label, btnCSS, HE(api));
+        return html.a(label, HE(api), btnCSS);
     };
     const msgbox = ({
         msg: msg = 'message',
@@ -532,6 +561,6 @@ const Messenger = (() => { // eslint-disable-line no-unused-vars
         Html: () => _.clone(html),
         Css: () => _.clone(css),
         HE: HE,
-        Version: version
+        version: version
     };
 })();
