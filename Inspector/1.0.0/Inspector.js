@@ -22,7 +22,7 @@ const Inspector = (() => { // eslint-disable-line no-unused-vars
     const apiproject = 'Inspector';
     const apilogo = `https://i.imgur.com/N9swrPX.png`; // black for light backgrounds
     const apilogoalt = `https://i.imgur.com/xFOQhK5.png`; // white for dark backgrounds
-    const version = '1.0.0.b1';
+    const version = '1.0.0.b3';
     const schemaVersion = 0.1;
     API_Meta[apiproject].version = version;
     const vd = new Date(1666801784693);
