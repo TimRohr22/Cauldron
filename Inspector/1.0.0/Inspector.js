@@ -4,7 +4,7 @@
 Name			:	Inspector
 GitHub			:	
 Roll20 Contact	:	timmaugh
-Version			:	1.0.0.b4
+Version			:	1.0.0.b5
 Last Update		:	10/26/2022
 =========================================================
 */
@@ -22,7 +22,7 @@ const Inspector = (() => { // eslint-disable-line no-unused-vars
     const apiproject = 'Inspector';
     const apilogo = `https://i.imgur.com/N9swrPX.png`; // black for light backgrounds
     const apilogoalt = `https://i.imgur.com/xFOQhK5.png`; // white for dark backgrounds
-    const version = '1.0.0.b4';
+    const version = '1.0.0.b5';
     const schemaVersion = 0.1;
     API_Meta[apiproject].version = version;
     const vd = new Date(1666834669709);
@@ -914,16 +914,14 @@ const Inspector = (() => { // eslint-disable-line no-unused-vars
                         })
                 });
             } else {
-                ret = {
-                    name: query,
-                    obj: [query.split('.').slice(1)
-                        .reduce((m, k) => {
-                            if (m) m = m[k];
-                            return m;
-                        }, state)]
-                };
+                res = [query.split('.').slice(1)
+                    .reduce((m, k) => {
+                        if (m) m = m[k];
+                        return m;
+                    }, state)];
+                if (res[0]) ret = { name: query, obj: res };
+                else ret = { fail: true, reason: 'notfound' };
             }
-            if (res) ret = { name: query, obj: res };
         } else if (/^(msg|message)/i.test(query)) {
             ret = { name: 'Message', obj: [msg] };
         } else if (/^(inline|inlinerolls?|rolls)/i.test(query)) {
