@@ -3,8 +3,8 @@
 Name			:	Messenger
 GitHub			:	
 Roll20 Contact	:	timmaugh
-Version			:	1.0.0.b1
-Last Update		:	10/15/2022
+Version			:	1.0.0.b3
+Last Update		:	10/26/2022
 =========================================================
 */
 var API_Meta = API_Meta || {};
@@ -15,10 +15,10 @@ API_Meta.Messenger = { offset: Number.MAX_SAFE_INTEGER, lineCount: -1 };
 const Messenger = (() => { // eslint-disable-line no-unused-vars
     const apiproject = 'Messenger';
     const apilogo = `https://i.imgur.com/DEkWTak.png`;
-    const version = '1.0.0.b2';
+    const version = '1.0.0.b3';
     const schemaVersion = 0.1;
     API_Meta[apiproject].version = version;
-    const vd = new Date(1655476169424);
+    const vd = new Date(1666834556851);
     const versionInfo = () => {
         log(`\u0166\u0166 ${apiproject} v${API_Meta[apiproject].version}, ${vd.getFullYear()}/${vd.getMonth() + 1}/${vd.getDate()} \u0166\u0166 -- offset ${API_Meta[apiproject].offset}`);
     };
@@ -491,7 +491,8 @@ const Messenger = (() => { // eslint-disable-line no-unused-vars
         boundingcss: boundingcss = {},
         headercss: headercss = {},
         bodycss: bodycss = {},
-        footercss: footercss = {}
+        footercss: footercss = {},
+        noarchive: noarchive = false
     } = {}) => {
         let containerCSS = confirmReadability(combineCSS(css.divContainer, containercss));
         let boundingCSS = confirmReadability(combineCSS(css.div, css.rounded, boundingcss));
@@ -508,7 +509,7 @@ const Messenger = (() => { // eslint-disable-line no-unused-vars
         }
         let output = html.div(html.div(html.div(`${hdr}${body}${footer}`, {}), boundingCSS), containerCSS);
         if (whisperto) output = `/w "${whisperto}" ${output}`;
-        sendChat(sendas, output);
+        sendChat(sendas, output, null, { noarchive: !!noarchive});
     };
 
     const checkDependencies = (deps) => {

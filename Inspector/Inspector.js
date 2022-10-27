@@ -4,7 +4,7 @@
 Name			:	Inspector
 GitHub			:	
 Roll20 Contact	:	timmaugh
-Version			:	1.0.0.b3
+Version			:	1.0.0.b4
 Last Update		:	10/26/2022
 =========================================================
 */
@@ -22,10 +22,10 @@ const Inspector = (() => { // eslint-disable-line no-unused-vars
     const apiproject = 'Inspector';
     const apilogo = `https://i.imgur.com/N9swrPX.png`; // black for light backgrounds
     const apilogoalt = `https://i.imgur.com/xFOQhK5.png`; // white for dark backgrounds
-    const version = '1.0.0.b3';
+    const version = '1.0.0.b4';
     const schemaVersion = 0.1;
     API_Meta[apiproject].version = version;
-    const vd = new Date(1666801784693);
+    const vd = new Date(1666834669709);
     const versionInfo = () => {
         log(`\u0166\u0166 ${apiproject} v${API_Meta[apiproject].version}, ${vd.getFullYear()}/${vd.getMonth() + 1}/${vd.getDate()} \u0166\u0166 -- offset ${API_Meta[apiproject].offset}`);
     };
@@ -634,6 +634,14 @@ const Inspector = (() => { // eslint-disable-line no-unused-vars
                 Name: o.name,
                 SubAttr: `<br>${o.subattr.join('<br>')}`
             }
+        },
+        'state key': (o) => {
+            return {
+                header: `STATE KEY`,
+                ID: o._id,
+                Name: o.name,
+                SubKeys: `<br>${o.subkeys.join('<br>')}`
+            }
         }
     };
     validTypes.fx = o => validTypes.custfx(o);
@@ -824,7 +832,7 @@ const Inspector = (() => { // eslint-disable-line no-unused-vars
         player: {
             mycharacters: (p) => Messenger.Button({ type: '!', elem: `!about --typefor limit=true type=character for=${p._displayname}`, label: html.tip('U', 'My Characters'), css: { ...localCSS.relatedLink, ...{ 'color': theme.secondaryColor } } }),
             character: (p) => Messenger.Button({ type: '!', elem: `!about --typefor type=character for=${p._displayname}`, label: html.tip('U', 'Characters'), css: localCSS.relatedLink }),
-            mytokens: (p) => Messenger.Button({ type: '!', elem: `!about --typefor limit=true type=token for=${p._displayname}`, label: html.tip('g', 'Tokens'), css: { ...localCSS.relatedLink, ...{ 'color': theme.secondaryColor } } }),
+            mytokens: (p) => Messenger.Button({ type: '!', elem: `!about --typefor limit=true type=token for=${p._displayname}`, label: html.tip('g', 'My Tokens'), css: { ...localCSS.relatedLink, ...{ 'color': theme.secondaryColor } } }),
             token: (p) => Messenger.Button({ type: '!', elem: `!about --typefor type=token for=${p._displayname}`, label: html.tip('g', 'Tokens'), css: localCSS.relatedLink }),
             macro: (p) => Messenger.Button({ type: '!', elem: `!about --typefor type=macro for=${p._displayname}`, label: html.tip('e', 'Macros'), css: localCSS.relatedLink }),
             handout: (p) => Messenger.Button({ type: '!', elem: `!about --typefor type=handout for=${p._displayname}`, label: html.tip('N', 'Handouts'), css: localCSS.relatedLink }),
@@ -891,11 +899,31 @@ const Inspector = (() => { // eslint-disable-line no-unused-vars
 
         if (/state(\.|$)/i.test(query)) {
             if (!canIds) return { fail: true, reason: 'canids' };
-            ret = query.split('.').slice(1).reduce((m, k) => {
-                if (m) m = m[k];
-                return m;
-            }, state);
-            if (ret) ret = { name: query, obj: [ret] };
+            if (/state$/i.test(query)) {
+                ret = reduceByType({
+                    name: query,
+                    obj: Object.keys(state)
+                        .map(k => {
+                            return {
+                                name: k,
+                                _id: `${k}`,
+                                _type: 'state key',
+                                subkeys: Object.keys(state[k]).map(sk => `${sk} (${typeof state[k][sk]})`),
+                                button: `!about --state.${k}`
+                            }
+                        })
+                });
+            } else {
+                ret = {
+                    name: query,
+                    obj: [query.split('.').slice(1)
+                        .reduce((m, k) => {
+                            if (m) m = m[k];
+                            return m;
+                        }, state)]
+                };
+            }
+            if (res) ret = { name: query, obj: res };
         } else if (/^(msg|message)/i.test(query)) {
             ret = { name: 'Message', obj: [msg] };
         } else if (/^(inline|inlinerolls?|rolls)/i.test(query)) {
@@ -1011,7 +1039,7 @@ const Inspector = (() => { // eslint-disable-line no-unused-vars
         btn: btn = '',
     } = {}) => {
         if (title) title = html.div(html.div(html.img(apilogoalt, 'Inspector Logo', localCSS.logoimg), localCSS.msgheaderlogodiv) + html.div(title, localCSS.msgheadercontent), {});
-        Messenger.MsgBox({ msg: msg, title: title, bodycss: bodycss, sendas: sendas, whisperto: whisperto, footer: footer, btn: btn, headercss: headercss });
+        Messenger.MsgBox({ msg: msg, title: title, bodycss: bodycss, sendas: sendas, whisperto: whisperto, footer: footer, btn: btn, headercss: headercss, noarchive: true });
     };
     const helpPanel = (wto) => {
         msgbox({
@@ -1281,7 +1309,7 @@ const Inspector = (() => { // eslint-disable-line no-unused-vars
         let reqs = [
             {
                 name: 'Messenger',
-                version: `1.0.0.b1`,
+                version: `1.0.0.b3`,
                 mod: typeof Messenger !== 'undefined' ? Messenger : undefined,
                 checks: [['Button', 'function'], ['MsgBox', 'function'], ['HE', 'function'], ['Html', 'function']]
             },
