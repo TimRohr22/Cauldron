@@ -693,9 +693,9 @@ const TableToTable = (() => { // eslint-disable-line no-unused-vars
         return html.div(buttons, { 'text-align': 'right', 'margin': '4px 0px' });
     };
     const controlPanel = async (wto) => {
-        await prepInterface('T3 Interface', wto, false, true);
+        await prepInterface('T3 Workspace', wto, false, true);
         let hoquery = getHandoutQuery();
-        let ho = getHandout('T3 Interface');
+        let ho = getHandout('T3 Workspace');
         let btnOpenWorkspace = getTip('Open the default T3 Workspace handout to begin working on a table.', Messenger.Button({ elem: `http://journal.roll20.net/handout/${ho.id}`, label: `x`, type: 'handout', css: localCSS.squareButton }), 'T3 WORKSPACE');
         let btnMakeInterface = getTip('Make a new interface (or reset an existing one) from a handout you choose. The query for this button is built at the time you rendered this chat panel, so if you have created a new handout since then, re-run this chat panel.', hobutton({ elem: `!t3-setup --ho=${hoquery} --type=init`, label: 'W', type: '!', css: [localCSS.squareButton] }), 'MAKE INTERFACE');
         let btnMakeLibrary = getTip('Choose a handout to turn into a library. Image URLs in the handout will be re-rendered as T3 clickable images, to tie into the table interface. Choose a handout in which you have already pasted image URLs. Other content in the handout will be lost. The query for this button is built at the time you rendered this chat panel, so if you have created a new handout since then, re-run this chat panel.', hobutton({ elem: `!t3-setup --ho=${hoquery} --type=lib`, label: 'N', type: '!', css: [localCSS.squareButton] }), 'MAKE LIBRARY');
@@ -708,9 +708,9 @@ const TableToTable = (() => { // eslint-disable-line no-unused-vars
         });
     };
     const helpPanel = async (wto) => {
-        await prepInterface('T3 Interface', wto, false, true);
+        await prepInterface('T3 Workspace', wto, false, true);
         let hoquery = getHandoutQuery();
-        let ho = getHandout('T3 Interface');
+        let ho = getHandout('T3 Workspace');
         let btnOpenWorkspace = getTip('Open the default T3 Workspace handout to begin working on a table.', Messenger.Button({ elem: `http://journal.roll20.net/handout/${ho.id}`, label: `x`, type: 'handout', css: localCSS.squareButton }), 'T3 WORKSPACE');
         let btnMakeInterface = getTip('Make a new interface (or reset an existing one) from a handout you choose. The query for this button is built at the time you rendered this chat panel, so if you have created a new handout since then, re-run this chat panel.', hobutton({ elem: `!t3-setup --ho=${hoquery} --type=init`, label: 'W', type: '!', css: [localCSS.interfaceButton, localCSS.squareButton] }), 'MAKE INTERFACE');
         let btnMakeLibrary = getTip('Choose a handout to turn into a library. Image URLs in the handout will be re-rendered as T3 clickable images, to tie into the table interface. Choose a handout in which you have already pasted image URLs. Other content in the handout will be lost. The query for this button is built at the time you rendered this chat panel, so if you have created a new handout since then, re-run this chat panel.', hobutton({ elem: `!t3-setup --ho=${hoquery} --type=lib`, label: 'N', type: '!', css: [localCSS.interfaceButton, localCSS.squareButton] }), 'MAKE LIBRARY');
@@ -735,7 +735,7 @@ const TableToTable = (() => { // eslint-disable-line no-unused-vars
                 html.h3('Installation', localCSS.textColor, localCSS.hspacer) +
                 `T3 is available in timmaugh's github repo, as well as (soon) the one-click library. It also has a small number of script dependencies (like Messenger and libTable) that it requires to properly function. ` +
                 `If you get the script from the one-click, these will be installed automatically. If you got the script from my repo, be sure to grab the latest versions of these scripts, too. ` +
-                `Once installed with all of its dependencies, T3 will automatically create your first handout interface, called ${html.span(`T3 Interface`, localCSS.inlineEmphasis)}. If you delete it, don't worry; ` +
+                `Once installed with all of its dependencies, T3 will automatically create your first handout interface, called ${html.span(`T3 Workspace`, localCSS.inlineEmphasis)}. If you delete it, don't worry; ` +
                 `T3 will recreate it the next time the sandbox reboots or you open this help panel. Click the button to open the interface.` +
                 panelButtonRow(btnOpenWorkspace) + 
                 html.h3('Handout Types', localCSS.textColor, localCSS.hspacer) +
