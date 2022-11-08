@@ -598,3 +598,5 @@ const Messenger = (() => { // eslint-disable-line no-unused-vars
         version: version
     };
 })();
+
+{ try { throw new Error(''); } catch (e) { API_Meta.Messenger.lineCount = (parseInt(e.stack.split(/\n/)[1].replace(/^.*:(\d+):.*$/, '$1'), 10) - API_Meta.Messenger.offset); } }

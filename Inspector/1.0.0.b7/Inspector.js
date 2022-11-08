@@ -4,8 +4,8 @@
 Name			:	Inspector
 GitHub			:	
 Roll20 Contact	:	timmaugh
-Version			:	1.0.0.b5
-Last Update		:	10/26/2022
+Version			:	1.0.0.b7
+Last Update		:	11/07/2022
 =========================================================
 */
 var API_Meta = API_Meta || {};
@@ -22,10 +22,10 @@ const Inspector = (() => { // eslint-disable-line no-unused-vars
     const apiproject = 'Inspector';
     const apilogo = `https://i.imgur.com/N9swrPX.png`; // black for light backgrounds
     const apilogoalt = `https://i.imgur.com/xFOQhK5.png`; // white for dark backgrounds
-    const version = '1.0.0.b5';
+    const version = '1.0.0.b7';
     const schemaVersion = 0.1;
     API_Meta[apiproject].version = version;
-    const vd = new Date(1666834669709);
+    const vd = new Date(1667878743768);
     const versionInfo = () => {
         log(`\u0166\u0166 ${apiproject} v${API_Meta[apiproject].version}, ${vd.getFullYear()}/${vd.getMonth() + 1}/${vd.getDate()} \u0166\u0166 -- offset ${API_Meta[apiproject].offset}`);
     };
@@ -925,9 +925,9 @@ const Inspector = (() => { // eslint-disable-line no-unused-vars
         } else if (/^(msg|message)/i.test(query)) {
             ret = { name: 'Message', obj: [msg] };
         } else if (/^(inline|inlinerolls?|rolls)/i.test(query)) {
-            ret = { name: 'Rolls', obj: [msg.inlinerolls] };
+            ret = msg.inlinerolls && msg.inlinerolls.length ? { name: 'Rolls', obj: [msg.inlinerolls] } : { fail: true, reason: 'msgpart' };
         } else if (/^selected/i.test(query)) {
-            ret = { name: 'Selected', obj: [msg.selected] };
+            ret = msg.selected && msg.selected.length ? { name: 'Selected', obj: [msg.selected] } : { fail: true, reason: 'msgpart' };
         } else if (/^\$\[\[(\d+)]]/.test(query)) {
             res = /^\$\[\[(\d+)]]/.exec(query);
             ret = msg.inlinerolls && msg.inlinerolls.length > res[1] ? msg.inlinerolls[res[1]] : undefined;
@@ -1020,7 +1020,8 @@ const Inspector = (() => { // eslint-disable-line no-unused-vars
         const messages = {
             canids: 'You must be a GM or have your GM enable the playerCanIds setting for Inspector to use this feature.',
             notfound: 'Unable to find an object using the parameters supplied. Please try again.',
-            default: 'You must be a GM or have your GM enable the playersCanUse setting for Inspector to use this feature.'
+            default: 'You must be a GM or have your GM enable the playersCanUse setting for Inspector to use this feature.',
+            msgpart: 'Message does not contain that component. Please try again.'
         };
         messages.notfoundid = `${messages.notfound} If you were searching by ID, it is possible that the object exists, but Inspector is not currently configured to allow players to use IDs. Your GM can enable this feature, if needed.`
         altmsg = Object.keys(messages).map(k => k.toLowerCase()).includes(altmsg.toLowerCase()) ? altmsg.toLowerCase() : 'default';
@@ -1328,3 +1329,5 @@ const Inspector = (() => { // eslint-disable-line no-unused-vars
         version: version
     };
 })();
+
+{ try { throw new Error(''); } catch (e) { API_Meta.Inspector.lineCount = (parseInt(e.stack.split(/\n/)[1].replace(/^.*:(\d+):.*$/, '$1'), 10) - API_Meta.Inspector.offset); } }
