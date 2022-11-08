@@ -1167,7 +1167,7 @@ const TableToTable = (() => { // eslint-disable-line no-unused-vars
         let reqs = [
             {
                 name: 'Messenger',
-                version: `1.0.0.b1`,
+                version: `1.0.0.b4`,
                 mod: typeof Messenger !== 'undefined' ? Messenger : undefined,
                 checks: [['Button', 'function'], ['MsgBox', 'function'], ['HE', 'function'], ['Html', 'function'], ['Css', 'function']]
             },
