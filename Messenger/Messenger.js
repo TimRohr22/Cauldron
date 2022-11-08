@@ -3,7 +3,7 @@
 Name			:	Messenger
 GitHub			:	
 Roll20 Contact	:	timmaugh
-Version			:	1.0.0.b3
+Version			:	1.0.0.b4
 Last Update		:	10/26/2022
 =========================================================
 */
@@ -15,7 +15,7 @@ API_Meta.Messenger = { offset: Number.MAX_SAFE_INTEGER, lineCount: -1 };
 const Messenger = (() => { // eslint-disable-line no-unused-vars
     const apiproject = 'Messenger';
     const apilogo = `https://i.imgur.com/DEkWTak.png`;
-    const version = '1.0.0.b3';
+    const version = '1.0.0.b4';
     const schemaVersion = 0.1;
     API_Meta[apiproject].version = version;
     const vd = new Date(1666834556851);
@@ -457,7 +457,8 @@ const Messenger = (() => { // eslint-disable-line no-unused-vars
             '@': '&#64;', 'attr': '&#64;', 'attribute': '&#64;',
             '#': '&#35;', 'mac': '&#35;', 'macro': '&#35;',
             '%': '&#37;', 'abil': '&#37;', 'ability': '&#37;',
-            '!': '&#33;', 'api': '&#33;', 'mod': '&#33;', 'script': '&#33;', 'bang': '&#33;'
+            '!': '&#33;', 'api': '&#33;', 'mod': '&#33;', 'script': '&#33;', 'bang': '&#33;',
+            'handout': 'handout', 'ho': 'handout'
         };
         type = htmlTable[type];
         if (!type) return '';
@@ -474,11 +475,42 @@ const Messenger = (() => { // eslint-disable-line no-unused-vars
             case '&#33;': // api
                 api = `${type}${/^!/.test(elem) ? elem.slice(1) : elem}`;
                 break;
+            case 'handout': // button to open a handout
+                api = `${elem}`;
+                break;
         }
 
         if (!api) return;
-        api = `!&#13;${api}`;
+        if (type !== 'handout') api = `!&#13;${api}`;
         return html.a(label, HE(api), btnCSS);
+    };
+    const hobutton = ({ elem: elem = '', label: label = '', char: char = '', type: type = '%', css: css = Messenger.Css.button } = {}) => {
+        const htmlTable = {
+            '@': '@', 'attr': '@', 'attribute': '@',
+            '#': '#', 'mac': '#', 'macro': '#',
+            '%': '%', 'abil': '!', 'ability': '%',
+            '!': '!', 'api': '!', 'mod': '!', 'script': '!', 'bang': '!'
+        };
+        type = htmlTable[type];
+        if (!type) return '';
+        let btnCSS = confirmReadability(css);
+        let api = '';
+        switch (type) {
+            case '#': // macro
+                api = `${type}${elem}`;
+                break;
+            case '%': // ability
+            case '@': // attribute
+                api = `${type}{${char}|${elem}}`;
+                break;
+            case '!': // api
+                api = `${type}${/^!/.test(elem) ? elem.slice(1) : elem}`;
+                break;
+        }
+
+        if (!api) return;
+        api = `${api}`;
+        return html.a(label, `\`${api}`, btnCSS);
     };
     const msgbox = ({
         msg: msg = 'message',
@@ -502,14 +534,14 @@ const Messenger = (() => { // eslint-disable-line no-unused-vars
 
         let hdr = title !== '' ? html.div(html.div(title, css.messageHeaderContent), hdrCSS) : '';
         let body = html.div(html.div(msg, css.messageBodyContent), bodyCSS);
-        let buttons = btn !== '' ? html.div(btn, css.messageButtons ) : '';
+        let buttons = btn !== '' ? html.div(btn, css.messageButtons) : '';
         if (footer) footer = html.div(footer);
         if (footer || buttons) {
             footer = html.div(html.div(footer + buttons), footerCSS);
         }
         let output = html.div(html.div(html.div(`${hdr}${body}${footer}`, {}), boundingCSS), containerCSS);
         if (whisperto) output = `/w "${whisperto}" ${output}`;
-        sendChat(sendas, output, null, { noarchive: !!noarchive});
+        sendChat(sendas, output, null, { noarchive: !!noarchive });
     };
 
     const checkDependencies = (deps) => {
@@ -558,6 +590,7 @@ const Messenger = (() => { // eslint-disable-line no-unused-vars
     });
     return {
         Button: button,
+        HOButton: hobutton,
         MsgBox: msgbox,
         Html: () => _.clone(html),
         Css: () => _.clone(css),
