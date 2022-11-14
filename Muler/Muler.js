@@ -5,7 +5,7 @@ Name            :   Muler
 GitHub          :   https://github.com/TimRohr22/Cauldron/tree/master/Muler
 Roll20 Contact  :   timmaugh
 Version         :   2.0.0.b1
-Last Update     :   11/11/2022
+Last Update     :   11/14/2022
 =========================================================
 */
 var API_Meta = API_Meta || {};
@@ -20,7 +20,7 @@ const Muler = (() => { //eslint-disable-line no-unused-vars
     const version = '2.0.0.b1';
     const schemaVersion = 0.1;
     API_Meta[apiproject].version = version;
-    const vd = new Date(1668197867885);
+    const vd = new Date(1668451911699);
     const versionInfo = () => {
         log(`\u0166\u0166 ${apiproject} v${API_Meta[apiproject].version}, ${vd.getFullYear()}/${vd.getMonth() + 1}/${vd.getDate()} \u0166\u0166 -- offset ${API_Meta[apiproject].offset}`);
         if (!state.hasOwnProperty(apiproject) || state[apiproject].version !== schemaVersion) { // eslint-disable-line no-prototype-builtins
@@ -171,29 +171,50 @@ const Muler = (() => { //eslint-disable-line no-unused-vars
         // LOAD MULES ------------------------------------------------------------------
         let mulearray = [];
         // DETECT MULES
-        msg.content = msg.content.replace(mulerx, (m, padding, g1) => {
-            g1 = g1.replace(muleabilrx, (m1) => {
-                mulearray.push(m1.trim());
-                return ' '; // return a space in case it's in the middle of 2 other mules
+        [...msg.content.matchAll(mulerx)].forEach(match => {
+            match[2].replace(muleabilrx, mule => {
+                mulearray.push({ mule: mule.trim(), index: match.index });
+                return '';
             });
-            if (/[^\s]/.test(g1)) g1.split(/\s+/).forEach(a => mulearray.push(a));
-            status.push('changed');
-            return '';
         });
-        msg.content = msg.content.replace(getrx, (m, ...args) => {
-            if (args[4]) { // fully qualified get statement
-                mulearray.push(`${args[0]}.${args[2]}`); // in a fully qualified statement, these will be character.mule or table.name
-            }
+        [...msg.content.matchAll(getrx)].forEach(match => {
+            if (match[5]) mulearray.push({ mule: `${match[1]}.${match[3]}`, index: match.index });
+        });
+        [...msg.content.matchAll(setrx)].forEach(match => {
+            let res = match[1].split(/\s*=\s*/).shift().split('.');
+            if (res.length > 2) mulearray.push({ mule: `${res[0]}.${res[1]}`, index: match.index });
+        });
+
+        mulearray = mulearray.sort((a, b) => a.index < b.index ? -1 : 1);
+        mulearray = Object.keys(mulearray.reduce((m, v) => {
+            m[v.mule] = v.index;
             return m;
-        });
-        msg.content = msg.content.replace(setrx, (m, ...args) => {
-            let res = args[0].split('=').shift().split('.');
-            if (res.length > 2) { // fully qualified set statement
-                mulearray.push(`${res[0]}.${res[1]}`); // in a fully qualified statement, these will be character.mule or table.name
-            }
-            return m;
-        });
-        mulearray = [...new Set(mulearray)];
+        }, {}));
+        msg.content = msg.content.replace(mulerx, '');
+
+        //msg.content = msg.content.replace(mulerx, (m, padding, g1) => {
+        //    g1 = g1.replace(muleabilrx, (m1) => {
+        //        mulearray.push(m1.trim());
+        //        return ' '; // return a space in case it's in the middle of 2 other mules
+        //    });
+        //    if (/[^\s]/.test(g1)) g1.split(/\s+/).forEach(a => mulearray.push(a));
+        //    status.push('changed');
+        //    return '';
+        //});
+        //msg.content = msg.content.replace(getrx, (m, ...args) => {
+        //    if (args[4]) { // fully qualified get statement
+        //        mulearray.push(`${args[0]}.${args[2]}`); // in a fully qualified statement, these will be character.mule or table.name
+        //    }
+        //    return m;
+        //});
+        //msg.content = msg.content.replace(setrx, (m, ...args) => {
+        //    let res = args[0].split(/\s*=\s*/).shift().split('.');
+        //    if (res.length > 2) { // fully qualified set statement
+        //        mulearray.push(`${res[0]}.${res[1]}`); // in a fully qualified statement, these will be character.mule or table.name
+        //    }
+        //    return m;
+        //});
+        //mulearray = [...new Set(mulearray)];
 
         // PROCESS MULES INTO ABILITIES AND GET VARIABLES --------------------------
         let mules = []; // new mules in this pass
@@ -261,7 +282,10 @@ const Muler = (() => { //eslint-disable-line no-unused-vars
             } else if (args[2]) { // two elements filled (mule.variable)
                 themule = msg.mules.filter(a => a.get('name') === checkTicks(args[0]))[0];
                 thevar = checkTicks(args[2]);
-                if (themule) ovar = msg.variables.mules[themule.id];
+                if (themule) {
+                    ovar = msg.variables.mules[themule.id];
+                    thechar = 'table';
+                }
             } else { // one element filled (variable)
                 thevar = checkTicks(args[0]);
                 ovar = args[6] ? msg.variables.alltables : msg.variables.all;
@@ -290,12 +314,12 @@ const Muler = (() => { //eslint-disable-line no-unused-vars
             if (varPackage.ovar) {
                 if (varPackage.themule) {
                     if (varPackage.themule.get('type') === 'ability') retval = varPackage.ovar[varPackage.thevar];
-                    else retval = varPackage.ovar[varPackage.thevar] ? varPackage.ovar[varPackage.thevar][varPackage.theask] : undefined;
+                    else retval = varPackage.ovar.hasOwnProperty(varPackage.thevar) ? varPackage.ovar[varPackage.thevar][varPackage.theask] : undefined;
                 } else { // pulling from variables.all or variables.alltables
                     if (varPackage.theask) retval = varPackage.ovar[varPackage.thevar] ? varPackage.ovar[varPackage.thevar][varPackage.theask] : undefined;
                 }
             } 
-            if (!retval && varPackage.ovar && internalTestLib.num(varPackage.thevar)) { // no explicit variable, but we have a library and the variable is a number, so we check for a range key
+            if (typeof retval === 'undefined' && varPackage.ovar && internalTestLib.num(varPackage.thevar)) { // no explicit variable, but we have a library and the variable is a number, so we check for a range key
                 let varrangerx = /((?<low>-?\d+)-(?<high>-?\d+)|(?<range>!=|>=|<=|>|<)(?<singleval>-?\d+))$/;
                 let res;
                 let keys = Object.keys(varPackage.ovar)
@@ -306,11 +330,13 @@ const Muler = (() => { //eslint-disable-line no-unused-vars
                             typeProcessor['-'](Number(varPackage.thevar), Number(res.groups.low), Number(res.groups.high)) :
                             typeProcessor[res.groups.range](Number(varPackage.thevar), Number(res.groups.singleval));
                     });
-                if (varPackage.themule) {
-                    if (varPackage.themule.get('type') === 'ability') retval = varPackage.ovar[keys[0]];
-                    else retval = varPackage.ovar[keys[0]][varPackage.theask];
-                } else { // pulling from variables.all or variables.alltables
-                    retval = varPackage.theask ? varPackage.ovar[keys[0]][varPackage.theask] : varPackage.ovar[keys[0]];
+                if (keys.length && varPackage.ovar.hasOwnProperty(keys[0])) {
+                    if (varPackage.themule) {
+                        if (varPackage.themule.get('type') === 'ability') retval = varPackage.ovar[keys[0]];
+                        else retval = varPackage.ovar[keys[0]][varPackage.theask];
+                    } else { // pulling from variables.all or variables.alltables
+                        retval = varPackage.theask ? varPackage.ovar[keys[0]][varPackage.theask] : varPackage.ovar[keys[0]];
+                    }
                 }
             }
             if (retval) {
@@ -485,12 +511,6 @@ const Muler = (() => { //eslint-disable-line no-unused-vars
         versionInfo();
         logsig();
         let reqs = [
-            {
-                name: 'Messenger',
-                version: `1.0.0.b4`,
-                mod: typeof Messenger !== 'undefined' ? Messenger : undefined,
-                checks: [['Button', 'function'], ['MsgBox', 'function'], ['HE', 'function'], ['Html', 'function'], ['Css', 'function']]
-            },
             {
                 name: 'libTable',
                 version: `1.0.0.b3`,
