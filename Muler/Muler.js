@@ -12,9 +12,6 @@ var API_Meta = API_Meta || {};
 API_Meta.Muler = { offset: Number.MAX_SAFE_INTEGER, lineCount: -1 };
 { try { throw new Error(''); } catch (e) { API_Meta.Muler.offset = (parseInt(e.stack.split(/\n/)[1].replace(/^.*:(\d+):.*$/, '$1'), 10) - (13)); } }
 
-// TODO: PM IronMike about the Muler thread when it posts...
-// https://app.roll20.net/forum/permalink/11144642/
-
 const Muler = (() => { //eslint-disable-line no-unused-vars
     const apiproject = 'Muler';
     const version = '2.0.0.b1';
