@@ -4,7 +4,7 @@
 Name			:	TableToTable
 GitHub			:	
 Roll20 Contact	:	timmaugh
-Version			:	1.0.0.b1
+Version			:	1.0.0
 Last Update		:	11/05/2022
 =========================================================
 */
@@ -23,10 +23,10 @@ const TableToTable = (() => { // eslint-disable-line no-unused-vars
     const apiproject = 'TableToTable';
     const apilogo = 'https://i.imgur.com/rqEKJhJ.png';
     const apilogoalt = 'https://i.imgur.com/1Zhohx6.png';
-    const version = '1.0.0.b1';
+    const version = '1.0.0';
     const schemaVersion = 0.1;
     API_Meta[apiproject].version = version;
-    const vd = new Date(1667682749754);
+    const vd = new Date(1668570266044);
     const versionInfo = () => {
         log(`\u0166\u0166 ${apiproject} v${API_Meta[apiproject].version}, ${vd.getFullYear()}/${vd.getMonth() + 1}/${vd.getDate()} \u0166\u0166 -- offset ${API_Meta[apiproject].offset}`);
     };

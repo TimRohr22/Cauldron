@@ -4,7 +4,7 @@
 Name			:	Inspector
 GitHub			:	
 Roll20 Contact	:	timmaugh
-Version			:	1.0.0.b7
+Version			:	1.0.0
 Last Update		:	11/07/2022
 =========================================================
 */
@@ -22,10 +22,10 @@ const Inspector = (() => { // eslint-disable-line no-unused-vars
     const apiproject = 'Inspector';
     const apilogo = `https://i.imgur.com/N9swrPX.png`; // black for light backgrounds
     const apilogoalt = `https://i.imgur.com/xFOQhK5.png`; // white for dark backgrounds
-    const version = '1.0.0.b7';
+    const version = '1.0.0';
     const schemaVersion = 0.1;
     API_Meta[apiproject].version = version;
-    const vd = new Date(1667878743768);
+    const vd = new Date(1668569081210);
     const versionInfo = () => {
         log(`\u0166\u0166 ${apiproject} v${API_Meta[apiproject].version}, ${vd.getFullYear()}/${vd.getMonth() + 1}/${vd.getDate()} \u0166\u0166 -- offset ${API_Meta[apiproject].offset}`);
     };

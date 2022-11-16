@@ -3,7 +3,7 @@
 Name			:	Messenger
 GitHub			:	
 Roll20 Contact	:	timmaugh
-Version			:	1.0.0.b4
+Version			:	1.0.0
 Last Update		:	10/26/2022
 =========================================================
 */
@@ -15,10 +15,10 @@ API_Meta.Messenger = { offset: Number.MAX_SAFE_INTEGER, lineCount: -1 };
 const Messenger = (() => { // eslint-disable-line no-unused-vars
     const apiproject = 'Messenger';
     const apilogo = `https://i.imgur.com/DEkWTak.png`;
-    const version = '1.0.0.b4';
+    const version = '1.0.0';
     const schemaVersion = 0.1;
     API_Meta[apiproject].version = version;
-    const vd = new Date(1666834556851);
+    const vd = new Date(1668569081210);
     const versionInfo = () => {
         log(`\u0166\u0166 ${apiproject} v${API_Meta[apiproject].version}, ${vd.getFullYear()}/${vd.getMonth() + 1}/${vd.getDate()} \u0166\u0166 -- offset ${API_Meta[apiproject].offset}`);
     };

@@ -4,8 +4,8 @@
 Name            :   libTable
 GitHub          :   
 Roll20 Contact  :   timmaugh
-Version	        :   1.0.0.b3
-Last Update     :   11/10/2022
+Version	        :   1.0.0
+Last Update     :   11/15/2022
 =========================================================
 */
 var API_Meta = API_Meta || {};
@@ -16,10 +16,10 @@ API_Meta.libTable = { offset: Number.MAX_SAFE_INTEGER, lineCount: -1 };
 
 const libTable = (() => { // eslint-disable-line no-unused-vars
     const apiproject = 'libTable';
-    const version = '1.0.0.b3';
+    const version = '1.0.0';
     const schemaVersion = 0.1;
     API_Meta[apiproject].version = version;
-    const vd = new Date(1668136173036);
+    const vd = new Date(1668569081210);
     const versionInfo = () => {
         log(`\u0166\u0166 ${apiproject} v${API_Meta[apiproject].version}, ${vd.getFullYear()}/${vd.getMonth() + 1}/${vd.getDate()} \u0166\u0166 -- offset ${API_Meta[apiproject].offset}`);
     };
