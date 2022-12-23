@@ -52,7 +52,7 @@ const ScriptInfo = (() => { // eslint-disable-line no-unused-vars
     const fillReportMsg = () => {
         reportMsg = Object.keys(API_Meta).reduce((m, k) => {
             if (API_Meta[k].hasOwnProperty('offset')) {
-                m = `${m}{{ ${k}=${API_Meta[k].offset} / (${API_Meta[k].hasOwnProperty('lineCount') ? API_Meta[k].lineCount : '????'})}}`;
+                m = `${m}{{ ${k}${API_Meta[k].hasOwnProperty('version') ? ` (${API_Meta[k].version})` : ''}=${API_Meta[k].offset} / (${API_Meta[k].hasOwnProperty('lineCount') ? API_Meta[k].lineCount : '????'})}}`;
             }
             return m;
         }, `&{template:default}{{name=Script Information}}{{ SCRIPT NAME=**START / LINES**}}`);
