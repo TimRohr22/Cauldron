@@ -1,23 +1,25 @@
-/* eslint no-prototype-builtins: "off" */
 /*
 =========================================================
 Name            :   Muler
 GitHub          :   https://github.com/TimRohr22/Cauldron/tree/master/Muler
 Roll20 Contact  :   timmaugh
-Version         :   2.0.0.b2
-Last Update     :   11/14/2022
+Version         :   2.0.0
+Last Update     :   27 Jan 2023
 =========================================================
 */
 var API_Meta = API_Meta || {};
 API_Meta.Muler = { offset: Number.MAX_SAFE_INTEGER, lineCount: -1 };
-{ try { throw new Error(''); } catch (e) { API_Meta.Muler.offset = (parseInt(e.stack.split(/\n/)[1].replace(/^.*:(\d+):.*$/, '$1'), 10) - (13)); } }
+{ try { throw new Error(''); } catch (e) { API_Meta.Muler.offset = (parseInt(e.stack.split(/\n/)[1].replace(/^.*:(\d+):.*$/, '$1'), 10) - (12)); } }
 
 const Muler = (() => { //eslint-disable-line no-unused-vars
     const apiproject = 'Muler';
-    const version = '2.0.0.b2';
-    const schemaVersion = 0.1;
+    const version = '2.0.0';
+    const schemaVersion = 0.2;
+    const apilogo = 'https://i.imgur.com/AcQSK23.png'; // black
+    const apilogoalt = 'https://i.imgur.com/j8x0frn.png'; // white
+
     API_Meta[apiproject].version = version;
-    const vd = new Date(1668451911699);
+    const vd = new Date(1674835345555);
     const versionInfo = () => {
         log(`\u0166\u0166 ${apiproject} v${API_Meta[apiproject].version}, ${vd.getFullYear()}/${vd.getMonth() + 1}/${vd.getDate()} \u0166\u0166 -- offset ${API_Meta[apiproject].offset}`);
         if (!state.hasOwnProperty(apiproject) || state[apiproject].version !== schemaVersion) {
@@ -27,6 +29,13 @@ const Muler = (() => { //eslint-disable-line no-unused-vars
                 case 0.1:
                 /* falls through */
 
+                case 0.2:
+                    state[apiproject].settings = {
+                        playersNeedControl: true
+                    }
+                    state[apiproject].defaults = {
+                        playersNeedControl: true
+                    }
                 case 'UpdateSchemaVersion':
                     state[apiproject].version = schemaVersion;
                     break;
@@ -34,10 +43,17 @@ const Muler = (() => { //eslint-disable-line no-unused-vars
                 default:
                     state[apiproject] = {
                         version: schemaVersion,
+                        settings: { playersNeedControl: true },
+                        defaults: { playersNeedControl: true }
                     };
                     break;
             }
         }
+    };
+    const manageState = { // eslint-disable-line no-unused-vars
+        reset: () => state[apiproject].settings = _.clone(state[apiproject].defaults),
+        set: (p, v) => state[apiproject].settings[p] = v,
+        get: (p) => { return state[apiproject].settings[p]; }
     };
     const logsig = () => {
         // initialize shared namespace for all signed projects, if needed
@@ -70,7 +86,7 @@ const Muler = (() => { //eslint-disable-line no-unused-vars
 
     const getMyCharacters = (playerid) => {
         let characters = findObjs({ type: 'character' });
-        return playerIsGM(playerid) ? characters : characters.filter(c => {
+        return playerIsGM(playerid) || !manageState.get('playersNeedControl') ? characters : characters.filter(c => {
             return c.get('controlledby').split(',').reduce((m, p) => {
                 return m || p === 'all' || p === playerid;
             }, false)
@@ -154,6 +170,99 @@ const Muler = (() => { //eslint-disable-line no-unused-vars
             mules: {}
         };
     };
+    let html = {};
+    let css = {}; // eslint-disable-line no-unused-vars
+    let HE = () => { }; // eslint-disable-line no-unused-vars
+    const theme = {
+        primaryColor: '#744402',
+        primaryTextColor: '#232323',
+        primaryTextBackground: '#ededed'
+    }
+    const localCSS = {
+        msgheader: {
+            'background-color': theme.primaryColor,
+            'color': 'white',
+            'font-size': '1.2em',
+            'padding-left': '4px'
+        },
+        msgbody: {
+            'color': theme.primaryTextColor,
+            'background-color': theme.primaryTextBackground
+        },
+        msgfooter: {
+            'color': theme.primaryTextColor,
+            'background-color': theme.primaryTextBackground
+        },
+        msgheadercontent: {
+            'display': 'table-cell',
+            'vertical-align': 'middle',
+            'padding': '4px 8px 4px 6px'
+        },
+        msgheaderlogodiv: {
+            'display': 'table-cell',
+            'max-height': '30px',
+            'margin-right': '8px',
+            'margin-top': '4px',
+            'vertical-align': 'middle'
+        },
+        logoimg: {
+            'background-color': 'transparent',
+            'float': 'left',
+            'border': 'none',
+            'max-height': '30px'
+        },
+        boundingcss: {
+            'background-color': theme.primaryTextBackground
+        },
+        inlineEmphasis: {
+            'font-weight': 'bold'
+        }
+    }
+    const msgbox = ({
+        msg: msg = '',
+        title: title = '',
+        headercss: headercss = localCSS.msgheader,
+        bodycss: bodycss = localCSS.msgbody,
+        footercss: footercss = localCSS.msgfooter,
+        sendas: sendas = 'Muler',
+        whisperto: whisperto = '',
+        footer: footer = '',
+        btn: btn = '',
+    } = {}) => {
+        if (title) title = html.div(html.div(html.img(apilogoalt, 'Muler Logo', localCSS.logoimg), localCSS.msgheaderlogodiv) + html.div(title, localCSS.msgheadercontent), {});
+        Messenger.MsgBox({ msg: msg, title: title, bodycss: bodycss, sendas: sendas, whisperto: whisperto, footer: footer, btn: btn, headercss: headercss, footercss: footercss, boundingcss: localCSS.boundingcss, noarchive: true });
+    };
+    const getWhisperTo = (who) => who.toLowerCase() === 'api' ? 'gm' : who.replace(/\s\(gm\)$/i, '');
+
+    const handleConfig = (msg) => {
+        if (msg.type !== 'api' || !/^!mulerconfig/i.test(msg.content)) return;
+        let recipient = getWhisperTo(msg.who);
+        if (!playerIsGM(msg.playerid)) {
+            msgbox({ title: 'GM Rights Required', msg: 'You must be a GM to perform that operation', whisperto: recipient });
+            return;
+        }
+        let cfgrx = /^(\+|-)(playersneedcontrol)$/i;
+        let res;
+        let cfgTrack = {};
+        let message;
+        if (/^!mulerconfig\s+[^\s]/i.test(msg.content)) {
+            msg.content.split(/\s+/).slice(1).forEach(a => {
+                res = cfgrx.exec(a);
+                if (!res) return;
+                if (res[2].toLowerCase() === 'playersneedcontrol') {
+                    manageState.set('playersNeedControl', (res[1] === '+'));
+                    cfgTrack[res[2]] = res[1];
+                }
+            });
+            let changes = Object.keys(cfgTrack).map(k => `${html.span(k, localCSS.inlineEmphasis)}: ${cfgTrack[k] === '+' ? 'enabled' : 'disabled'}`).join('<br>');
+            msgbox({ title: `SelectManager Config Changed`, msg: `You have made the following changes to the SelectManager configuration:<br>${changes}`, whisperto: recipient });
+        } else {
+            cfgTrack.playersneedcontrol = `${html.span('playersneedcontrol', localCSS.inlineEmphasis)}: ${manageState.get('playersNeedControl') ? 'enabled' : 'disabled'}`;
+            message = `Muler is currently configured as follows:<br>${cfgTrack.playersneedcontrol}`;
+            msgbox({ title: 'Muler Configuration', msg: message, whisperto: recipient });
+        }
+
+    };
     const mulegetter = (msg, msgstate = {}) => {
         let funcret = { runloop: false, status: 'unchanged', notes: '' };
         msg.variables = msg.variables || getEmptyVarObject();
@@ -188,30 +297,6 @@ const Muler = (() => { //eslint-disable-line no-unused-vars
             return m;
         }, {}));
         msg.content = msg.content.replace(mulerx, '');
-
-        //msg.content = msg.content.replace(mulerx, (m, padding, g1) => {
-        //    g1 = g1.replace(muleabilrx, (m1) => {
-        //        mulearray.push(m1.trim());
-        //        return ' '; // return a space in case it's in the middle of 2 other mules
-        //    });
-        //    if (/[^\s]/.test(g1)) g1.split(/\s+/).forEach(a => mulearray.push(a));
-        //    status.push('changed');
-        //    return '';
-        //});
-        //msg.content = msg.content.replace(getrx, (m, ...args) => {
-        //    if (args[4]) { // fully qualified get statement
-        //        mulearray.push(`${args[0]}.${args[2]}`); // in a fully qualified statement, these will be character.mule or table.name
-        //    }
-        //    return m;
-        //});
-        //msg.content = msg.content.replace(setrx, (m, ...args) => {
-        //    let res = args[0].split(/\s*=\s*/).shift().split('.');
-        //    if (res.length > 2) { // fully qualified set statement
-        //        mulearray.push(`${res[0]}.${res[1]}`); // in a fully qualified statement, these will be character.mule or table.name
-        //    }
-        //    return m;
-        //});
-        //mulearray = [...new Set(mulearray)];
 
         // PROCESS MULES INTO ABILITIES AND GET VARIABLES --------------------------
         let mules = []; // new mules in this pass
@@ -494,13 +579,13 @@ const Muler = (() => { //eslint-disable-line no-unused-vars
         if (Object.keys(depCheck.optfailures).length) { // optional components were missing
             failures = Object.keys(depCheck.optfailures).map(k => `&bull; <code>${k}</code> : ${depCheck.optfailures[k]}`).join('<br>');
             contents = `<span style="font-weight: bold">${apiproject}</span> utilizies one or more other scripts for optional features, and works best with those scripts installed. You can typically find these optional scripts in the 1-click Mod Library:<br>${failures}`;
-            msg = `<div style="width: 100%;border: none;border-radius: 0px;min-height: 60px;display: block;text-align: left;white-space: pre-wrap;overflow: hidden"><div style="font-size: 14px;font-family: &quot;Segoe UI&quot;, Roboto, Ubuntu, Cantarell, &quot;Helvetica Neue&quot;, sans-serif"><div style="background-color: #000000;border-radius: 6px 6px 0px 0px;position: relative;border-width: 2px 2px 0px 2px;border-style:  solid;border-color: black;"><div style="border-radius: 18px;width: 35px;height: 35px;position: absolute;left: 3px;top: 2px;"><img style="background-color: transparent ; float: left ; border: none ; max-height: 40px" src="${typeof apilogo !== 'undefined' ? apilogo : 'https://i.imgur.com/kxkuQFy.png'}"></div><div style="background-color: #c94d4d;font-weight: bold;font-size: 18px;line-height: 36px;border-radius: 6px 6px 0px 0px;padding: 4px 4px 0px 43px;color: #ffffff;min-height: 38px;">MISSING MOD DETECTED</div></div><div style="background-color: white;padding: 4px 8px;border: 2px solid #000000;border-bottom-style: none;color: #404040;">${contents}</div><div style="background-color: white;text-align: right;padding: 4px 8px;border: 2px solid #000000;border-top-style: none;border-radius: 0px 0px 6px 6px"></div></div></div>`;
+            msg = `<div style="width: 100%;border: none;border-radius: 0px;min-height: 60px;display: block;text-align: left;white-space: pre-wrap;overflow: hidden"><div style="font-size: 14px;font-family: &quot;Segoe UI&quot;, Roboto, Ubuntu, Cantarell, &quot;Helvetica Neue&quot;, sans-serif"><div style="background-color: #000000;border-radius: 6px 6px 0px 0px;position: relative;border-width: 2px 2px 0px 2px;border-style:  solid;border-color: black;"><div style="border-radius: 18px;width: 35px;height: 35px;position: absolute;left: 3px;top: 2px;"><img style="background-color: transparent ; float: left ; border: none ; max-height: 40px" src="${apilogo}"></div><div style="background-color: #c94d4d;font-weight: bold;font-size: 18px;line-height: 36px;border-radius: 6px 6px 0px 0px;padding: 4px 4px 0px 43px;color: #ffffff;min-height: 38px;">MISSING MOD DETECTED</div></div><div style="background-color: white;padding: 4px 8px;border: 2px solid #000000;border-bottom-style: none;color: #404040;">${contents}</div><div style="background-color: white;text-align: right;padding: 4px 8px;border: 2px solid #000000;border-top-style: none;border-radius: 0px 0px 6px 6px"></div></div></div>`;
             sendChat(apiproject, `/w gm ${msg}`);
         }
         if (!depCheck.passed) {
             failures = Object.keys(depCheck.failures).map(k => `&bull; <code>${k}</code> : ${depCheck.failures[k]}`).join('<br>');
             contents = `<span style="font-weight: bold">${apiproject}</span> requires other scripts to work. Please use the 1-click Mod Library to correct the listed problems:<br>${failures}`;
-            msg = `<div style="width: 100%;border: none;border-radius: 0px;min-height: 60px;display: block;text-align: left;white-space: pre-wrap;overflow: hidden"><div style="font-size: 14px;font-family: &quot;Segoe UI&quot;, Roboto, Ubuntu, Cantarell, &quot;Helvetica Neue&quot;, sans-serif"><div style="background-color: #000000;border-radius: 6px 6px 0px 0px;position: relative;border-width: 2px 2px 0px 2px;border-style:  solid;border-color: black;"><div style="border-radius: 18px;width: 35px;height: 35px;position: absolute;left: 3px;top: 2px;"><img style="background-color: transparent ; float: left ; border: none ; max-height: 40px" src="${typeof apilogo !== 'undefined' ? apilogo : 'https://i.imgur.com/kxkuQFy.png'}"></div><div style="background-color: #c94d4d;font-weight: bold;font-size: 18px;line-height: 36px;border-radius: 6px 6px 0px 0px;padding: 4px 4px 0px 43px;color: #ffffff;min-height: 38px;">MISSING MOD DETECTED</div></div><div style="background-color: white;padding: 4px 8px;border: 2px solid #000000;border-bottom-style: none;color: #404040;">${contents}</div><div style="background-color: white;text-align: right;padding: 4px 8px;border: 2px solid #000000;border-top-style: none;border-radius: 0px 0px 6px 6px"></div></div></div>`;
+            msg = `<div style="width: 100%;border: none;border-radius: 0px;min-height: 60px;display: block;text-align: left;white-space: pre-wrap;overflow: hidden"><div style="font-size: 14px;font-family: &quot;Segoe UI&quot;, Roboto, Ubuntu, Cantarell, &quot;Helvetica Neue&quot;, sans-serif"><div style="background-color: #000000;border-radius: 6px 6px 0px 0px;position: relative;border-width: 2px 2px 0px 2px;border-style:  solid;border-color: black;"><div style="border-radius: 18px;width: 35px;height: 35px;position: absolute;left: 3px;top: 2px;"><img style="background-color: transparent ; float: left ; border: none ; max-height: 40px" src="${apilogo}"></div><div style="background-color: #c94d4d;font-weight: bold;font-size: 18px;line-height: 36px;border-radius: 6px 6px 0px 0px;padding: 4px 4px 0px 43px;color: #ffffff;min-height: 38px;">MISSING MOD DETECTED</div></div><div style="background-color: white;padding: 4px 8px;border: 2px solid #000000;border-bottom-style: none;color: #404040;">${contents}</div><div style="background-color: white;text-align: right;padding: 4px 8px;border: 2px solid #000000;border-top-style: none;border-radius: 0px 0px 6px 6px"></div></div></div>`;
             sendChat(apiproject, `/w gm ${msg}`);
             return false;
         }
@@ -518,7 +603,7 @@ const Muler = (() => { //eslint-disable-line no-unused-vars
         let reqs = [
             {
                 name: 'libTable',
-                version: `1.0.0.b3`,
+                version: `1.0.0`,
                 mod: typeof libTable !== 'undefined' ? libTable : undefined,
                 checks: [
                     ['getTable', 'function'],
@@ -529,9 +614,20 @@ const Muler = (() => { //eslint-disable-line no-unused-vars
                     ['getItemsByWeight', 'function'],
                     ['getItemsByWeightedIndex', 'function']
                 ]
+            },
+            {
+                name: 'Messenger',
+                version: `1.0.0`,
+                mod: typeof Messenger !== 'undefined' ? Messenger : undefined,
+                checks: [['Button', 'function'], ['MsgBox', 'function'], ['HE', 'function'], ['Html', 'function'], ['Css', 'function']]
             }
         ];
         if (!checkDependencies(reqs)) return;
+
+        html = Messenger.Html();
+        css = Messenger.Css();
+        HE = Messenger.HE;
+        on('chat:message', handleConfig);
 
         scriptisplugin = (typeof ZeroFrame !== `undefined`);
         if (typeof ZeroFrame !== 'undefined') {
