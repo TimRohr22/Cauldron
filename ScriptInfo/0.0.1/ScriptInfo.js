@@ -1,10 +1,11 @@
+/* eslint no-prototype-builtins: "off" */
 /*
 =========================================================
 Name            :   ScriptInfo
 GitHub          :   
 Roll20 Contact  :   timmaugh
-Version			:   0.0.2
-Last Update		:   2/2/2023
+Version			:   0.0.1
+Last Update		:   12/21/2022
 =========================================================
 */
 var API_Meta = API_Meta || {};
@@ -13,9 +14,8 @@ API_Meta.ScriptInfo = { offset: Number.MAX_SAFE_INTEGER, lineCount: -1 };
 
 const ScriptInfo = (() => { // eslint-disable-line no-unused-vars
     const ScriptInfo = 'ScriptInfo';
-    const scriptVersion = '0.0.2';
+    const scriptVersion = '0.0.1';
     API_Meta[ScriptInfo].version = scriptVersion;
-    const vd = new Date(1675352155338);
     const logsig = () => {
         state.houseofmod = state.houseofmod || {};
         state.houseofmod.siglogged = state.houseofmod.siglogged || false;
@@ -46,7 +46,7 @@ const ScriptInfo = (() => { // eslint-disable-line no-unused-vars
     };
     const versionInfo = () => {
         let hom = String.fromCodePoint(0xd83c, 0xdfe0);
-        log(`${hom} ${ScriptInfo} v${scriptVersion}, ${vd.getFullYear()}/${vd.getMonth() + 1}/${vd.getDate()} ${hom} -- offset ${API_Meta[ScriptInfo].offset}`);
+        log(`${hom} ${ScriptInfo} v${scriptVersion} ${hom} -- offset ${API_Meta[ScriptInfo].offset}`);
     };
     let reportMsg;
     const fillReportMsg = () => {
@@ -57,57 +57,33 @@ const ScriptInfo = (() => { // eslint-disable-line no-unused-vars
             return m;
         }, `&{template:default}{{name=Script Information}}{{ SCRIPT NAME=**START / LINES**}}`);
     };
-    const findInMeta = (() => {
-        let lookup;
-
-        let doLookup = (n) => {
-            lookup = Object.keys(API_Meta)
-                .reduce((m, k) => [...m, { start: (API_Meta[k].offset), end: (API_Meta[k].offset) + (API_Meta[k].lineCount) - 1, name: k }], [])
-                .sort((a, b) => a.start > b.start ? 1 : -1);
-            doLookup = doLookupReal;
-            return doLookupReal(n);
-        };
-        const doLookupReal = (n) => {
-            let location = {};
-            lookup.find(e => {
-                if (n >= e.start && n <= e.end) {
-                    location.within = e.name;
-                    location.line = n - e.start;
-                    return true;
-                } else {
-                    if (n < e.start && !location.before) {
-                        location.before = e.name;
-                        location.linesbefore = e.start - (n + 1);
-                        return false;
-                    } else if (n > e.end) {
-                        location.after = e.name;
-                        location.linesafter = n - e.end;
-                        return false;
-                    }
-                    return false;
-                }
-            });
-            if (location.within) return `Line ${n} corresponds to line ${location.line} in ${location.within}.`;
-            if (location.before && location.after) return `That line number does not correspond to any script reporting its offset. ` +
-                `It occurs ${location.linesafter} lines after the end of ${location.after}, and ` +
-                `${location.linesbefore} lines before the start of ${location.before}.`;
-            if (location.after) return `That line number does not correspond to any script reporting its offset. ` +
-                `It occurs ${location.linesafter} lines after the end of ${location.after}.`;
-            if (location.before) return `That line number does not correspond to any script reporting its offset. ` +
-                `It occurs ${location.linesbefore} lines before the start of ${location.before}.`;
-            return `No information is available for that line number. Check that you have scripts reporting to API_Meta by running !scriptinfo.`;
-        };
-        return (n) => doLookup(n);
-    })();
+    const getReportForLine = (n) => {
+        let location = Object.keys(API_Meta).filter(k => API_Meta[k].hasOwnProperty('offset') && API_Meta[k].hasOwnProperty('lineCount')).reduce((m, k) => {
+            if (m.hasOwnProperty('within')) return m;
+            if (n >= API_Meta[k].offset && n <= (API_Meta[k].offset + API_Meta[k].lineCount - 1)) {
+                m.within = k;
+            } else {
+                if (n < API_Meta[k].offset) m.before = m.before || k;
+                else m.after = k;
+            }
+            return m;
+        }, {});
+        if (location.within) return `Line ${n} corresponds to line ${n - API_Meta[location.within].offset} in ${location.within}.`;
+        if (location.before && location.after) return `That line number does not correspond to any script reporting its offset. ` +
+            `It occurs ${n - (API_Meta[location.after].offset + API_Meta[location.after].lineCount - 1)} lines after the end of ${location.after}, and ` +
+            `${API_Meta[location.before].offset - (n + 1)} lines before the start of ${location.before}.`;
+        if (location.after) return `That line number does not correspond to any script reporting its offset. ` +
+            `It occurs ${n - (API_Meta[location.after].offset + API_Meta[location.after].lineCount - 1)} lines after the end of ${location.after}.`;
+        if (location.before) return `That line number does not correspond to any script reporting its offset. ` +
+            `It occurs ${API_Meta[location.before].offset - (n + 1)} lines before the start of ${location.before}.`;
+    };
     const handleInput = msg => {
         if (msg.type !== 'api' || !/^!scriptinfo\b/.test(msg.content)) return;
         let args = msg.content.split(/\s+/).slice(1);
         if (!args.length) { // get API_Meta object info
             sendChat('MODERATOR', reportMsg);
         } else {
-            args.forEach(a => {
-                sendChat('MODERATOR', `&{template:default}{{name=Script Information (Line ${a})}}{{=${findInMeta(Number(a))}}}`, null, { noarchive: true });
-            });
+            sendChat('MODERATOR', `&{template:default}{{name=Script Information (Line ${args[0]})}}{{=${getReportForLine(Number(args[0]))}}}`, null, { noarchive: true });
         }
     };
 
@@ -120,7 +96,6 @@ const ScriptInfo = (() => { // eslint-disable-line no-unused-vars
         versionInfo();
         fillReportMsg();
         registerEventHandlers();
-        findInMeta(100);
     });
     return {};
 })();
