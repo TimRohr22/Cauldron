@@ -1,25 +1,24 @@
-/* eslint no-prototype-builtins: "off" */
 /*
 =========================================================
 Name            : ZeroFrame
 GitHub          : https://github.com/TimRohr22/Cauldron/tree/master/ZeroFrame
 Roll20 Contact  : timmaugh
-Version         : 1.0.12
-Last Update     : 12/4/2022
+Version         : 1.0.13b1  **in process as of Jan 26**
+Last Update     : 2/14/2023
 =========================================================
 */
 var API_Meta = API_Meta || {};
 API_Meta.ZeroFrame = { offset: Number.MAX_SAFE_INTEGER, lineCount: -1 };
-{ try { throw new Error(''); } catch (e) { API_Meta.ZeroFrame.offset = (parseInt(e.stack.split(/\n/)[1].replace(/^.*:(\d+):.*$/, '$1'), 10) - (13)); } }
+{ try { throw new Error(''); } catch (e) { API_Meta.ZeroFrame.offset = (parseInt(e.stack.split(/\n/)[1].replace(/^.*:(\d+):.*$/, '$1'), 10) - (12)); } }
 
 const ZeroFrame = (() => { //eslint-disable-line no-unused-vars
     // ==================================================
     //		VERSION
     // ==================================================
     const apiproject = 'ZeroFrame';
-    API_Meta[apiproject].version = '1.0.12';
+    API_Meta[apiproject].version = '1.0.13b1';
     const schemaVersion = 0.2;
-    const vd = new Date(1670208783204);
+    const vd = new Date(1676397116456);
     let stateReady = false;
     const checkInstall = () => {
         if (!state.hasOwnProperty(apiproject) || state[apiproject].version !== schemaVersion) {
@@ -83,6 +82,10 @@ const ZeroFrame = (() => { //eslint-disable-line no-unused-vars
         }
         return;
     };
+
+    // ==================================================
+    //		MESSAGE STORAGE
+    // ==================================================
     const generateUUID = (() => {
         let a = 0;
         let b = [];
@@ -114,8 +117,13 @@ const ZeroFrame = (() => { //eslint-disable-line no-unused-vars
             return c;
         };
     })();
-
     const preservedMsgObj = {};
+    const batchMsgLibrary = {}; // will contain key pairs of UUID:originalMsg
+
+    // ==================================================
+    //		META-OP REGISTRATION
+    // ==================================================
+
     const loopFuncs = [];
 
     class Func {
@@ -390,10 +398,17 @@ const ZeroFrame = (() => { //eslint-disable-line no-unused-vars
     const runLoop = (preserved, preservedstate, apitrigger, msg = {}) => {
         preservedstate.runloop = false;
         preservedstate.loopcount++;
-
         trackhistory(msg, preservedstate, { action: `LOOP ${preservedstate.loopcount}` });
         handleLogging(msg, preservedstate);
         setOrder(msg, preservedstate);
+        if (preservedstate.logging) {
+            log(`LOOP ${preservedstate.loopcount}`);
+        }
+        if (preservedstate.logging) {
+            log(`====MSG DATA====`);
+            log(`  CONT: ${preserved.content}`);
+            log(`  DEFS: ${JSON.stringify(preserved.definitions || [])}`);
+        }
         let replaceTrack = {};
         if (msg.inlinerolls) {
             // insert inline rolls to preserved message, correct the placeholder shorthand index
@@ -414,7 +429,14 @@ const ZeroFrame = (() => { //eslint-disable-line no-unused-vars
         // loop through registered functions
         let funcret;
         preservedstate.looporder.forEach(f => {
+            if (preservedstate.logging) log(`...RUNNING ${f.name}`);
+
             funcret = f.func(preserved, preservedstate);
+            if (preservedstate.logging) {
+                log(`....MSG DATA....`);
+                log(`  CONT: ${preserved.content}`);
+                log(`  DEFS: ${JSON.stringify(preserved.definitions || [])}`);
+            }
             // returned object should include { runloop: boolean, status: (changed|unchanged|unresolved), notes: text}
             trackhistory(preserved, preservedstate, { action: f.name, notes: funcret.notes, status: funcret.status });
             preservedstate.runloop = preservedstate.runloop || funcret.runloop;
@@ -532,7 +554,7 @@ const ZeroFrame = (() => { //eslint-disable-line no-unused-vars
 
         // release the message to other scripts (FINAL OUTPUT)
         preserved.content = preserved.content.replace(/\({&br}\)/g, '<br/>\n');
-        if (!preserved.inlinerolls.length) delete preserved.inlinerolls;
+        if (preserved.inlinerolls && !preserved.inlinerolls.length) delete preserved.inlinerolls;
         Object.keys(preserved).forEach(k => msg[k] = preserved[k]);
 
         setTimeout(() => { delete preservedMsgObj[apitrigger] }, 1000);
@@ -545,10 +567,41 @@ const ZeroFrame = (() => { //eslint-disable-line no-unused-vars
         if (/^!0(\s+help|$)/.test(c)) return 'help';
     };
     // ==================================================
+    //		BATCH OPERATIONS
+    // ==================================================
+
+    const getBatchTextBreakpoint = c => {
+        let counter = 1;
+        let pos = 3;
+        let openprime = false;
+        let closeprime = false;
+        while (counter !== 0 && pos <= c.length - 1) {
+            if (c.charAt(pos) === '{') {
+                closeprime = false;
+                if (openprime) {
+                    counter++;
+                    openprime = false;
+                } else openprime = true;
+            } else {
+                openprime = false;
+                if (c.charAt(pos) === '}') {
+                    if (closeprime) {
+                        counter--;
+                        closeprime = false;
+                    } else closeprime = true;
+                }
+            }
+            pos++;
+        }
+        return pos;
+    };
+
+    // ==================================================
     //      HANDLE INPUT
     // ==================================================
     const handleInput = (msg) => {
         const trigrx = new RegExp(`^!(${Object.keys(preservedMsgObj).join('|')})`);
+        const batchtrigrx = new RegExp(`^!(${Object.keys(batchMsgLibrary).map(k => batchMsgLibrary[k].handles.join('|'))})`, '');
         let preserved,
             preservedstate,
             apitrigger; // the apitrigger used by the message
@@ -592,15 +645,29 @@ const ZeroFrame = (() => { //eslint-disable-line no-unused-vars
                 default:
             }
         } else {
+            const skiprx = /(\()?{&\s*skip\s*}((?<=\({&\s*skip\s*})\)|\1)/gi;
+            if (msg.content.match(skiprx)) {
+                msg.content = msg.content.replace(skiprx, '');
+                return;
+            }
             if (Object.keys(preservedMsgObj).length && trigrx.test(msg.content)) { // check all active apitriggers in play
                 apitrigger = trigrx.exec(msg.content)[1];
                 preserved = preservedMsgObj[apitrigger].message;
                 preservedstate = preservedMsgObj[apitrigger].state;
-            } else {    // not prepended with apitrigger, original message
-                const skiprx = /(\()?{&\s*skip\s*}((?<=\({&\s*skip\s*})\)|\1)/gi;
-                if (msg.content.match(skiprx)) {
-                    msg.content = msg.content.replace(skiprx, '');
-                    return;
+            } else {    // not prepended with apitrigger, original or batch-dispatched message
+                let restoreMsg;
+                if (Object.keys(batchMsgLibrary).length && batchtrigrx.test(msg.content)) {
+                    let bres = batchtrigrx.exec(msg.content);
+                    msg.content = `!${msg.content.slice(bres[0].length)}`;
+                    restoreMsg = Object.keys(batchMsgLibrary).reduce((m, k) => {
+                        if (!Object.keys(m).length) {
+                            if (batchMsgLibrary[k].handles.includes(bres[1])) {
+                                m = batchMsgLibrary[k];
+                                m.handles.filter(h => h !== bres[1]);
+                            }
+                        }
+                        return m;
+                    }, {}).message;
                 }
                 msg.unlock = { zeroframe: generateUUID() };
                 apitrigger = `${apiproject}${generateUUID()}`;
@@ -608,18 +675,104 @@ const ZeroFrame = (() => { //eslint-disable-line no-unused-vars
                 msg.origcontent = msg.content;
                 msg.content = msg.content.replace(/<br\/>\n/g, '({&br})'); //.replace(/^!(\{\{(.*)\}\})/, '!$2');
                 msg.content = `!${apitrigger}${msg.content.slice(1)}`;
+                if (restoreMsg) {
+                    // this is a batched dispatch, restore non-Roll20 properties like mules, conditional tests, definitions, etc.
+                    Object.keys(restoreMsg).filter(k => !['inlinerolls', 'parsedinline'].includes(k))
+                        .forEach(k => msg[k] = msg[k] || restoreMsg[k]);
+                }
                 preservedMsgObj[apitrigger] = { message: _.clone(msg), state: initState() };
+                if (restoreMsg && restoreMsg.inlinerolls && restoreMsg.inlinerolls.length) {
+                    preservedMsgObj[apitrigger].message.inlinerolls = [...restoreMsg.inlinerolls];
+                    preservedMsgObj[apitrigger].message.parsedinline = [...restoreMsg.parsedinline];
+                }
                 preserved = preservedMsgObj[apitrigger].message;
                 preservedstate = preservedMsgObj[apitrigger].state;
 
-                preserved.inlinerolls = [];
-                preserved.parsedinline = [];
+                if (!restoreMsg) {
+                    preserved.inlinerolls = [];
+                    preserved.parsedinline = [];
+                }
 
                 trackhistory(preserved, preservedstate, { action: 'ORIGINAL MESSAGE' });
             }
             runLoop(preserved, preservedstate, apitrigger, msg);
         }
     };
+
+    // ==================================================
+    //		BATCH HANDLE INPUT
+    // ==================================================
+    const handleBatchInput = (msg) => {
+        if (msg.type !== 'api' || !/^!{{/.test(msg.content)) return;
+
+        Object.keys(batchMsgLibrary).filter(k => Date.now() - batchMsgLibrary[k].time > 10000).forEach(k => delete batchMsgLibrary[k]);
+
+        const dispatchOutbound = (cmd) => {
+            if (!msg.messageID) {
+                msg.messageID = generateUUID();
+                batchMsgLibrary[msg.messageID] = { message: _.clone(msg), handles: [], time: Date.now() };
+            }
+            let uuid = `${apiproject}${generateUUID()}`;
+            batchMsgLibrary[msg.messageID].handles.push(uuid);
+            sendChat('BatchOp', `!${uuid}${cmd.replace(/\$\[\[(\d+)]]/g, `({&$1})`)}`);
+        };
+
+        let breakpoint = getBatchTextBreakpoint(msg.content) + 1;
+        let [batchText, remainingText] = [msg.content.slice(0, breakpoint), msg.content.slice(breakpoint)];
+        let lines = batchText.split(/<br\/>\n/gi)
+            .map(l => l.trim())
+            .reduce((m, l, i, a) => {
+                if (i === 0 || i === a.length - 1) {
+                    m.lines.push(l);
+                    return m;
+                }
+                m.count += ((l.match(/{{/g) || []).length - (l.match(/}}/g) || []).length);
+                m.temp.push(l);
+                if (m.count === 0) {
+                    m.lines.push(m.temp.join('<br/>\n'));
+                    m.temp = [];
+                }
+                return m;
+            }, { count: 0, lines: [], temp: [] })
+            .lines || [];
+        let escapeall = '';
+        let escaperx = /^\((.+?)\)/g;
+        let escapeallrx = /^!{{(?:\((.+?)\))?/;
+        if (escapeallrx.test(lines[0])) {
+            escapeallrx.lastIndex = 0;
+            escapeall = escapeallrx.exec(lines[0])[1] || '';
+        }
+        escapeallrx.lastIndex = 0;
+        lines[0] = lines[0].replace(escapeallrx, ''); // in case there is a command on the first line
+        lines[lines.length - 1] = lines[lines.length - 1].replace(/}}(?!}})/, ''); // in case there is a command on the last line
+        lines.filter(l => l.length).forEach(l => {
+            // handle escape characters
+            let escapelocal = '';
+            escaperx.lastIndex = 0;
+            if (escaperx.test(l)) {
+                escaperx.lastIndex = 0;
+                let eres = escaperx.exec(l);
+                escapelocal = eres[1];
+                l = l.slice(eres[0].length);
+            }
+            if (escapeall.length) l = l.replace(new RegExp(escapeRegExp(escapeall), 'g'), '');
+            if (escapelocal.length) l = l.replace(new RegExp(escapeRegExp(escapelocal), 'g'), '');
+
+            if (!/^!/.test(l)) { // this isn't a script message
+                l = `!${l}{&simple}`;
+            }
+            dispatchOutbound(l);
+
+        });
+
+        msg.content = remainingText;
+
+        return;
+    };
+
+    // ==================================================
+    //		DEPENDENCIES
+    // ==================================================
 
     const checkDependencies = (deps) => {
         /* pass array of objects like
@@ -712,6 +865,7 @@ const ZeroFrame = (() => { //eslint-disable-line no-unused-vars
             }
         ];
         if (!checkDependencies(reqs)) return;
+        on('chat:message', handleBatchInput);
 
     });
 
