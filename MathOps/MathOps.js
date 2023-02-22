@@ -3,22 +3,20 @@
 Name			:	MathOps
 GitHub			:	https://github.com/TimRohr22/Cauldron/tree/master/MathOps
 Roll20 Contact	:	timmaugh
-Version			:	1.0.6
+Version			:	1.0.7
 Last Update		:	1/8/2022
 =========================================================
 */
 var API_Meta = API_Meta || {};
 API_Meta.MathOps = { offset: Number.MAX_SAFE_INTEGER, lineCount: -1 };
-{
-    try { throw new Error(''); } catch (e) { API_Meta.MathOps.offset = (parseInt(e.stack.split(/\n/)[1].replace(/^.*:(\d+):.*$/, '$1'), 10) - (13)); }
-}
+{ try { throw new Error(''); } catch (e) { API_Meta.MathOps.offset = (parseInt(e.stack.split(/\n/)[1].replace(/^.*:(\d+):.*$/, '$1'), 10) - (12)); } }
 
 const MathOps = (() => {
     const apiproject = 'MathOps';
-    const version = '1.0.6';
+    const version = '1.0.7';
     const schemaVersion = 0.1;
     API_Meta[apiproject].version = version;
-    const vd = new Date(1673234380048);
+    const vd = new Date(1677072709240);
     const versionInfo = () => {
         log(`\u0166\u0166 ${apiproject} v${API_Meta[apiproject].version}, ${vd.getFullYear()}/${vd.getMonth() + 1}/${vd.getDate()} \u0166\u0166 -- offset ${API_Meta[apiproject].offset}`);
         if (!state.hasOwnProperty(apiproject) || state[apiproject].version !== schemaVersion) {
@@ -337,6 +335,8 @@ const MathOps = (() => {
         }
     });
     return {
+        MathProcessor: mathprocessor
     };
 })();
 { try { throw new Error(''); } catch (e) { API_Meta.MathOps.lineCount = (parseInt(e.stack.split(/\n/)[1].replace(/^.*:(\d+):.*$/, '$1'), 10) - API_Meta.MathOps.offset); } }
+/* */
