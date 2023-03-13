@@ -3,8 +3,8 @@
 Name			:	MathOps
 GitHub			:	https://github.com/TimRohr22/Cauldron/tree/master/MathOps
 Roll20 Contact	:	timmaugh
-Version			:	1.0.8
-Last Update		:	3/12/2023
+Version			:	1.0.7
+Last Update		:	1/8/2022
 =========================================================
 */
 var API_Meta = API_Meta || {};
@@ -13,10 +13,10 @@ API_Meta.MathOps = { offset: Number.MAX_SAFE_INTEGER, lineCount: -1 };
 
 const MathOps = (() => {
     const apiproject = 'MathOps';
-    const version = '1.0.8';
+    const version = '1.0.7';
     const schemaVersion = 0.1;
     API_Meta[apiproject].version = version;
-    const vd = new Date(1678676625022);
+    const vd = new Date(1677072709240);
     const versionInfo = () => {
         log(`\u0166\u0166 ${apiproject} v${API_Meta[apiproject].version}, ${vd.getFullYear()}/${vd.getMonth() + 1}/${vd.getDate()} \u0166\u0166 -- offset ${API_Meta[apiproject].offset}`);
         if (!state.hasOwnProperty(apiproject) || state[apiproject].version !== schemaVersion) {
@@ -256,7 +256,7 @@ const MathOps = (() => {
                         case 'number':
                             return t.value;
                         case 'name':
-                            return o.known.hasOwnProperty(t.id.trim()) ? o.known[t.id.trim()] : t.id;
+                            return o.known[t.id.trim()] || t.id;
                         case 'func':
                             return funcbank[t.func](...t.params.map(p => getVal(p)));
                         default:
