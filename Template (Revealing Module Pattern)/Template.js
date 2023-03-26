@@ -80,7 +80,7 @@ const SCRIPTNAME = (() => { // eslint-disable-line no-unused-vars
         clone: () => { return _.clone(state[apiproject].settings); },
         set: (p, v) => state[apiproject].settings[p] = v,
         get: (p) => { return state[apiproject].settings[p]; }
-    }
+    };
     // ==================================================
     //		HANDLE INPUT
     // ==================================================
