@@ -483,7 +483,7 @@ const ZeroFrame = (() => { //eslint-disable-line no-unused-vars
             log(`  DEFS: ${JSON.stringify(preserved.definitions || [])}`);
         }
         getLoopRolls(msg, preserved, preservedstate);
-        preserved.content = msg.content.replace(/<br\/>\n/g, '({&br})');
+        preserved.content = msg.content.replace(/(<br\/>)?\n/g, '({&br})');
         if (!preserved.rolltemplate && msg.rolltemplate && msg.rolltemplate.length) preserved.rolltemplate = msg.rolltemplate;
         msg.content = `${msg.apitrigger}`;
         preservedstate.runloop = getValues(preserved) || preservedstate.runloop;
@@ -608,7 +608,7 @@ const ZeroFrame = (() => { //eslint-disable-line no-unused-vars
             preserved.content = preserved.content.replace(/^!+\s*/, '')
                 .replace(simplerx, '')
                 .replace(/\$\[\[(\d+)]]/g, ((m, g1) => typeof preserved.parsedinline[g1] === 'undefined' ? m : preserved.parsedinline[g1].getRollTip()))
-                .replace(/\({&br}\)/g, '<br/>\n');
+                .replace(/\({&br}\)/g, '\n');
             if (preserved.rolltemplate && !temptag) {
                 let dbpos = preserved.content.indexOf(`{{`);
                 dbpos = dbpos === -1 ? 0 : dbpos;
@@ -636,7 +636,7 @@ const ZeroFrame = (() => { //eslint-disable-line no-unused-vars
         if (preservedstate.logging) buildLog(preserved, preservedstate, apitrigger);
 
         // release the message to other scripts (FINAL OUTPUT)
-        preserved.content = preserved.content.replace(/\({&br}\)/g, '<br/>\n');
+        preserved.content = preserved.content.replace(/\({&br}\)/g, '\n');
         if (preserved.inlinerolls && !preserved.inlinerolls.length) delete preserved.inlinerolls;
         Object.keys(preserved).forEach(k => msg[k] = preserved[k]);
 
@@ -756,7 +756,7 @@ const ZeroFrame = (() => { //eslint-disable-line no-unused-vars
                 apitrigger = `${apiproject}${generateUUID()}`;
                 msg.apitrigger = apitrigger;
                 msg.origcontent = msg.content;
-                msg.content = msg.content.replace(/<br\/>\n/g, '({&br})'); //.replace(/^!(\{\{(.*)\}\})/, '!$2');
+                msg.content = msg.content.replace(/(<br\/>)?\n/g, '({&br})'); //.replace(/^!(\{\{(.*)\}\})/, '!$2');
                 msg.content = `!${apitrigger}${msg.content.slice(1)}`;
                 if (restoreMsg && restoreMsg.hasOwnProperty('message')) {
                     // this is a batched dispatch, restore non-Roll20 properties like mules, conditional tests, definitions, etc.
@@ -808,8 +808,8 @@ const ZeroFrame = (() => { //eslint-disable-line no-unused-vars
         let cleancmd = msg.content.replace(/\({\)/g, '{{').replace(/\(}\)/g, '}}');
         let breakpoint = getBatchTextBreakpoint(cleancmd) + 1;
         let [batchText, remainingText] = [cleancmd.slice(0, breakpoint), cleancmd.slice(breakpoint)];
-        let lines = batchText.split(/<br\/>\n/gi)
-            .map(l => l.trim())
+        let lines = batchText.split(/(<br\/>)?\n/gi)
+            .map(l => (l || '').trim())
             .reduce((m, l, i, a) => {
                 if (i === 0 || i === a.length - 1) {
                     m.lines.push(l);
@@ -818,7 +818,7 @@ const ZeroFrame = (() => { //eslint-disable-line no-unused-vars
                 m.count += ((l.match(/{{/g) || []).length - (l.match(/}}/g) || []).length);
                 m.temp.push(l);
                 if (m.count === 0) {
-                    m.lines.push(m.temp.join('<br/>\n'));
+                    m.lines.push(m.temp.join('\n'));
                     m.temp = [];
                 }
                 return m;
