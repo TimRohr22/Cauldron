@@ -4,7 +4,7 @@ Name            : ZeroFrame
 GitHub          : https://github.com/TimRohr22/Cauldron/tree/master/ZeroFrame
 Roll20 Contact  : timmaugh
 Version         : 1.1.5
-Last Update     : 4/26/2023
+Last Update     : 4/28/2023
 =========================================================
 */
 var API_Meta = API_Meta || {};
@@ -18,7 +18,7 @@ const ZeroFrame = (() => { //eslint-disable-line no-unused-vars
     const apiproject = 'ZeroFrame';
     API_Meta[apiproject].version = '1.1.5';
     const schemaVersion = 0.2;
-    const vd = new Date(1682567066224);
+    const vd = new Date(1682708227865);
     let stateReady = false;
     const checkInstall = () => {
         if (!state.hasOwnProperty(apiproject) || state[apiproject].version !== schemaVersion) {
