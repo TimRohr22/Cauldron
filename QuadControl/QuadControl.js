@@ -3,7 +3,7 @@
 Name			:   QuadControl
 GitHub			:   
 Roll20 Contact  :   timmaugh
-Version			:   1.0.0b1
+Version			:   1.0.0b2
 Last Update		:   6/7/2023
 =========================================================
 */
@@ -18,7 +18,7 @@ const QuadControl = (() => { // eslint-disable-line no-unused-vars
     const apilogo = 'https://i.imgur.com/HlgVjix.png';
     const apilogoalt = 'https://i.imgur.com/HlgVjix.png';
     API_Meta[apiproject].version = version;
-    const vd = new Date(1686160014213);
+    const vd = new Date(1686164976239);
     const versionInfo = () => {
         log(`\uD83C\uDFE0 ${apiproject} v${version} \uD83C\uDFE0 -- offset ${API_Meta[apiproject].offset}`);
     };
@@ -234,7 +234,7 @@ const QuadControl = (() => { // eslint-disable-line no-unused-vars
     const fromRadius = (source, r = 0) => {
         let tokenShape = manageState.get('tokenShape');
         let page = getObj('page', source.get('pageid'));
-        let rangerx = /^(\d+?(?:\.\d+?)?)(u?)/i;
+        let rangerx = /^(\d+?(?:\.\d+?)?)(u?)$/i;
         let range, res;
         if (rangerx.test(r)) {
             res = rangerx.exec(r);
@@ -295,7 +295,7 @@ const QuadControl = (() => { // eslint-disable-line no-unused-vars
     const interRadius = (source, r = 0) => {
         let tokenShape = manageState.get('tokenShape');
         let page = getObj('page', source.get('pageid'));
-        let rangerx = /^(\d+?(?:\.\d+?)?)(u?)/i;
+        let rangerx = /^(\d+?(?:\.\d+?)?)(u?)$/i;
         let range, res;
         if (rangerx.test(r)) {
             res = rangerx.exec(r);
@@ -399,7 +399,8 @@ const QuadControl = (() => { // eslint-disable-line no-unused-vars
         type = type && rectFuncs.hasOwnProperty(type)
             ? type
             : source.get('type');
-        let ret = treeMap[pageid].retrieve(rectFuncs[type](source, from));
+        let ret = treeMap[pageid].retrieve(rectFuncs[type](source, from))
+            .map(e => e.context);
         /*
         let activeFilters = filters.length
             ? filters.map(f => retrieveFilters[f]).filter(f => f !== undefined)
@@ -434,7 +435,7 @@ const QuadControl = (() => { // eslint-disable-line no-unused-vars
         if (!potentials.length) { return [] };
         let sourceShape = interShapes[type](source, from);
         return potentials.filter(p => {
-            return sourceShape.intersect(interShapes[p.context.get('type')](p.context));
+            return sourceShape.intersect(interShapes[p.get('type')](p));
         });
     }
 
@@ -810,7 +811,7 @@ const QuadControl = (() => { // eslint-disable-line no-unused-vars
                     log(`QuadControl is building ${p.get('name')}`);
                     setTimeout(buildTree, 0, p, defaultConfig, burndown, Date.now());
                 } else {
-                    log(`QuadControl is ready (elapsed time: ${(Date.now() - startTime)/1000} seconds)`);
+                    log(`QuadControl is ready (elapsed time: ${(Date.now() - startTime) / 1000} seconds)`);
                     ready = true;
                 }
             };
