@@ -13,7 +13,7 @@ API_Meta.Fetch = { offset: Number.MAX_SAFE_INTEGER, lineCount: -1 };
 
 const Fetch = (() => { //eslint-disable-line no-unused-vars
     const apiproject = 'Fetch';
-    const version = '2.0.7';
+    const version = '2.0.8';
     const apilogo = 'https://i.imgur.com/jeIkjvS.png';
     const apilogoalt = 'https://i.imgur.com/boYO3cf.png';
     const schemaVersion = 0.2;
