@@ -370,7 +370,8 @@ const SelectManager = (() => { //eslint-disable-line no-unused-vars
     };
     const uniqueArrayByProp = (array, prop = 'id') => {
         const set = new Set;
-        return array.filter(o => !set.has(o[prop]) && set.add(o[prop]));
+        return array
+            .filter(o => typeof o !== 'undefined' && !set.has(o[prop]) && set.add(o[prop]));
     };
     let markerrx;
     const decomposeStatuses = (list = '') => {
@@ -689,7 +690,7 @@ const SelectManager = (() => { //eslint-disable-line no-unused-vars
                     m = [...m, ...group];
                     return m;
                 }, [])
-                .filter(t => typeof t !== 'undefined')
+                .filter(t => typeof t !== 'undefined');
         };
         const replaceOps = (rx, rxtype) => {
             rx.lastIndex = 0;
