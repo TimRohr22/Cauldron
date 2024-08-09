@@ -54,6 +54,9 @@ on('ready', () => {
 			chars.forEach(c => {
 				let attrs = findObjs({ type: 'attribute', characterid: c.id, name: `${a[0]}type` });
 				if (attrs.length > 1) log(`Character ${c.get('name')} has ${attrs.length} attributes named ${a[0]}type.`);
+				if (!attrs.length) {
+					attrs.push(createObj('attribute',{ characterid: c.id, name: `${a[0]}type` }));
+				}
 				attrs.forEach((a, i) => {
 					if (i === 0) a.set({ current: attrOptions[a[0]][a[1]] });
 					else a.remove();
