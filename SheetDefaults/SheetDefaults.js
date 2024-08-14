@@ -273,10 +273,10 @@ const SheetDefaults = (() => { // eslint-disable-line no-unused-vars
 		};
 	};
 	class ActionToken {
-		constructor({ action: action = '', cid: cid = '', aid: aid = '', name: name = '', current: current = '' } = {}) {
+		constructor({ action: action = '', cid: cid = '', attr: attr, name: name = '', current: current = '' } = {}) {
 			this.action = action;
 			this.cid = cid;
-			this.aid = aid;
+			this.attr = attr;
 			this.name = name;
 			this.current = current;
 		}
@@ -363,14 +363,14 @@ const SheetDefaults = (() => { // eslint-disable-line no-unused-vars
 					if (!attrs.length) {
 						m = [
 							...m,
-							new ActionToken({ action: 'create', cid: c.id, aid: '', name: `${k}type`, current: argObj[k] })
+							new ActionToken({ action: 'create', cid: c.id, name: `${k}type`, current: argObj[k] })
 						];
 					} else {
 						m = [
 							...m,
-							new ActionToken({ action: 'change', cid: c.id, aid: attrs[0].id, name: `${k}type`, current: argObj[k] }),
+							new ActionToken({ action: 'change', cid: c.id, attr: attrs[0], name: `${k}type`, current: argObj[k] }),
 							...attrs.slice(1).map(a => {
-								return new ActionToken({ action: 'delete', cid: c.id, aid: a.id, name: `${k}type`, current: argObj[k] });
+								return new ActionToken({ action: 'delete', cid: c.id, attr: a, name: `${k}type`, current: argObj[k] });
 							})
 						];
 					}
@@ -403,7 +403,7 @@ const SheetDefaults = (() => { // eslint-disable-line no-unused-vars
 			Object.keys(oLog.args).map(k => {
 				let newCount = oLog.actions.filter(a => a.action === 'create' && a.name === `${k}type`).length;
 				let setCount = oLog.actions.filter(a => ['create', 'change'].includes(a.action) && a.name === `${k}type`).length;
-				let delCount = oLog.actions.filter(a => a.action === 'delete' && a.name === '${k}type').length;
+				let delCount = oLog.actions.filter(a => a.action === 'delete' && a.name === `${k}type`).length;
 				return html.tr(
 					html.td(`${k}type`, localCSS.leftalign) +
 					html.td(HE(oLog.args[k]), localCSS.leftalign) +
@@ -423,15 +423,14 @@ const SheetDefaults = (() => { // eslint-disable-line no-unused-vars
 		let attr;
 		switch (data.action) {
 			case 'create':
-				createObj('attribute', { characterid: data.cid, name: data.name, current: data.current });
+				createObj('attribute', { characterid: data.cid, name: data.name, current: '' })
+					.setWithWorker({ current: data.current });
 				break;
 			case 'delete':
-				attr = findObjs({ type: 'attribute', id: data.aid })[0];
-				if (attr) { attr.remove() }
+				data.attr.remove();
 				break;
 			default:
-				attr = findObjs({ type: 'attribute', id: data.aid })[0];
-				if (attr) { attr.setWithWorker({ current: data.current }); }
+				data.attr.setWithWorker({ current: data.current });
 		}
 		oLog.actions.push(data);
 		setTimeout(burndown, 0);
