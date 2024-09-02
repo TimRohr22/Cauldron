@@ -320,7 +320,7 @@ const SheetDefaults = (() => { // eslint-disable-line no-unused-vars
 			no: 'pick'
 		}
 	};
-	const statusButton = button({ elem: '!sheetdefaults-status', label: 'Status', type: '!' });
+	let statusButton;
 
 	const handleInquiry = (msg) => {
 		if (msg.type !== 'api' || !/^!sheetdefaults-status/i.test(msg.content)) return;
@@ -383,8 +383,23 @@ const SheetDefaults = (() => { // eslint-disable-line no-unused-vars
 			oLog.startTime = Date.now();
 			let formattedTime = new Date(oLog.startTime).toLocaleTimeString();
 
+			let rptObj = Object.assign({ w: 'Not Provided', r: 'Not Provided', d: 'Not Provided' }, oLog.args);
+			let tbl = html.table(
+				html.tr(
+					html.th(getTip('', html.span('ATTR', localCSS.tableheader), 'Attribute'), localCSS.leftalign, localCSS.tableheader) + // attribute name heading
+					html.th(getTip('', html.span('VALUE', localCSS.tableheader), 'Value'), localCSS.leftalign, localCSS.tableheader) // value heading
+				) +
+				Object.keys(rptObj).map(k => {
+					if (rptObj[k] === 'Not Provided') {
+						return '';
+					}
+					return html.tr(
+						html.td(`${k}type`, localCSS.leftalign) +
+						html.td(HE(rptObj[k]), localCSS.leftalign)
+					);
+				}).join(''));
 			msgbox({
-				msg: `SheetDefaults began working at ${formattedTime}. It might take a while before the process completes. Please be patient.`,
+				msg: `SheetDefaults began working at ${formattedTime} (Roll20 Server Time). It might take a while before the process completes. Please be patient. Commands in use:${tbl}`,
 				title: 'Process Started',
 				btn: statusButton
 			});
@@ -397,7 +412,7 @@ const SheetDefaults = (() => { // eslint-disable-line no-unused-vars
 			html.tr(
 				html.th(getTip('', html.span('ATTR', localCSS.tableheader),'Attribute'), localCSS.leftalign, localCSS.tableheader) + // attribute name heading
 				html.th(getTip('', html.span('VALUE', localCSS.tableheader), 'Value'), localCSS.leftalign, localCSS.tableheader) + // value heading
-				html.th(getTip('', '\u{2705}', 'Attributes Set') + '&nbsp;(' + getTip('', '\u{2A}\u{FE0F}\u{20E3}', 'New Attributes') + ')', localCSS.rightalign, localCSS.tableheader) + // set(new) heading
+				html.th(getTip('', '\u{2705}', 'Attributes Changed') + '&nbsp;(' + getTip('', '\u{2A}\u{FE0F}\u{20E3}', 'Attributes Created') + ')', localCSS.rightalign, localCSS.tableheader) + // set(new) heading
 				html.th(getTip('', '\u{274C}', 'Attributes Deleted'), localCSS.rightalign, localCSS.tableheader) // deleted heading
 			) +
 			Object.keys(oLog.args).map(k => {
@@ -527,6 +542,7 @@ const SheetDefaults = (() => { // eslint-disable-line no-unused-vars
 		html = Messenger.Html();
 		css = Messenger.Css();
 		HE = Messenger.HE;
+		statusButton = button({ elem: '!sheetdefaults-status', label: 'Status', type: '!' });
 
 		registerEventHandlers();
 		resetLog();
