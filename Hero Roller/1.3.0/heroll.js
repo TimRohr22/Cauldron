@@ -1,31 +1,41 @@
 /*
 =========================================================
-Name            :   HeRoll
-GitHub          :   https://github.com/Roll20/roll20-api-scripts/tree/master/HeroRoller
-Roll20 Contact  :   timmaugh for general questions.
+Name			:	Hero Roller (heroll)
+Version			:	1.3.0
+Last Update		:	1/14/2025
+GitHub			:	https://github.com/Roll20/roll20-api-scripts/tree/master/HeroRoller
+Roll20 Contact	:	timmaugh for general questions.
 					villain-in-glasses (Roll20 Id 633423) for HeroSystem6eHeroic-related questions.
-Version         :   1.3.1
-Last Update     :   9/26/2025 -- WIP
 =========================================================
 */
 var API_Meta = API_Meta || {};
 API_Meta.HeRoll = { offset: Number.MAX_SAFE_INTEGER, lineCount: -1 };
-{ try { throw new Error(''); } catch (e) { API_Meta.HeRoll.offset = (parseInt(e.stack.split(/\n/)[1].replace(/^.*:(\d+):.*$/, '$1'), 10) - (13)); } }
+{
+	try { throw new Error(''); } catch (e) { API_Meta.HeRoll.offset = (parseInt(e.stack.split(/\n/)[1].replace(/^.*:(\d+):.*$/, '$1'), 10) - (13)); }
+}
 
+/*
+ * ----------- DEVELOPMENT PATH ----------------------------
+	-- skill roll template (mechanic bubble for target, drawn automatically)
+	-- explosion rings (separate BODY/STUN, or BODY/PD for entangles) peeling off dice
+	-- track END spent
+	-- track charges/ammo
+*/
 const HeRoll = (() => {
 
 	// ==================================================
 	//		VERSION
 	// ==================================================
 	const apiproject = 'HeRoll';
-	const version = '1.3.1';
-	API_Meta[apiproject].version = version;
-	const schemaVersion = 0.2;
-	const vd = new Date(1758915939342);
-
+	API_Meta[apiproject].version = '1.3.0';
+	const schemaVersion = 0.1;
+	const vd = new Date(1736897730);
+	
 	const versionInfo = () => {
 		log(`\u0166\u0166 ${apiproject} v${API_Meta[apiproject].version}, ${vd.getFullYear()}/${vd.getMonth() + 1}/${vd.getDate()} \u0166\u0166 -- offset ${API_Meta[apiproject].offset}`);
+		return;
 	};
+
 	const logsig = () => {
 		// initialize shared namespace for all signed projects, if needed
 		state.torii = state.torii || {};
@@ -52,94 +62,10 @@ const HeRoll = (() => {
 		}
 		return;
 	};
-	const checkInstall = () => {
-		if (!state.hasOwnProperty(apiproject) || state[apiproject].version !== schemaVersion) {
-			log(` > Updating ${apiproject} Schema to v${schemaVersion} <`);
-			switch (state[apiproject] && state[apiproject].version) {
 
-				case 0.1:
-					state[apiproject].settings.show02message = true;
-					state[apiproject].defaults.show02message = true;
-				/* falls through */
-				case 0.2:
-				/* falls through */
-
-				case 'UpdateSchemaVersion':
-					state[apiproject].version = schemaVersion;
-					break;
-
-				default:
-					state[apiproject] = {
-						settings: {
-							show02message: true
-						},
-						defaults: {
-							show02message: true
-						},
-						version: schemaVersion
-					}
-					break;
-			}
-		}
-	};
-	let stateReady = false;
-	const assureState = () => {
-		if (!stateReady) {
-			checkInstall();
-			stateReady = true;
-		}
-	};
-	const manageState = { // eslint-disable-line no-unused-vars
-		reset: () => state[apiproject].settings = _.clone(state[apiproject].defaults),
-		clone: () => { return _.clone(state[apiproject].settings); },
-		set: (p, v) => state[apiproject].settings[p] = v,
-		get: (p) => { return state[apiproject].settings[p]; }
-	};
-	const standAloneMessage = (title='', contents='', footer='') => {
-		let msg = `<div style="overflow: hidden;"><div style="font-family: &quot; helvetica neue&quot;, &quot;helvetica&quot;, ` +
-			`&quot;arial&quot;, sans-serif; font-size: 12px"><div style="overflow: hidden"><div style="border: 1px #000000; ` +
-			`border-radius: 8px 8px 0px 0px; background-color: black; text-align: center;color: #efefef; font-size: 25px; ` +
-			`line-height: 35px">${title}</div></div><div style="border: #000000 solid; overflow: hidden; padding: 6px 7px 2px; ` +
-			`border-width: 1px 2px 0px 2px; text-align: left; background-color: #dbdbdb; display: block"><div style="padding-bottom:4px">` +
-			`${contents} </div></div><div style="border: #000000 solid; overflow: hidden; padding: 10px 0px 7px 0px; ` +
-			`border-width: 1px 2px 0px 2px; text-align: center; background-color: black; display: block"><div style="padding: 0px 4px">` +
-			`${footer}</div></div><div style="overflow: hidden">` +
-			`<div style="border: 1px #000000; border-radius: 0px 0px 8px 8px; background-color: black; text-align: center; ` +
-			`height: 8px">&nbsp;</div></div></div></div>`;
-		sendChat(apiproject, `/w gm ${msg}`);
-
-	};
-	const issueVersionUpdateMessages = () => {
-		const show02Message = () => {
-			if (!manageState.get('show02message')) { return; }
-			if (typeof Messenger !== 'undefined') {
-				manageState.set('show02message', false);
-				return;
-			}
-			let contents = `<b>HeRoller</b> is getting an update that will bring new features, better rule support, and a more responsive output panel. ` +
-				`As a part of this update, <b>HeRoller</b> will be gaining a dependency on another mod script named <b>Messenger</b>.<br /><br />` + 
-				`This version (v1.3.1) of <b>HeRoller</b> will continue to function as it always has. However, at some point HeRoller will update ` + 
-				`to the new version (v2.0.0) and will stop functioning unless <b>Messenger</b> is also installed. To minimize disruption to ` + 
-				`your game, you should, at your earliest convenience, install <b>Messenger</b> so that you're ready.<br /><br />` + 
-				`This reminder will be sent every time your sandbox reboots until either <b>Messenger</b> is installed or you click the <b>Acknowledge</b> ` + 
-				`button, below.`;
-			let footer = `<a href="!hrconfig +acknowledge02" style="display: inline-block;border-radius: 5px;padding:0px 6px;float: right;` +
-				`background-color: #01751f; border-color:#01751f;color: #ededed; line-height: 24px;text-align: center; ` +
-				`font-weight:bold;font-size: 14px; "> Acknowledge </a>`;
-			standAloneMessage('Update Coming!', contents, footer);
-		};
-
-		const messageSettings = {
-			show02message: show02Message
-		};
-		Object.keys(messageSettings).forEach(k => {
-			if (manageState.get(k)) { messageSettings[k](); }
-		});
-	};
 	// ==================================================
-	//		TABLES AND DATA
+	//		TABLES
 	// ==================================================
-	let sheetName;
 	const radioTargetTable = {			// used with the radio_target attr
 		"-1": "none",
 		"1": "random",
@@ -159,17 +85,6 @@ const HeRoll = (() => {
 		"15": "leg",
 		"16": "foot",
 		"17": "arm",
-	};
-	const heroicAttr = { // translating key attributes from H6E to H6EHeroic sheet
-		radio_target: 'targetSelection',
-		OCV: 'ocvNet',
-		ocv_base: 'ocv',
-		DCV: 'dcvNet',
-		dcv_base: 'dcv',
-		DMCV: 'dmcvNet',
-		dmcv_base: 'dmcv',
-		OMCV: 'omcvNet',
-		omcv_base: 'omcv',
 	};
 
 	const argAliasTable = {				// aliases for the various accepted arguments, flattening them to what they map to in the parameters object
@@ -276,7 +191,7 @@ const HeRoll = (() => {
 		"sel": "selective",
 		"selective": "selective",
 
-		"as": "source", 				// character from which to draw OCV (otherwise will be speaker)
+		"as": "source",  				// character from which to draw OCV (otherwise will be speaker)
 		"source": "source"
 	};
 
@@ -362,15 +277,6 @@ const HeRoll = (() => {
 	// ==================================================
 	//		UTILITY FUNCTIONS
 	// ==================================================
-	const getSheet = () => {
-		let char = findObjs({ type: 'character' })[0];
-		if (char) { return getAttrByName(char.id, 'sheet_name') || "HeroSystem6e"; }
-		char = createObj('character', {});
-		let s = getAttrByName(char.id, 'sheet_name') || "HeroSystem6e";
-		char.remove();
-		return s;
-	};
-	const isHeroic = () => sheetName === "HeroSystem6eHeroic";
 	const splitArgs = (a) => { return a.split(":") };
 	const joinVals = (a) => { return [a.slice(0)[0], a.slice(1).join(":").trim()]; };
 	const lookFor = (arg) => (a) => { return a === arg; };
@@ -530,7 +436,11 @@ const HeRoll = (() => {
 	};
 
 	const getTheSpeaker = (msg) => {
-		let speaking = findObjs({ type: 'character' }).filter(c => c.get('name') === msg.who)[0];
+		let characters = findObjs({ _type: 'character' });
+		let speaking;
+		let sheetName = "HeroSystem6e";
+		
+		characters.forEach(function (chr) { if (chr.get('name') === msg.who) speaking = chr; });
 		if (speaking) {
 			speaking.speakerType = "character";
 			speaking.localName = speaking.get("name");
@@ -553,86 +463,157 @@ const HeRoll = (() => {
 	};
 
 	const getCharacterAttr = (attr, charid) => {
-		const attrDefaultTable = {
-			radio_target: -1,
-			OCV: 0,
-			ocvNet: 0,
-			ocv_base: 0,
-			DCV: 0,
-			dcvNet: 0,
-			dcv_base: 0,
-			DMCV: 0,
-			dmcvNet: 0,
-			dmcv_base: 0,
-			OMCV: 0,
-			omcvNet: 0,
-			omcv_base: 0,
-		};
-		const heroicToSuperLocationTable = { // remaps value coming from the HS6EH sheet to match the radioTargetTable
-			1: 1,
-			2: 8,
-			3: 9,
-			4: 17,
-			5: 10,
-			6: 11,
-			7: 12,
-			8: 13,
-			9: 14,
-			10: 15,
-			11: 16,
-			12: 3,
-			13: 4,
-			14: 5,
-			15: 6,
-			16: 7,
-			default: 1
-		};
-
-		let translatedAttr = isHeroic() && Object.keys(heroicAttr).includes(attr) ? heroicAttr[attr] : attr;
-		let defvalue = attrDefaultTable[translatedAttr];
+		// First, identify the sheet as either the original supers (HeroSystem6e) or heroic (HeroSystem6eHeroic).
+		let sheet = getAttrByName(charid, 'sheet_name')||"HeroSystem6e";
+		
+		// log( JSON.stringify( Campaign().get('sheetName')) ); // Undefined. When/if this works a sheet's ID won't need a custom attribute.
+		
+		let attrDefaultTable = {
+			"radio_target": -1,
+			"OCV": 0,
+			"ocv_base": 0,
+			"DCV": 0,
+			"dcv_base": 0,
+			"DMCV": 0,
+			"dmcv_base": 0,
+			"OMCV": 0,
+			"omcv_base": 0,
+		}
+		
+		let translatedAttr;
+		let defvalue = attrDefaultTable[attr];
+		let retAttr;
 		let retValue;
-		if (isHeroic()) {
-			retValue = getAttrByName(charid, translatedAttr) || defvalue;
-			if (translatedAttr === 'targetSelection') {
-				return heroicToSuperLocationTable[translatedAttr] || heroicToSuperLocationTable.default;
+		
+		if (sheet === "HeroSystem6eHeroic") {
+			// Query attributes in HeroSystem6eHeroic translated to HeroSystem6e.
+			// Some CVs included for possible future use.
+			
+			switch (attr) {
+				case "radio_target":	translatedAttr = "targetSelection";
+															break;
+				case "OCV": 					translatedAttr = "ocvNet";
+															break;
+				case "ocv_base":			translatedAttr = "ocv";
+															break;
+				case "DCV": 					translatedAttr = "dcvNet";
+															break;
+				case "dcv_base":			translatedAttr = "dcv";
+															break;
+				case "DMCV":					translatedAttr = "dmcvNet";
+															break;
+				case "dmcv_base": 		translatedAttr = "dmcv";
+															break;
+				case "OMCV":					translatedAttr = "omcvNet";
+															break;
+				case "omcv_base": 		translatedAttr = "omcv";
+															break;
+			}
+			
+			retValue = getAttrByName(charid, translatedAttr)||defvalue;
+			
+			if (translatedAttr === "targetSelection") {
+				// Translate location ID from HS6eH to HS6e.
+				switch (retValue) {
+					case 1: 		retValue = 1;
+											break;
+					case 2: 		retValue = 8;
+											break;
+					case 3: 		retValue = 9;
+											break;
+					case 4: 		retValue = 17;
+											break;
+					case 5: 		retValue = 10;
+											break;
+					case 6: 		retValue = 11;
+											break;
+					case 7: 		retValue = 12;
+											break;
+					case 8: 		retValue = 13;
+											break;
+					case 9: 		retValue = 14;
+											break;
+					case 10:		retValue = 15;
+											break;
+					case 11:		retValue = 16;
+											break;
+					case 12:		retValue = 3;
+											break;
+					case 13:		retValue = 4;
+											break;
+					case 14:		retValue = 5;
+											break;
+					case 15:		retValue = 6;
+											break;
+					case 16:		retValue = 7;
+											break;
+					default:		retValue = 1;
+				}
 			}
 			return Number(retValue);
+			
 		} else {
-			let retAttr = findObjs({ type: 'attribute', characterid: charid, name: attr })[0] || createObj("attribute", { name: attr, current: defvalue, characterid: charid });
-			return retAttr.get('current') || defvalue;
+			// The default query assumes the sheet is HeroSystem6e, however, the sheet could be anything. Heroll will create attributes that don't exist.
+			
+			retAttr = findObjs({ type: 'attribute', characterid: charid, name: attr })[0] || createObj("attribute", { name: attr, current: defvalue, characterid: charid });
+			retAttr.currval = retAttr.get('current') || defvalue;
+			
+			return retAttr.currval;
 		}
 	};
-
-	const setCharacterAttr = (attr, value, charid) => {
+	
+	
+	const setTargetAttr = (attr, value, charid) => {
+		// First, identify the sheet as either the original supers (HeroSystem6e) or heroic (HeroSystem6eHeroic).
+		let sheet = getAttrByName(charid, 'sheet_name')||"HeroSystem6e";
 		let setAttr;
-		const superToHeroicLocationTable = {
-			1: 1,
-			2: 1,
-			3: 12,
-			4: 13,
-			5: 14,
-			6: 15,
-			7: 16,
-			8: 2,
-			9: 3,
-			10: 5,
-			11: 6,
-			12: 7,
-			13: 8,
-			14: 9,
-			15: 10,
-			16: 11,
-			17: 4,
-			default: 1
-		};
-		// if sheet is heroic, translate the attribute as necessary
-		let translatedAttr = isHeroic() && Object.keys(heroicAttr).includes(attr) ? heroicAttr[attr] : attr;
-		let retValue = superToHeroicLocationTable[value] || superToHeroicLocationTable.default;
-
-		(findObjs({ type: 'attribute', characterid: charid, name: translatedAttr })[0] ||
-			createObj("attribute", { name: translatedAttr, current: value, characterid: charid })
-		)?.set("current", retValue);
-	};
+		
+		if (sheet === "HeroSystem6eHeroic") {
+			// Translate location variable and ID from HS6e to HS6eH.
+			attr = "targetSelection";
+			
+			switch (value) {
+				case 1: 		value = 1;
+										break;
+				case 2: 		value = 1;
+										break;
+				case 3: 		value = 12;
+										break;
+				case 4: 		value = 13;
+										break;
+				case 5: 		value = 14;
+										break;
+				case 6: 		value = 15;
+										break;
+				case 7: 		value = 16;
+										break;
+				case 8: 		value = 2;
+										break;
+				case 9: 		value = 3;
+										break;
+				case 10:		value = 5;
+										break;
+				case 11:		value = 6;
+										break;
+				case 12:		value = 7;
+										break;
+				case 13:		value = 8;
+										break;
+				case 14:		value = 9;
+										break;
+				case 15:		value = 10;
+										break;
+				case 16:		value = 11;
+										break;
+				case 17:		value = 4;
+										break;
+				default:		value = 1;
+			}
+		}
+		
+		setAttr = findObjs({ type: 'attribute', characterid: charid, name: attr })[0]||createObj("attribute", { name: attr, current: value, characterid: charid });
+		setAttr.set("current", value);
+	}
 
 	const addAttribute = (attr, value, charid) => {
 		let tempAttr = createObj("attribute", { name: attr, current: value, characterid: charid });
@@ -1200,8 +1181,10 @@ const HeRoll = (() => {
 
 	const processOCV = (thisRoller) => {
 		let sourceChar;
+		
 		if (thisRoller.parameters.source !== '--') {
 			sourceChar = getChar(thisRoller.parameters.source, thisRoller.theSpeaker.playerid);
+			
 			if (sourceChar) {
 				thisRoller.theSpeaker.radio_target = getCharacterAttr("radio_target", sourceChar.id);
 				thisRoller.theSpeaker.ocvFinal = getCharacterAttr("OCV", sourceChar.id);
@@ -1218,12 +1201,13 @@ const HeRoll = (() => {
 			thisRoller.theSpeaker.ocvBase = getCharacterAttr("omcv_base", sourceChar.id);
 			thisRoller.theSpeaker.ocvMods = thisRoller.theSpeaker.ocvFinal - thisRoller.theSpeaker.ocvBase;
 		}
-
+	
 		// process changing the called location
 		let startingLocation = sourceChar ? radioTargetTable[getCharacterAttr("radio_target", sourceChar.id)] : radioTargetTable[thisRoller.theSpeaker.radio_target];
-		if (startingLocation !== thisRoller.parameters.loc && sourceChar) { // only matters if the location has changed
-			setCharacterAttr("radio_target", Number(Object.keys(radioTargetTable).find(key => radioTargetTable[key] === thisRoller.parameters.loc)), sourceChar.id);
-
+		if (startingLocation !== thisRoller.parameters.loc && sourceChar) { //only matters if the location has changed
+			
+			setTargetAttr("radio_target", Number(Object.keys(radioTargetTable).find(key => radioTargetTable[key] === thisRoller.parameters.loc)), sourceChar.id);
+			
 			if (thisRoller.parameters.useomcv === false) { // only process changes to the OCV if we are using OCV, not if we are using OMCV
 				//apply the new mod, remove the old
 				thisRoller.theSpeaker.ocvMods += (getLocationData(thisRoller.parameters.loc).ocvmod || 0) - (getLocationData(startingLocation).ocvmod || 0);
@@ -1231,7 +1215,7 @@ const HeRoll = (() => {
 				thisRoller.theSpeaker.ocvFinal = Number(thisRoller.theSpeaker.ocvBase) + Number(thisRoller.theSpeaker.ocvMods);
 			}
 		}
-
+	
 		// process the OCV override
 		if (thisRoller.parameters.ocv !== -100) { // user supplied an OCV override
 			thisRoller.theSpeaker.ocvFinal = Math.floor(thisRoller.parameters.ocv);
@@ -1325,29 +1309,6 @@ const HeRoll = (() => {
 		return;
 	};
 
-	// ==================================================
-	//		EVENT HANDLERS
-	// ==================================================
-	const handleConfig = (msg) => {
-		if (msg.type !== 'api' || !/^!hrconfig(?:\s+(?:\+|-)[^+\-\s]*?)+\s*$/.test(msg.content.toLowerCase())) {
-			return;
-		}
-		const cfgBox = {
-			acknowledge02: v => {
-				manageState.set('show02message', false);
-				let contents = `Thank you for acknowledging the need to install Messenger. You will no longer see this message.`;
-				standAloneMessage('Acknowledged', contents);
-			}
-		};
-		msg.content.split(/\s+(?=(?:\+|-)[^+\-\s])/).slice(1)
-			.forEach(a => {
-				let setting = a.slice(1).replace(/\s+(?:-|\+)$/, '').toLowerCase();
-				if (Object.keys(cfgBox).includes(setting)) {
-					cfgBox[setting](a.slice(0, 1) === '+' ? true : false);
-				}
-			});
-
-	};
 	const handleInput = (msg) => {
 		if (msg.type !== 'api' || !msg.content.toLowerCase().startsWith('!heroll ')) {
 			return;
@@ -1402,7 +1363,7 @@ const HeRoll = (() => {
 		if (thisRoller.theSpeaker.sourceName) {
 			thisRoller.outputParams.__CHARNAME__ = thisRoller.theSpeaker.sourceName;
 		}
-
+	
 		// OUTPUT FORMAT
 		if (thisRoller.parameters.outputformat != "tall") {
 			thisRoller.outputParams.__DS_TALL_VIS__ = "none";
@@ -1410,16 +1371,16 @@ const HeRoll = (() => {
 			thisRoller.outputParams.__DIEPOOL_TALL_VIS__ = "none";
 			thisRoller.outputParams.__SIDECAR_VIS__ = "block";
 		}
-
+	
 		// POWER NAME
 		thisRoller.outputParams.__POWERNAME__ = thisRoller.parameters.powername;
-
+	
 		// COLORS
 		thisRoller.outputParams.__PRIMARY_BG_COL__ = thisRoller.parameters.primarycolor;
 		thisRoller.outputParams.__SECONDARY_BG_COL__ = getAltColor(thisRoller.parameters.primarycolor);
 		thisRoller.outputParams.__PRIMARY_TEXT_COL__ = getTextColor(thisRoller.outputParams.__PRIMARY_BG_COL__);
 		thisRoller.outputParams.__SECONDARY_TEXT_COL__ = getTextColor(thisRoller.outputParams.__SECONDARY_BG_COL__);
-
+	
 		// ACTIVATION
 		if (thisRoller.parameters.act != -100) {
 			thisRoller.outputParams.__ACT_VIS__ = "block";
@@ -1437,7 +1398,7 @@ const HeRoll = (() => {
 				thisRoller.outputParams.__SIDECAR_VIS__ = "none";
 			}
 		}
-
+	
 		// LOCATION
 		if (thisRoller.parameters.loc != "none" && thisRoller.parameters.target.length === 0) { // if there is a location AND there are no targets (targets show their own locations)
 			if (thisRoller.parameters.outputformat === "tall") {
@@ -1445,17 +1406,17 @@ const HeRoll = (() => {
 			} else {
 				thisRoller.outputParams.__LOC_SC_VIS__ = "block";
 			}
-
+	
 			thisRoller.outputParams.__LOC__ = thisRoller.theResult.location.hitlabel + (randomInteger(2) > 1 ? " (R)" : " (L)");
 			thisRoller.outputParams.__BODY_MULT__ = thisRoller.theResult.location.bx;
 			if (thisRoller.parameters.mechanic == "k") thisRoller.outputParams.__STUN_MULT__ = thisRoller.theResult.location.ksx;
 			else if (thisRoller.parameters.mechanic == "n") thisRoller.outputParams.__STUN_MULT__ = thisRoller.theResult.location.nsx;
-
+	
 		} else {
 			thisRoller.outputParams.__BODY_MULT__ = "--";										// this will either be hidden or direct people to the target info
 			thisRoller.outputParams.__STUN_MULT__ = "--";
 		}
-
+	
 		// TO HIT BAR
 		thisRoller.outputParams.__TOHIT_ROLL__ = thisRoller.theResult.tohitroll;
 		if (thisRoller.theSpeaker.speakerType === "character") {
@@ -1464,7 +1425,7 @@ const HeRoll = (() => {
 			if (thisRoller.theSpeaker.ocvMods < 0) outputocvmod = "-";
 			if (thisRoller.theSpeaker.ocvMods > 0) outputocvmod = "+";
 			if (outputocvmod.length) outputocvmod += Math.abs(thisRoller.theSpeaker.ocvMods);
-
+	
 			thisRoller.outputParams.__TOHIT_OCV__ = thisRoller.parameters.ocv !== -100 ? thisRoller.theSpeaker.ocvFinal : thisRoller.theSpeaker.ocvBase + outputocvmod;
 			thisRoller.outputParams.__TOHIT_DCV__ = 11 + thisRoller.theSpeaker.ocvFinal - thisRoller.theResult.tohitroll;
 		}
@@ -1472,7 +1433,7 @@ const HeRoll = (() => {
 			thisRoller.outputParams.__TOHIT_OCV_LBL__ = "OMCV";
 			thisRoller.outputParams.__TOHIT_DCV_LBL__ = "HIT DMCV";
 		}
-
+	
 		// RESULTS BAR
 		if (thisRoller.parameters.outputas == "attack" && thisRoller.parameters.loc != "none") {
 			thisRoller.outputParams.__RES_MULT_VIS__ = "block";
@@ -1481,15 +1442,15 @@ const HeRoll = (() => {
 			thisRoller.outputParams.__RES_PTS_VIS__ = "block";
 			thisRoller.outputParams.__RES_BASE_VIS__ = "none";
 		}
-
+	
 		// MECHANIC
 		var mechColors = { L: "#00b8a9", N: "#ff8000", K: "#bf1f2f", U: "#5438AF" };
 		thisRoller.outputParams.__MECH__ = thisRoller.parameters.mechanic.toUpperCase();
 		thisRoller.outputParams.__MECH_BGC__ = mechColors[thisRoller.outputParams.__MECH__];
-
+	
 		// DIE STRENGTH (ROLL EQUATION)
 		thisRoller.outputParams.__DIE_STRENGTH__ = thisRoller.parameters.xdice[4];
-
+	
 		// DIE POOL
 		let numx = { 1: "G", 2: "H", 3: "I", 4: "J", 5: "K", 6: "L" },
 			num3x = { 1: "g", 2: "h", 3: "i" };
@@ -1507,16 +1468,16 @@ const HeRoll = (() => {
 				}
 			}
 			if (initlength != thisRoller.outputParams.__DIEPOOL__.length && i != 1) thisRoller.outputParams.__DIEPOOL__ += "<br>";
-
+	
 		}
-
+	
 		if (thisRoller.parameters.xdice[2] != 0) {
 			thisRoller.outputParams.__DIEPOOL__ += " ";
 			thisRoller.outputParams.__DIEPOOL__ += (thisRoller.parameters.xdice[2] > 0 ? "+" : "-");
 			thisRoller.outputParams.__DIEPOOL__ += "&nbsp;";
 			thisRoller.outputParams.__DIEPOOL__ += Math.abs(thisRoller.parameters.xdice[2]).toString().replace(/1|2|3|4|5|6/gi, function (matched) { return num3x[matched] });
 		}
-
+	
 		// POINTS
 		thisRoller.outputParams.__RES_PTS_LBL__ = thisRoller.parameters.pointslabel;
 		if (thisRoller.parameters.dbody && thisRoller.parameters.dstun) { // if both are true, as for a healing that does both STUN and BODY, then show both values
@@ -1526,7 +1487,7 @@ const HeRoll = (() => {
 		} else { // just dstun or nothing is true, default to showing stun points
 			thisRoller.outputParams.__RES_PTS__ = thisRoller.theResult.points.stun;
 		}
-
+	
 		// RESULTS: BODY, STUN, KNOCKBACK, LUCK
 		if ((thisRoller.parameters.xdice[0] == 0 && thisRoller.parameters.xdice[1] == 0 && thisRoller.parameters.xdice[2] == 0) || thisRoller.parameters.dcheck == true) { // if no dice rolling needs to happen, don't figure BODY/STUN, and hide Results bars
 			thisRoller.outputParams.__DIE_STRENGTH__ = "&nbsp;"; // reset the die strength (roll equation) to not show anything
@@ -1556,7 +1517,7 @@ const HeRoll = (() => {
 				if (!thisRoller.parameters.dkb) thisRoller.outputParams.__RES_KB__ = "--";
 			}
 		}
-
+	
 		// TARGETING
 		if (thisRoller.parameters.target.length > 0) {									// if a target was designated
 			let targetTable = '';
@@ -1576,12 +1537,12 @@ const HeRoll = (() => {
 				thisRoller.outputParams.__TARGET_TABLE_HOOK__ = targetTable.replace("__TABLE-ROWS__", targetAllRows);
 			}
 		}
-
+	
 		// NOTES
 		if (thisRoller.parameters.notes != "") {
 			thisRoller.outputParams.__NOTES__ = thisRoller.parameters.notes;
 		}
-
+	
 		// VERBOSE
 		if (thisRoller.parameters.verbose) {
 			thisRoller.outputParams.__V_VIS__ = "block";
@@ -1600,28 +1561,25 @@ const HeRoll = (() => {
 
 	const sendOutputToChat = (thisRoller) => {
 		let htmlForm = '<div style="width: 405px;overflow: hidden;"><div style="width: 240px;overflow: hidden;float: left;"><div style="padding-top: 16px"><div style="margin-right: 16px; position: relative; font-family: &quot; helvetica neue&quot; , &quot;helvetica&quot; , &quot;arial&quot; , sans-serif; font-size: 12px"><!-- CHARACTER BAR --><div style="overflow: hidden"><div style="border: 1px #000000; border-radius: 15px 15px 0px 0px; background-color: black; text-align: center;color: #efefef; font-size: 25px; line-height: 35px">__CHARNAME__</div></div><!-- MECHANIC BAR --><div style="display: __MECH_VIS__"><div style="position: absolute; top: -16px; right: -14px; height: 44px; width: 44px; border-radius: 24px; background-color: __MECH_BGC__; border: 2px solid black; float: right; display: block"><div style="display: block"><div style="position: relative; font-size: 25px; line-height: 44px; text-align: center; color: white">__MECH__</div></div></div></div><!-- POWER NAME BAR --><div style="border: #000000 solid;overflow: visible;padding: 12px 5px 7px;border-width: 0px 2px;background-color: __PRIMARY_BG_COL__;color:__PRIMARY_TEXT_COL__;position: relative;min-height: 29px;display: block;"><div style="font-size: 20px;font-weight: bold;line-height: 29px;">__POWERNAME__</div></div><!-- DIE STRENGTH AND ACTIVATION BAR --><div style="border: #000000 solid;overflow: visible;padding: 0px 5px 3px;border-width: 0px 2px;height: 20px;background-color: __PRIMARY_BG_COL__;color:__PRIMARY_TEXT_COL__;position: relative;display:__DS_TALL_VIS__"><div style="float: left; width: 55%; font-size: 17px; font-weight: bold; line-height: 17px; font-style: italic;">__DIE_STRENGTH__</div><div style="position:absolute; width: 50px; top:-24px;right:3px;display: __ACT_VIS__"><div style="border: 1px solid; overflow: hidden; display: block; border-radius: 5px; color:black; border-color: __SECONDARY_BG_COL__"><div style="padding: 3px 1px 1px; text-align: center; font-weight: bold; background-color: #ffffff; font-size: 10px">ACT __ACT_TGT__-</div><div style="padding: 1px; text-align: center; background-color: #ffffff; line-height: 17px">__ACT_ROLL__</div></div></div><div style="clear: both"></div></div><!-- TO-HIT BAR --><div style="border: #000000 solid; overflow: hidden; padding: 6px 7px 2px; border-width: 1px 2px 0px 2px; text-align: center; background-color: #ffffff; display: __TOHIT_VIS__"><div style="float: left; width: 31%; display: inline-block"><div style="display: block"><div style="border: 1px solid; overflow: hidden; display: block; border-radius: 5px; border-color: __PRIMARY_BG_COL__"><div style="padding: 3px 1px 1px; text-align: center; font-weight: bold; color: ##1b1b1b; background-color: #ffffff">__TOHIT_OCV_LBL__</div><div style="padding: 1px; text-align: center; background-color: #ffffff; border-color: #000000; font-size: 20px; color: ##1b1b1b; line-height: 30px">__TOHIT_OCV__</div></div></div></div><div style="width: 31%; margin: 0px auto; display: inline-block"><div style="display: block"><div style="border: 1px solid; overflow: hidden; display: block; border-radius: 5px; border-color: __PRIMARY_BG_COL__"><div style="padding: 3px 1px 1px; text-align: center; font-weight: bold; color: ##1b1b1b; background-color: #ffffff">ROLL</div><div style="padding: 1px; text-align: center; background-color: #ffffff; font-size: 20px; color: ##1b1b1b; line-height: 30px">__TOHIT_ROLL__</div></div></div></div><div style="float: right; width: 31%; display: inline-block"><div style="display: block"><div style="border: 1px solid; overflow: hidden; display: block; border-radius: 5px; border-color: __PRIMARY_BG_COL__"><div style="padding: 3px 1px 1px; text-align: center; font-weight: bold; color: ##1b1b1b; background-color: #ffffff">__TOHIT_DCV_LBL__</div><div style="padding: 1px; text-align: center; background-color: #ffffff; font-size: 20px; color: ##1b1b1b; line-height: 30px">__TOHIT_DCV__</div></div></div></div></div><!-- LOCATION BAR --><div style="border: #000000 solid; overflow: hidden; padding: 5px 7px 5px 5px; border-width: 0px 2px; background-color: white; display: __LOC_TALL_VIS__"><div style="display: block"><div style="line-height: 15px; font-style: italic; color: ##1b1b1b; clear: both; display: block"><div style="font-weight: bold; color: ##1b1b1b; text-align: left; float: left">Hit Location</div><div style="text-align: right; float: right">__LOC__</div><div style="overflow: hidden"><div style="border-bottom: 1px dotted black; height: 10px; margin: 0px 3px">&nbsp;</div></div></div></div></div><!-- DIE POOL BAR --><div style="border: #000000 solid; overflow: hidden; border-width: 1px 2px 0px 2px; background-color: __SECONDARY_BG_COL__; display: __DIEPOOL_TALL_VIS__; padding: 0px 5px; clear: both"><div style="text-align: left; font-size: 17px; padding: 5px 0px; line-height: 20px;font-family:dicefontd6;font-size:26px;color:__SECONDARY_TEXT_COL__;">__DIEPOOL__</div></div><!-- RESULT BAR (DAMAGE WITH MULTIPLIERS)--><div style="overflow: hidden; background-color: black; display: __RES_MULT_VIS__"><div style="width:95%; margin: 10px auto 7px; overflow:hidden;"><div style="width:33.3%; display: inline-block; float: left;"><div style="overflow: visible; width: 94%; margin: auto; border-radius: 5px; background-color: transparent; position: relative; display: block; float: left"><div style="display: block"><div style="padding: 3px 0px 1px; font-weight: bold; background-color: white; border-radius: 5px 5px 0px 0px; color: black; display: block"><div style="float: left; display: inline-block; margin-left: 4px">BODY</div><div style="float: right; display: inline-block; margin-right: 4px"><span style="font-size: 8px">x</span>__BODY_MULT__</div><div style="clear: both"></div></div><div style="text-align: center; font-size: 20px; background-color: #bf1f2f; border-radius: 0px 0px 5px 5px; color: white; line-height: 30px">__RES_BODY__</div></div></div></div><div style="width:33.4%; display: inline-block; float: left;"><div style="overflow: visible; width: 94%; margin: auto; border-radius: 5px; background-color: transparent; position: relative; display: block"><div style="display: block"><div style="padding: 3px 0px 1px; font-weight: bold; background-color: white; border-radius: 5px 5px 0px 0px; color: black; display: block"><div style="float: left; display: inline-block; margin-left: 4px">STUN</div><div style="float: right; display: inline-block; margin-right: 4px"><span style="font-size: 8px">x</span>__STUN_MULT__</div><div style="clear: both"></div></div><div style="text-align: center; font-size: 20px; background-color: #ff8000; border-radius: 0px 0px 5px 5px; color: white; line-height: 30px">__RES_STUN__</div></div></div></div><div style="width:33.3%; display: inline-block; float: left;"><div style="width: 94%; margin: auto; overflow: visible; border-radius: 5px; background-color: transparent; position: relative; display: block; float: right"><div style="display: block"><div style="padding: 3px 0px 1px; text-align: center; font-weight: bold; background-color: white; border-radius: 5px 5px 0px 0px; color: black">KB</div><div style="text-align: center; font-size: 20px; background-color: #00b8a9; border-radius: 0px 0px 5px 5px; color: white; line-height: 30px">__RES_KB__</div></div></div></div></div></div><!-- RESULT BAR (DAMAGE, NO MULTIPLIER) --><div style="overflow: hidden; background-color: black; display: __RES_BASE_VIS__"><div style="width:95%; margin: 10px auto 7px; overflow:hidden;"><div style="width:33.3%; display: inline-block; float: left;"><div style="overflow: visible; width: 94%; margin: auto; border-radius: 5px; background-color: transparent; position: relative; float:left; display: block;"><div style="display: block"><div style="padding: 3px 1px 1px; text-align: center; font-weight: bold; background-color: white; border-radius: 5px 5px 0px 0px; color: black">BODY</div><div style="text-align: center; font-size: 20px; background-color: #bf1f2f; border-radius: 0px 0px 5px 5px; color: white; line-height: 30px">__RES_BODY__</div></div></div></div><div style="width:33.4%; display: inline-block; float:left;"><div style="overflow: visible; width: 94%; margin: auto; border-radius: 5px; background-color: transparent; position: relative; display: block"><div style="display: block"><div style="padding: 3px 1px 1px; text-align: center; font-weight: bold; background-color: white; border-radius: 5px 5px 0px 0px; color: black">STUN</div><div style="text-align: center; font-size: 20px; background-color: #ff8000; border-radius: 0px 0px 5px 5px; color: white; line-height: 30px">__RES_STUN__</div></div></div></div><div style="width:33.3%; display: inline-block; float: left;"><div style="width: 94%; margin: auto; overflow: visible; border-radius: 5px; background-color: transparent; position: relative; float:right; display: block;"><div style="display: block"><div style="padding: 3px 0px 1px; text-align: center; font-weight: bold; background-color: white; border-radius: 5px 5px 0px 0px; color: black">KB</div><div style="text-align: center; font-size: 20px; background-color: #00b8a9; border-radius: 0px 0px 5px 5px; color: white; line-height: 30px">__RES_KB__</div></div></div></div></div></div><!-- RESULT BAR (POINTS) --><div style="overflow: hidden; background-color: black; display: __RES_PTS_VIS__"><div style="width:95%; margin: 10px auto 7px; overflow:hidden;"><div style="overflow: hidden; border-radius: 5px; position: relative; display: block"><div style="display: block"><div style="padding: 3px 0px 1px; text-align: center; font-weight: bold; background-color: white; border-radius: 5px 5px 0px 0px; color: black">__RES_PTS_LBL__</div><div style="padding: 1px; text-align: center; font-size: 20px; background-color: #bf1f2f; border-radius: 0px 0px 5px 5px; color: white; line-height: 30px">__RES_PTS__</div></div></div></div></div>__TARGET_TABLE_HOOK__<!-- BOTTOM BAR --><div style="overflow: hidden"><div style="border: 1px #000000;border-radius: 0px 0px 15px 15px;background-color: black;text-align: center;"><div style="color: #FFFFFF;text-align:left;padding: 5px 15px 10px;font-style: italic;line-height: 12px;font-size: 12px;display:block;">__NOTES__</div></div></div><!-- ========== VERBOSE OUTPUT ========== --><div style="overflow: hidden;display: __V_VIS__;margin-top: 5px;"><div style="border: #000000 solid;border-radius: 15px 15px 0px 0px;text-align: center;line-height: 25px;font-size:10px;font-weight: bold;border-width: 2px 2px 0px 2px;">Verbose Output</div><div style="text-align:left;font-size:9px;border:#000000 solid;border-width:0px 2px 0px 2px;padding:3px 4px;">__V_NOTE__</div><div style="border:#000000 solid;border-width:0px 2px 2px 2px;border-radius: 0px 0px 15px 15px;line-height:15px;">&nbsp;</div></div></div></div></div><!-- ========== SIDECAR ========== --><div style="width: 160px; overflow: hidden; float: right;display:__SIDECAR_VIS__"><div style="padding-top: 16px"><div style="position: relative; font-family: &quot; helvetica neue&quot; , &quot;helvetica&quot; , &quot;arial&quot; , sans-serif; font-size: 12px"><!-- CONNECTING DOTS --><div style="height: 20px; display: block; clear: both"><div style="height: 8px;font-size: 8px;clear: both;display: block;line-height: 9px;"><div style="width: 0px;display: inline-block;float: left;">&nbsp;</div><div style="width: 8px; background-color: black; border-radius: 4px; display: inline-block; float: left; height: 8px">&nbsp;</div><div style="width: 10px;display: inline-block;float: left;">&nbsp;</div><div style="width: 8px; background-color: black; border-radius: 4px; display: inline-block; float: left; height: 8px">&nbsp;</div><div style="width: 10px;display: inline-block;float: left;">&nbsp;</div><div style="width: 8px; background-color: black; border-radius: 4px; display: inline-block; float: left; height: 8px">&nbsp;</div><div style="width: 10px;display: inline-block;float: left;">&nbsp;</div><div style="width: 8px; background-color: black; border-radius: 4px; display: inline-block; float: left; height: 8px">&nbsp;</div><div style="width: 10px;display: inline-block;float: left;">&nbsp;</div><div style="width: 8px; background-color: black; border-radius: 4px; display: inline-block; float: left; height: 8px">&nbsp;</div></div><div style="height: 12px; clear: both; display: block"><div style="width: 72px; display: inline-block; float: left">&nbsp;</div><div style="width: 8px; background-color: black; border-radius: 4px; display: inline-block; float: left; height: 8px; margin: 2px 0px">&nbsp;</div></div></div><!-- TOP BAR (SIDECAR)--><div style="overflow: visible"><div style="border: 1px #000000; border-radius: 15px 15px 0px 0px; background-color: black; text-align: center; height: 15px">&nbsp;</div></div><!-- DIE STRENGTH AND ACTIVATION BAR --><div style="border: #000000 solid;overflow: hidden;padding: 3px 5px;border-width: 0px 2px;height: 42px;background-color: __PRIMARY_BG_COL__;color:__PRIMARY_TEXT_COL__;position: relative;"><div style="float: left; width: 55%; font-size: 17px; font-weight: bold; line-height: 17px; font-style: italic; margin-top: 15px;">__DIE_STRENGTH__</div><div style="float: right; width: 50px; display: inline-block"><div style="display: __ACT_VIS__"><div style="border: 1px solid; overflow: hidden; display: block; border-radius: 5px; color: black; border-color: __SECONDARY_BG_COL__"><div style="padding: 3px 1px 1px; text-align: center; font-weight: bold; background-color: #ffffff; font-size: 10px">ACT __ACT_TGT__-</div><div style="padding: 1px; text-align: center; background-color: #ffffff; line-height: 17px">__ACT_ROLL__</div></div></div></div><div style="clear: both"></div></div><!-- DIE POOL BAR --><div style="border: #000000 solid; overflow: hidden; border-width: 1px 2px 0px 2px; background-color: __SECONDARY_BG_COL__; display: block; padding: 0px 5px; clear: both"><div style="text-align: left; font-size: 17px; padding: 5px 0px; line-height: 20px;font-family:dicefontd6;font-size:26px;color:__SECONDARY_TEXT_COL__;">__DIEPOOL__</div></div><!-- LOCATION BAR --><div style="border: #000000 solid; overflow: hidden; padding: 5px 7px 0px 5px; border-width: 1px 2px 0px 2px; background-color: white; display: __LOC_SC_VIS__"><div style="display: block"><div style="line-height: 15px; font-style: italic; clear: both; display: block"><div style="font-weight: bold; text-align: left; float: left">Hit Location</div><div style="text-align: right; float: right">__LOC__</div><div style="overflow: hidden"><div style="border-bottom: 1px dotted black; height: 10px; margin: 0px 3px">&nbsp;</div></div></div></div><div style="padding: 6px 5px 3px 5px; display: block"><div style="height: 25px"><div style="float: left; height: 20px; width: 20px; border-radius: 12px; background-color: #ff8000; overflow: visible; display: block; border: 1px solid black"><div style="position: relative; font-size: 10px; text-align: center; line-height: 20px; margin: 0px; color: white">__STUN_MULT__</div></div><div style="float: left"><div style="float: left; font-size: 12; font-style: italic; line-height: 24px; text-align: left; margin-left: 4px">STUN Mult.</div></div></div><div style="height: 25px"><div style="height: 20px; width: 20px; border-radius: 12px; background-color: #bf1f2f; overflow: hidden; display: block; border: 1px solid black; float: left"><div style="position: relative; font-size: 10px; text-align: center; line-height: 20px; margin: 0px; color: white">__BODY_MULT__</div></div><div style="float: left"><div style="float: left; font-size: 12; font-style: italic; line-height: 24px; text-align: left; margin-left: 4px">BODY Mult.</div></div></div></div></div><!-- BOTTOM BAR (SIDECAR) --><div style="overflow: hidden"><div style="border: 1px #000000; border-radius: 0px 0px 15px 15px; background-color: black; height: 15px">&nbsp;</div></div></div></div></div></div>';
-
+	
 		// join the output parameters with a pipe, turn that into a regular expression, and feed that into the replace to modify the html form with our figured values
 		let chatString = htmlForm.replace(new RegExp(Object.keys(thisRoller.outputParams).join("|"), 'gi'),
 			(matched) => { return thisRoller.outputParams[matched]; }
 		);
-
+	
 		sendChat(thisRoller.theSpeaker.chatSpeaker, chatString);
 		return;
 	};
 
 	const registerEventHandlers = () => {
 		on('chat:message', handleInput);
-		on('chat:message', handleConfig);
 	};
 
 	on("ready", () => {
-		versionInfo();
-		assureState();
+		'use strict';
 		logsig();
-		issueVersionUpdateMessages();
+		versionInfo();
 		registerEventHandlers();
-		sheetName = getSheet();
 	});
 
 	return {
