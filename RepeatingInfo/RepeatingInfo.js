@@ -4,7 +4,7 @@ Name            :   RepeatingInfo
 GitHub          :   
 Roll20 Contact  :   timmaugh
 Version         :   1.0.0
-Last Update     :   7/13/2022
+Last Update     :   05 JAN 2025
 =========================================================
 */
 var API_Meta = API_Meta || {};
