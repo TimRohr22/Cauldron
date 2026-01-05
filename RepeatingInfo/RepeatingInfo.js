@@ -109,7 +109,9 @@ const RepeatingInfo = (() => { // eslint-disable-line no-unused-vars
             })[0];
         return character;
     };
-
+    const queryMask = s => {
+        return s.replace(/,/g, '&comma;').replace(/}/g, '&rbrace;').replace(/\|/g, '&vert;');
+    }
     // ==================================================
     //		HANDLE INPUT
     // ==================================================
@@ -147,8 +149,8 @@ const RepeatingInfo = (() => { // eslint-disable-line no-unused-vars
             Object.keys(listsISee).forEach(k => {
                 listsISee[k] = [...new Set(listsISee[k])].sort((a, b) => a < b ? -1 : 1);
             });
-            let argChar = `--char|?{Character|${charsIControl.sort((a, b) => a.get('name') < b.get('name') ? -1 : 1).map(c => c.get('name') + ',' + c.id).join('|')}}`;
-            let argList = `--list|?{List|${Object.keys(listsISee).sort((a, b) => a < b ? -1 : 1).map(k => `${k},${k}&amp;vert;?{Naming Sub Attr&amp;vert;${listsISee[k].join('&amp;vert;')}&amp;rbrace;`).join('|')}}`;
+            let argChar = `--char|?{Character|${charsIControl.sort((a, b) => a.get('name') < b.get('name') ? -1 : 1).map(c => queryMask(c.get('name')) + ',' + c.id).join('|')}}`;
+            let argList = `--list|?{List|${Object.keys(listsISee).sort((a, b) => a < b ? -1 : 1).map(k => `${queryMask(k)},${queryMask(k)}&amp;vert;?{Naming Sub Attr&amp;vert;${listsISee[k].join('&amp;vert;')}&amp;rbrace;`).join('|')}}`;
             sendChat('API', `/w ${getWhisperTo(msg.who)} [Get Info For](!rptginfo ${argChar} ${argList} --output|?{Output|template|text})`, null, { noarchive: true });
             return;
         }
