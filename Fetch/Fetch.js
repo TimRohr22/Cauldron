@@ -1024,6 +1024,17 @@ const Fetch = (() => { //eslint-disable-line no-unused-vars
     };
 
     // ===== PROP CONTAINERS ============================
+    const abilityProps = {
+        nicks: {
+        },
+        compProps: {}
+    }
+    const attributeProps = {
+        nicks: {
+            istokenaction: ['tokenaction']
+        },
+        compProps: {}
+    }
     const campaignProps = { // @(campaign.<prop>)
         nicks: {
             id: ['campaign_id'],
@@ -1363,6 +1374,8 @@ const Fetch = (() => { //eslint-disable-line no-unused-vars
     }
 
     const customPropsByType = {
+        ability: abilityProps,
+        attribute: attributeProps,
         campaign: campaignProps,
         card: cardProps,
         character: charProps,
