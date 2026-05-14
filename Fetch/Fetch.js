@@ -1805,14 +1805,14 @@ const Fetch = (() => { //eslint-disable-line no-unused-vars
         !fetchprops --type=<type>        
         */
         if (!(msg.type === "api" && /^!fetchprops/i.test(msg.content))) return;
+        if (/^!fetchprops-rebuild/i.test(msg.content)) {
+            buildPropContainers();
+        }
         let contents = [];
         let rptArgs = {
             type: '',
             ref: '',
             object: undefined
-        };
-        const defaultReport = (t, contents) => {
-            sendChat('', `/w gm &{template:default} {{name=${t}}} {{ ${contents.join('}} {{ ')} }}`, false);
         };
         const propNicks = (type) => {
             let nicks = [...Object.entries(customPropsByType[type]?.compProps || {}).map(e => [e[0], ...e[1].nicks]),
@@ -1824,7 +1824,7 @@ const Fetch = (() => { //eslint-disable-line no-unused-vars
             let remainingProps = Object.keys(propContainers[type] || {}).filter(p => !filterProps.includes(p));
             remainingProps.filter(k => !/^_/.test(k)).forEach(k => { nicks.push([k]); });
             remainingProps.filter(k => /^_/.test(k)).forEach(k => { nicks.find(n => n.includes(k.slice(1))).unshift(k); });
-            return nicks;
+            return nicks.map(props => props.sort()).sort((a, b) => a[0] > b[0] ? 1 : -1);
         }
 
         let [handle, args] = ((apriori = msg.content.split(/\s+--/)) => { return [apriori[0], apriori.slice(1)]; })();
@@ -1832,7 +1832,7 @@ const Fetch = (() => { //eslint-disable-line no-unused-vars
         let typesWithProps = Object.keys(propContainers || {});
         let tbl = '';
 
-        args.forEach(a => {
+        args.filter(a => /^([^#\|=:]+)(?:#|\||=|:)(.+)$/.test(a)).forEach(a => {
             let argParts = a.split(/^([^#\|=:]+)(?:#|\||=|:)(.+)$/).slice(1, 3);
             if (argParts[0].toLowerCase() === 'type' && typesWithProps.includes(argParts[1].toLowerCase())) {
                 rptArgs.type = argParts[1].toLowerCase();
@@ -1840,6 +1840,8 @@ const Fetch = (() => { //eslint-disable-line no-unused-vars
                 rptArgs.ref = argParts[1];
             }
         });
+        let btnRebuild = Messenger.Button({ type: '!', label: 'Rebuild', elem: `!fetchprops-rebuild${rptArgs.type && rptArgs.type.length ? ' --type=' + rptArgs.type : ''}`, css: localCSS.button });
+        let tblFooter = html.table(html.tr(html.td(btnRebuild, localCSS.textright)));
         if (!args.length || !rptArgs.type) { // handle only
             tbl = html.table(
                 typesWithProps.filter(t => propContainers[t]).sort().map((k, i) => html.tr(
@@ -1849,7 +1851,7 @@ const Fetch = (() => { //eslint-disable-line no-unused-vars
                     i % 2 === 1 ? localCSS.tblOddRow : {}
                 )).join('')
             );
-            msgbox({ title: `Fetch Props for Each Type`, whisperto: getWhisperTo(msg.who), msg: tbl, headercss: localCSS.msgheader });
+            msgbox({ title: `Fetch Props for Each Type`, whisperto: getWhisperTo(msg.who), msg: tbl, headercss: localCSS.msgheader, btn: tblFooter });
         } else { // handle with type
             let nicks = propNicks(rptArgs.type);
             tbl = html.table(
@@ -1858,7 +1860,7 @@ const Fetch = (() => { //eslint-disable-line no-unused-vars
                     i % 2 === 1 ? localCSS.tblOddRow : {}
                 )).join('')
             );
-            msgbox({ title: `Fetch Props for ${rptArgs.type}`, whisperto: getWhisperTo(msg.who), msg: tbl, headercss: localCSS.msgheader });
+            msgbox({ title: `Fetch Props for ${rptArgs.type}`, whisperto: getWhisperTo(msg.who), msg: tbl, headercss: localCSS.msgheader, btn: tblFooter });
             /*
             nicks.forEach(props => {
                 contents.push(`${props.join('%NEWLINE%')}= `); // ${Messenger.HE(propContainers[rptArgs.type][props[0]](rptArgs.object))}`);
