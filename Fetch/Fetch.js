@@ -999,7 +999,7 @@ const Fetch = (() => { //eslint-disable-line no-unused-vars
             // player
             rollabletable: () => getRollableTable({ query: o.id, msg: { playerid: getFirstGM().id } }),
             status: () => {
-                let source = findObjs({ type: 'graphic' }).filter(g => g.get('statusmarkers').length)[0];
+                let source = findObjs({ type: 'graphic' }).filter(g => g.get('statusmarkers').length && decomposeStatuses(g.get('statusmarkers')).length)[0];
                 if (!source || !source.id) { return; }
                 let query = source.get('statusmarkers').split(/\s*,\s*/)[0].split(/::/)[0];
                 let m = { playerid: getFirstGM().id };
